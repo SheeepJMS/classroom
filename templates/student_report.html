@@ -1,0 +1,469 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student_name }} - 学习表现报告{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- 报告头部 -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-0">
+                                <i class="fas fa-heart me-2"></i>
+                                烧脑数学课堂报告
+                            </h3>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="mb-2">
+                                <small class="text-light">
+                                    <i class="fas fa-calendar me-1"></i>
+                                    {{ current_date }}
+                                </small>
+                            </div>
+                            <a href="/generate_student_pdf/{{ student_name }}" class="btn btn-light">
+                                <i class="fas fa-download me-2"></i>
+                                下载报告
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 text-center">
+                            <!-- 学生头像 -->
+                            <div class="student-avatar-container mx-auto mb-3" style="width: 120px; height: 120px;">
+                                <div class="student-avatar" 
+                                     style="background-color: {{ student.avatar_color or '#ff6b6b' }}; width: 100px; height: 100px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); border: 3px solid rgba(255, 255, 255, 0.8);">
+                                    {% if student.expression == 'smile' %}
+                                        😊
+                                    {% elif student.expression == 'angry' %}
+                                        😢
+                                    {% elif student.expression == 'embarrassed' %}
+                                        😅
+                                    {% elif student.expression == 'submitted' %}
+                                        😜
+                                    {% else %}
+                                        😐
+                                    {% endif %}
+                                </div>
+                            </div>
+                            <h4 id="student-name-display">{{ student_name }}</h4>
+                            <p class="text-muted">学习表现报告</p>
+                            
+                            <!-- 小雷达图 -->
+                            <div class="mt-3">
+                                <canvas id="smallRadarChart" width="150" height="150"></canvas>
+                            </div>
+                        </div>
+                        <div class="col-md-9">
+                            <!-- 核心指标 -->
+                            <div class="row mb-4">
+                                <div class="col-md-4 text-center">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="mb-2">
+                                                <i class="fas fa-check-circle fa-2x text-success"></i>
+                                            </div>
+                                            <h3 class="text-success mb-1">{{ "%.0f"|format(accuracy) }}%</h3>
+                                            <h6 class="text-muted">正确率</h6>
+                                            <small class="text-muted">答题整体正确率</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="mb-2">
+                                                <i class="fas fa-brain fa-2x text-primary"></i>
+                                            </div>
+                                            <h3 class="text-primary mb-1">{{ participation_rate }}%</h3>
+                                            <h6 class="text-muted">专注度</h6>
+                                            <small class="text-muted">每题都参与，不跳题</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 text-center">
+                                    <div class="card h-100 border-0 shadow-sm">
+                                        <div class="card-body">
+                                            <div class="mb-2">
+                                                <i class="fas fa-clock fa-2x text-info"></i>
+                                            </div>
+                                            <h3 class="text-info mb-1">{{ "%.1f"|format(avg_response_time) }}秒</h3>
+                                            <h6 class="text-muted">反应速度</h6>
+                                            <small class="text-muted">平均答题时间</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 学习状态评估 -->
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-chart-line me-2"></i>学习状态评估</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span>正确率</span>
+                                                    <span class="badge bg-success">
+                                                        {{ '超越班级平均' if accuracy >= class_avg_accuracy else '接近班级平均' }}
+                                                    </span>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar bg-success" 
+                                                         style="width: {{ accuracy }}%"></div>
+                                                </div>
+                                                <small class="text-muted">您的孩子: {{ "%.1f"|format(accuracy) }}% | 班级平均: {{ "%.1f"|format(class_avg_accuracy) }}%</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span>专注力</span>
+                                                    <span class="badge bg-primary">
+                                                        {{ '超越班级平均' if participation_rate >= class_avg_participation else '接近班级平均' }}
+                                                    </span>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar bg-primary" 
+                                                         style="width: {{ participation_rate }}%"></div>
+                                                </div>
+                                                <small class="text-muted">您的孩子: {{ "%.1f"|format(participation_rate) }}% | 班级平均: {{ "%.1f"|format(class_avg_participation) }}%</small>
+                                            </div>
+                                            <div class="mb-3">
+                                                <div class="d-flex justify-content-between mb-1">
+                                                    <span>反应速度</span>
+                                                    <span class="badge bg-info">
+                                                        {{ '反应更敏捷' if avg_response_time <= class_avg_response_time else '需要提速' }}
+                                                    </span>
+                                                </div>
+                                                <div class="progress" style="height: 8px;">
+                                                    <div class="progress-bar bg-info" 
+                                                         style="width: {{ (100 - (avg_response_time / 60) * 100) if avg_response_time <= 60 else 0 }}%"></div>
+                                                </div>
+                                                <small class="text-muted">您的孩子: {{ "%.1f"|format(avg_response_time) }}秒 | 班级平均: {{ "%.1f"|format(class_avg_response_time) }}秒</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="card border-0 shadow-sm">
+                                        <div class="card-header bg-light">
+                                            <h6 class="mb-0"><i class="fas fa-lightbulb me-2"></i>学习建议</h6>
+                                        </div>
+                                        <div class="card-body">
+                                            {% if accuracy >= 80 and participation_rate >= 80 %}
+                                            <div class="alert alert-success mb-3">
+                                                <i class="fas fa-star me-2"></i>
+                                                <strong>学习表现优秀！</strong><br>
+                                                孩子专注力强，积极参与课堂活动，学习状态很好！
+                                            </div>
+                                            {% elif accuracy >= 60 and participation_rate >= 60 %}
+                                            <div class="alert alert-info mb-3">
+                                                <i class="fas fa-heart me-2"></i>
+                                                <strong>学习状态良好！</strong><br>
+                                                孩子学习态度积极，课堂参与度高，继续保持！
+                                            </div>
+                                            {% else %}
+                                            <div class="alert alert-primary mb-3">
+                                                <i class="fas fa-lightbulb me-2"></i>
+                                                <strong>学习潜力巨大！</strong><br>
+                                                孩子有很好的学习基础，多鼓励参与会有更大进步！
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if participation_rate >= 70 %}
+                                            <div class="alert alert-success mb-3">
+                                                <i class="fas fa-hand-paper me-2"></i>
+                                                <strong>课堂参与积极</strong><br>
+                                                孩子很喜欢我们的课堂，积极参与互动！
+                                            </div>
+                                            {% elif participation_rate >= 50 %}
+                                            <div class="alert alert-info mb-3">
+                                                <i class="fas fa-smile me-2"></i>
+                                                <strong>课堂表现不错</strong><br>
+                                                孩子正在适应我们的教学方式，参与度在提升！
+                                            </div>
+                                            {% endif %}
+                                            
+                                            {% if avg_response_time <= 15 %}
+                                            <div class="alert alert-success mb-3">
+                                                <i class="fas fa-brain me-2"></i>
+                                                <strong>思维敏捷</strong><br>
+                                                孩子反应很快，理解能力强！
+                                            </div>
+                                            {% elif avg_response_time <= 30 %}
+                                            <div class="alert alert-info mb-3">
+                                                <i class="fas fa-clock me-2"></i>
+                                                <strong>思考认真</strong><br>
+                                                孩子会仔细思考再回答，这是很好的学习习惯！
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 每题答题趋势与学习记录 -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                每题答题趋势分析
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <canvas id="trendChart" width="300" height="150"></canvas>
+                            </div>
+                            <div class="row text-center">
+                                <div class="col-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="text-success">{{ "%.1f"|format(accuracy) }}%</h6>
+                                            <small>正确率</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="text-primary">{{ student_submissions|length }}</h6>
+                                            <small>参与次数</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="text-info">{{ total_rounds }}</h6>
+                                            <small>总轮次</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-3">
+                                    <div class="card bg-light">
+                                        <div class="card-body p-2">
+                                            <h6 class="text-warning">{{ missed_rounds }}</h6>
+                                            <small>未参与</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-4">
+                    <div class="card border-0 shadow-sm">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0">
+                                <i class="fas fa-history me-2"></i>
+                                学习参与记录
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <small class="text-muted">{{ current_date }}</small>
+                            </div>
+                            <div class="list-group list-group-flush">
+                                {% for round_num in range(1, 6) %}
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0 py-2">
+                                    <div>
+                                        <span class="fw-bold">第{{ round_num }}轮</span>
+                                        {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
+                                        {% if round_submission %}
+                                            <span class="badge bg-primary ms-2">参与作答</span>
+                                            <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }} ms-1">
+                                                {{ '✓' if round_submission.is_correct else '✗' }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-secondary ms-2">未参与作答</span>
+                                        {% endif %}
+                                    </div>
+                                    {% if round_submission %}
+                                        <small class="text-muted">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- 操作按钮 -->
+            <div class="text-center mt-4">
+                <a href="/reports" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    返回报告列表
+                </a>
+                <a href="/classroom" class="btn btn-primary ms-2">
+                    <i class="fas fa-chalkboard-teacher me-2"></i>
+                    返回课堂
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+{% if submissions %}
+const studentAccuracy = {{ accuracy }};
+const classAvgAccuracy = {{ class_avg_accuracy }};
+const studentParticipation = {{ participation_rate }};
+const classAvgParticipation = {{ class_avg_participation }};
+const studentResponseTime = {{ avg_response_time }};
+const classAvgResponseTime = {{ class_avg_response_time }};
+
+// 小雷达图（在头像下方）
+const smallRadarCtx = document.getElementById('smallRadarChart').getContext('2d');
+new Chart(smallRadarCtx, {
+    type: 'radar',
+    data: {
+        labels: ['正确率', '专注度', '反应速度'],
+        datasets: [{
+            label: '您的孩子',
+            data: [
+                studentAccuracy,
+                studentParticipation,
+                Math.max(0, Math.min(100, 100 - (studentResponseTime - 5) * 2)) // 转换为0-100的分数，限制范围
+            ],
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            pointBackgroundColor: 'rgb(75, 192, 192)',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: 'rgb(75, 192, 192)'
+        }, {
+            label: '班级平均',
+            data: [
+                classAvgAccuracy,
+                classAvgParticipation,
+                Math.max(0, Math.min(100, 100 - (classAvgResponseTime - 5) * 2)) // 转换为0-100的分数，限制范围
+            ],
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            pointBackgroundColor: 'rgb(255, 99, 132)',
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: 'rgb(255, 99, 132)'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: true,
+        plugins: {
+            title: {
+                display: false
+            },
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            r: {
+                beginAtZero: true,
+                max: 100,
+                ticks: {
+                    display: false
+                },
+                grid: {
+                    color: 'rgba(0,0,0,0.1)'
+                }
+            }
+        }
+    }
+});
+
+// 每题答题趋势图
+const trendData = {{ student_submissions|map(attribute='round')|list|tojson }};
+const timeData = {{ student_submissions|map(attribute='answer_time')|list|tojson }};
+const correctData = {{ student_submissions|map(attribute='is_correct')|list|tojson }};
+
+const trendCtx = document.getElementById('trendChart').getContext('2d');
+new Chart(trendCtx, {
+    type: 'line',
+    data: {
+        labels: trendData.map(r => `第${r}轮`),
+        datasets: [{
+            label: '答题时间(秒)',
+            data: timeData,
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+            tension: 0.1,
+            yAxisID: 'y'
+        }, {
+            label: '正确率',
+            data: correctData.map(c => c ? 100 : 0),
+            borderColor: 'rgb(255, 99, 132)',
+            backgroundColor: 'rgba(255, 99, 132, 0.2)',
+            tension: 0.1,
+            yAxisID: 'y1'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            title: {
+                display: true,
+                text: '每题答题时间与正确率趋势'
+            },
+            legend: {
+                display: true,
+                position: 'top'
+            }
+        },
+        scales: {
+            y: {
+                type: 'linear',
+                display: true,
+                position: 'left',
+                title: {
+                    display: true,
+                    text: '答题时间(秒)'
+                },
+                beginAtZero: true
+            },
+            y1: {
+                type: 'linear',
+                display: true,
+                position: 'right',
+                title: {
+                    display: true,
+                    text: '正确率(%)'
+                },
+                grid: {
+                    drawOnChartArea: false,
+                },
+                min: 0,
+                max: 100
+            },
+            x: {
+                title: {
+                    display: true,
+                    text: '答题轮次'
+                }
+            }
+        }
+    }
+});
+{% endif %}
+</script>
+{% endblock %}

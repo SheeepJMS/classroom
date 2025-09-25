@@ -1,0 +1,633 @@
+{% extends "base.html" %}
+
+{% block title %}Classroom Management System{% endblock %}
+
+{% block content %}
+<div class="classroom-container">
+    <!-- 顶部控制栏 -->
+    <div class="top-control-bar">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-2">
+                    <div class="round-status">
+                        <div class="status-item">
+                            <span class="status-label">Round</span>
+                            <span class="status-value" id="roundNumber">{{ classroom_data.current_round }}</span>
+                        </div>
+                        <div class="status-text" id="roundStatus">Ready to start</div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="score-display">
+                        <span class="score-label">SCORE</span>
+                        <div class="score-control">
+                            <button class="btn btn-sm btn-outline-light" id="scoreMinusBtn" onclick="changeScore(-1)">-</button>
+                            <span class="score-value" id="questionScore">1</span>
+                            <button class="btn btn-sm btn-outline-light" id="scorePlusBtn" onclick="changeScore(1)">+</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="answer-input-group">
+                        <input type="text" id="correctAnswerInput" class="form-control" placeholder="Enter correct answer..." style="display: none;">
+                    </div>
+                </div>
+                <div class="col-md-2 text-center">
+                    <button id="startBtn" class="btn btn-success btn-lg">
+                        <i class="fas fa-play me-2"></i>START!
+                    </button>
+                    <button id="bingoBtn" class="btn btn-warning btn-lg" style="display: none;">
+                        <i class="fas fa-star me-2"></i>BINGO!
+                    </button>
+                    <button id="nextRoundBtn" class="btn btn-info btn-lg" style="display: none;">
+                        <i class="fas fa-forward me-2"></i>Next Challenge
+                    </button>
+                </div>
+                <div class="col-md-2">
+                    <div class="timer-display text-end">
+                        <i class="fas fa-clock me-2"></i>
+                        <span id="timerDisplay">00:00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右下角隐藏按钮 -->
+    <div class="hidden-controls">
+        <button id="resetBtn" class="btn btn-danger btn-sm">
+            <i class="fas fa-refresh"></i>
+        </button>
+        <a href="/reports" class="btn btn-primary btn-sm">
+            <i class="fas fa-chart-bar"></i>
+        </a>
+    </div>
+
+    <!-- 学生管理区域 -->
+    <div class="students-management-area">
+        <div class="container">
+            <div class="row">
+                <div class="col-12">
+                    <div class="students-header">
+                        <div class="header-left">
+                            <i class="fas fa-users me-2"></i>
+                            <span>Student Management</span>
+                        </div>
+                        <div class="header-right">
+                            <span>Students: <span id="studentCount">{{ classroom_data.students|length }}</span></span>
+                        </div>
+                    </div>
+                    
+                    <div class="students-grid" id="studentsGrid">
+                        <!-- 学生卡片将通过JavaScript动态生成 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加学生区域 -->
+    <div class="add-student-area">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="add-student-form">
+                        <input type="text" id="studentNameInput" class="form-control" placeholder="Enter student name">
+                        <button id="addStudentBtn" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>+ Add Student
+                        </button>
+                    </div>
+                    <div class="quick-tip">Press Enter to add quickly</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let classroomData = {{ classroom_data | tojson | safe }};
+let timerInterval = null;
+let startTime = null;
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    // 强制刷新学生数据
+    fetch('/get_classroom_data')
+        .then(response => response.json())
+        .then(data => {
+            classroomData = data;
+            
+            // 重置当前轮次的答题状态（保留数据和回合数）
+            classroomData.round_active = false;
+            classroomData.current_answers = {};
+            classroomData.answer_times = {};
+            classroomData.start_time = null;
+            
+            updateStudentsDisplay();
+            updateRoundStatus();
+        })
+        .catch(error => {
+            console.error('Error loading classroom data:', error);
+            updateStudentsDisplay();
+            updateRoundStatus();
+        });
+    
+    // 绑定事件
+    document.getElementById('startBtn').addEventListener('click', startClass);
+    document.getElementById('bingoBtn').addEventListener('click', judgeAnswers);
+    document.getElementById('nextRoundBtn').addEventListener('click', nextRound);
+    document.getElementById('resetBtn').addEventListener('click', resetClassroom);
+    document.getElementById('addStudentBtn').addEventListener('click', addStudent);
+    document.getElementById('studentNameInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            addStudent();
+        }
+    });
+});
+
+// 学生管理功能
+function addStudent() {
+    const studentName = document.getElementById('studentNameInput').value.trim();
+    if (!studentName) {
+        alert('Please enter student name');
+        return;
+    }
+    
+    fetch('/add_student', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_name: studentName
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            classroomData.students[studentName] = data.student;
+            updateStudentsDisplay();
+            document.getElementById('studentNameInput').value = '';
+            document.getElementById('studentCount').textContent = Object.keys(classroomData.students).length;
+        } else {
+            alert(data.message || 'Failed to add student');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error occurred while adding student');
+    });
+}
+
+// 重置学生答题状态（保留数据和回合数）
+function resetStudentAnswerStates() {
+    Object.values(classroomData.students).forEach(student => {
+        // 重置表情和动画，但保留其他数据
+        student.expression = 'neutral';
+        student.animation = 'none';
+    });
+}
+
+// 更新单个学生的表情和状态（不重新创建卡片）
+function updateStudentExpression(studentName, expression) {
+    const studentCard = document.querySelector(`[data-student="${studentName}"]`);
+    if (studentCard) {
+        const emojiElement = studentCard.querySelector('.student-emoji');
+        if (emojiElement) {
+            let emoji = '😐';  // 默认面无表情
+            if (expression === 'smile') {
+                emoji = '😊';
+            } else if (expression === 'angry') {
+                emoji = '😢';
+            } else if (expression === 'embarrassed') {
+                emoji = '😅';
+            } else if (expression === 'neutral') {
+                emoji = '😐';
+            } else if (expression === 'submitted') {
+                emoji = '😜';  // 古灵精怪吐舌头扮鬼脸
+            }
+            emojiElement.textContent = emoji;
+        }
+        
+        // 更新CSS类
+        studentCard.className = 'student-card';
+        if (expression === 'smile') {
+            studentCard.classList.add('correct-answer');
+        } else if (expression === 'angry') {
+            studentCard.classList.add('wrong-answer');
+        } else if (expression === 'embarrassed') {
+            studentCard.classList.add('no-answer');
+        }
+    }
+}
+
+// 更新学生显示（不重置状态）
+function updateStudentsDisplay(keepStates = false) {
+    const studentsGrid = document.getElementById('studentsGrid');
+    studentsGrid.innerHTML = '';
+    
+    // 只有在页面初始化时才重置状态
+    if (!keepStates) {
+        resetStudentAnswerStates();
+    }
+    
+    Object.values(classroomData.students).forEach(student => {
+        const studentCard = createStudentCard(student);
+        studentsGrid.appendChild(studentCard);
+    });
+}
+
+// 创建学生卡片
+function createStudentCard(student) {
+    const card = document.createElement('div');
+    
+    // 根据学生状态添加CSS类
+    let cardClass = 'student-card';
+    if (student.expression === 'smile') {
+        cardClass += ' correct-answer';
+    } else if (student.expression === 'angry') {
+        cardClass += ' wrong-answer';
+    } else if (student.expression === 'embarrassed') {
+        cardClass += ' no-answer';
+    }
+    
+    // 根据表情选择emoji
+    let emoji = '😐';  // 默认面无表情
+    if (student.expression === 'smile') {
+        emoji = '😊';
+    } else if (student.expression === 'angry') {
+        emoji = '😢';
+    } else if (student.expression === 'embarrassed') {
+        emoji = '😅';
+    } else if (student.expression === 'neutral') {
+        emoji = '😐';  // 面无表情
+    } else if (student.expression === 'submitted') {
+        emoji = '😜';  // 古灵精怪吐舌头扮鬼脸
+    }
+    
+    // 根据动画状态添加动画类 - 只有答对的学生才晃动
+    let animationClass = '';
+    if (student.expression === 'smile' && student.animation === 'celebration') {
+        animationClass = ' correct-bounce-animation';
+    }
+    
+    card.className = cardClass + animationClass;
+    card.setAttribute('data-student', student.name);
+    card.innerHTML = `
+        <div class="student-avatar" style="background-color: ${student.avatar_color}">
+            <span class="student-emoji">${emoji}</span>
+        </div>
+        <div class="student-name">${student.name}</div>
+        <div class="student-input-group" id="input-group-${student.name}">
+            <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}">
+            <button class="btn btn-sm btn-outline-primary submit-btn" data-student="${student.name}">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+                <div class="student-submitted" id="submitted-${student.name}" style="display: none;">
+                    <span class="submitted-text">Submitted</span>
+                </div>
+                <div class="student-result" id="result-${student.name}" style="display: none;">
+                    <span class="result-text"></span>
+                </div>
+        <div class="student-stats">
+            <div class="stat-item">
+                <span class="stat-label">Score</span>
+                <span class="stat-value">${student.score}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Rounds</span>
+                <span class="stat-value">${student.total_rounds || 0}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Acc</span>
+                <span class="stat-value">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Last</span>
+                <span class="stat-value">${Math.round(student.last_answer_time || 0)}s</span>
+            </div>
+        </div>
+        <div class="student-status" id="status-${student.name}"></div>
+    `;
+    
+    // 绑定提交按钮事件
+    const submitBtn = card.querySelector('.submit-btn');
+    const answerInput = card.querySelector('.student-answer-input');
+    
+    submitBtn.addEventListener('click', function() {
+        submitStudentAnswer(student.name, answerInput.value);
+    });
+    
+    answerInput.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            submitStudentAnswer(student.name, answerInput.value);
+        }
+    });
+    
+    return card;
+}
+
+// 提交学生答案
+function submitStudentAnswer(studentName, answer) {
+    if (!answer.trim()) {
+        alert('Please enter an answer');
+        return;
+    }
+    
+    fetch('/submit_student_answer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            student_name: studentName,
+            answer: answer
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // 更新学生表情为submitted
+            if (classroomData.students[studentName]) {
+                classroomData.students[studentName].expression = 'submitted';
+            }
+            
+            // 隐藏输入栏和按钮，显示Submitted
+            const inputGroup = document.getElementById(`input-group-${studentName}`);
+            const submittedDiv = document.getElementById(`submitted-${studentName}`);
+            
+            if (inputGroup) {
+                inputGroup.style.display = 'none';
+            }
+            if (submittedDiv) {
+                submittedDiv.style.display = 'block';
+            }
+            
+            // 只更新表情，不重新创建整个卡片
+            updateStudentExpression(studentName, 'submitted');
+        } else {
+            alert(data.message || 'Failed to submit answer');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error occurred while submitting answer');
+    });
+}
+
+// 开始课堂
+function startClass() {
+    fetch('/start_class', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            classroomData.round_active = true;
+            classroomData.start_time = Date.now();
+            startTime = Date.now();
+            
+            // 开始计时
+            startTimer();
+            
+            // 更新UI
+            updateRoundStatus();
+            document.getElementById('startBtn').style.display = 'none';
+            document.getElementById('bingoBtn').style.display = 'inline-block';
+            document.getElementById('correctAnswerInput').style.display = 'block';
+            
+            // 更新按钮文本为下一轮
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-play me-2"></i>START!';
+            
+            // 禁用分数调整按钮
+            document.getElementById('scoreMinusBtn').disabled = true;
+            document.getElementById('scorePlusBtn').disabled = true;
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+    });
+}
+
+// 开始计时
+function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
+    
+    timerInterval = setInterval(function() {
+        if (startTime) {
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            document.getElementById('timerDisplay').textContent = 
+                `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+    }, 1000);
+}
+
+// 停止计时
+function stopTimer() {
+    if (timerInterval) {
+        clearInterval(timerInterval);
+        timerInterval = null;
+    }
+}
+
+// 评判答案
+function judgeAnswers() {
+    const correctAnswer = document.getElementById('correctAnswerInput').value.trim();
+    const questionScore = parseInt(document.getElementById('questionScore').textContent) || 1;
+    
+    if (!correctAnswer) {
+        alert('Please enter correct answer');
+        return;
+    }
+    
+    // 停止计时
+    stopTimer();
+    
+    fetch('/judge_answers', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            correct_answer: correctAnswer,
+            question_score: questionScore
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            classroomData.students = data.students;
+            classroomData.round_active = false;
+            
+            // 显示答题结果
+            showAnswerResults(correctAnswer);
+            
+            updateStudentsDisplay(true);  // 保持服务器返回的状态
+            updateRoundStatus();
+            
+            // 更新UI
+            document.getElementById('bingoBtn').style.display = 'none';
+            document.getElementById('nextRoundBtn').style.display = 'inline-block';
+            document.getElementById('correctAnswerInput').style.display = 'none';
+        } else {
+            alert(data.message || 'Failed to judge answers');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error occurred while judging answers');
+    });
+}
+
+// 显示答题结果
+function showAnswerResults(correctAnswer) {
+    Object.values(classroomData.students).forEach(student => {
+        const resultDiv = document.getElementById(`result-${student.name}`);
+        const resultText = resultDiv.querySelector('.result-text');
+        
+        if (resultDiv && resultText) {
+            resultDiv.style.display = 'block';
+            
+            if (student.expression === 'smile') {
+                resultText.textContent = 'Correct ✓';
+                resultText.className = 'result-text correct-result';
+            } else if (student.expression === 'angry') {
+                resultText.textContent = 'Wrong ✗';
+                resultText.className = 'result-text wrong-result';
+            } else if (student.expression === 'embarrassed') {
+                resultText.textContent = 'No Answer';
+                resultText.className = 'result-text no-answer-result';
+            }
+        }
+    });
+}
+
+// 下一轮
+function nextRound() {
+    fetch('/next_round', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            classroomData.students = data.students;
+            classroomData.current_round = data.round;
+            classroomData.round_active = false;
+            
+            // 重置UI
+            document.getElementById('nextRoundBtn').style.display = 'none';
+            document.getElementById('startBtn').style.display = 'inline-block';
+            document.getElementById('correctAnswerInput').style.display = 'none';
+            document.getElementById('correctAnswerInput').value = '';
+            document.getElementById('timerDisplay').textContent = '00:00';
+            
+            // 更新按钮文本
+            document.getElementById('startBtn').innerHTML = '<i class="fas fa-play me-2"></i>START!';
+            
+            // 重新启用分数调整按钮
+            document.getElementById('scoreMinusBtn').disabled = false;
+            document.getElementById('scorePlusBtn').disabled = false;
+            
+            // 重置所有学生的提交状态和表情
+            Object.values(classroomData.students).forEach(student => {
+                // 重置学生表情为正常状态
+                student.expression = 'neutral';
+                student.animation = 'none';
+                
+                // 重置输入栏显示
+                const inputGroup = document.getElementById(`input-group-${student.name}`);
+                const submittedDiv = document.getElementById(`submitted-${student.name}`);
+                const resultDiv = document.getElementById(`result-${student.name}`);
+                
+                if (inputGroup) {
+                    inputGroup.style.display = 'flex';
+                }
+                if (submittedDiv) {
+                    submittedDiv.style.display = 'none';
+                }
+                if (resultDiv) {
+                    resultDiv.style.display = 'none';
+                }
+            });
+            
+            updateStudentsDisplay(true);  // 保持服务器返回的状态
+            updateRoundStatus();
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error occurred while starting next round');
+    });
+}
+
+// 更新轮次状态
+function updateRoundStatus() {
+    const roundStatus = document.getElementById('roundStatus');
+    const roundNumber = document.getElementById('roundNumber');
+    
+    roundNumber.textContent = classroomData.current_round;
+    
+    if (classroomData.round_active) {
+        roundStatus.textContent = 'In Progress';
+    } else {
+        // 检查是否有答题结果
+        const hasResults = Object.values(classroomData.students).some(student => 
+            student.expression === 'smile' || student.expression === 'angry' || student.expression === 'embarrassed'
+        );
+        
+        if (hasResults) {
+            roundStatus.textContent = 'Ready for next round';
+        } else {
+            roundStatus.textContent = 'Ready to start';
+        }
+    }
+}
+
+// 重置课堂
+function resetClassroom() {
+    if (confirm('Are you sure you want to reset the classroom? This will clear all data.')) {
+        fetch('/reset_classroom', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 重新加载页面
+                location.reload();
+            } else {
+                alert(data.message || 'Failed to reset classroom');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error occurred while resetting classroom');
+        });
+    }
+}
+
+// 调整分数
+function changeScore(delta) {
+    const scoreElement = document.getElementById('questionScore');
+    let currentScore = parseInt(scoreElement.textContent) || 1;
+    let newScore = currentScore + delta;
+    
+    // 限制分数范围在1-10之间
+    if (newScore < 1) newScore = 1;
+    if (newScore > 10) newScore = 10;
+    
+    scoreElement.textContent = newScore;
+}
+</script>
+{% endblock %}

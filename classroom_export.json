@@ -1,0 +1,172 @@
+{
+  "classroom_summary": {
+    "total_students": 6,
+    "total_submissions": 0,
+    "class_duration": 0
+  },
+  "students": {
+    "emily": {
+      "name": "emily",
+      "avatar": "https://ui-avatars.com/api/?name=emily&background=random&color=fff",
+      "avatar_color": "#f06292",
+      "expression": "smile",
+      "animation": "none",
+      "score": 0,
+      "total_rounds": 2,
+      "correct_rounds": 0,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "1",
+          "is_correct": false,
+          "answer_time": 8.906047582626343,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "3",
+          "is_correct": false,
+          "answer_time": 41.53411865234375,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 41.53411865234375
+    },
+    "hieidi": {
+      "name": "hieidi",
+      "avatar": "https://ui-avatars.com/api/?name=hieidi&background=random&color=fff",
+      "avatar_color": "#64b5f6",
+      "expression": "smile",
+      "animation": "none",
+      "score": 1,
+      "total_rounds": 2,
+      "correct_rounds": 1,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "1",
+          "is_correct": false,
+          "answer_time": 10.25026798248291,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 42.64782381057739,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 42.64782381057739
+    },
+    "james": {
+      "name": "james",
+      "avatar": "https://ui-avatars.com/api/?name=james&background=random&color=fff",
+      "avatar_color": "#ba68c8",
+      "expression": "smile",
+      "animation": "none",
+      "score": 1,
+      "total_rounds": 2,
+      "correct_rounds": 1,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "1",
+          "is_correct": false,
+          "answer_time": 10.95412826538086,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 46.60450482368469,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 46.60450482368469
+    },
+    "annie": {
+      "name": "annie",
+      "avatar": "https://ui-avatars.com/api/?name=annie&background=random&color=fff",
+      "avatar_color": "#ffd54f",
+      "expression": "smile",
+      "animation": "none",
+      "score": 1,
+      "total_rounds": 2,
+      "correct_rounds": 1,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 12.367917537689209,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "3",
+          "is_correct": false,
+          "answer_time": 40.701499700546265,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 40.701499700546265
+    },
+    "blair": {
+      "name": "blair",
+      "avatar": "https://ui-avatars.com/api/?name=blair&background=random&color=fff",
+      "avatar_color": "#ff8a80",
+      "expression": "smile",
+      "animation": "none",
+      "score": 1,
+      "total_rounds": 2,
+      "correct_rounds": 1,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 13.675268173217773,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "3",
+          "is_correct": false,
+          "answer_time": 40.96318745613098,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 40.96318745613098
+    },
+    "lucas": {
+      "name": "lucas",
+      "avatar": "https://ui-avatars.com/api/?name=lucas&background=random&color=fff",
+      "avatar_color": "#81c784",
+      "expression": "smile",
+      "animation": "none",
+      "score": 2,
+      "total_rounds": 2,
+      "correct_rounds": 2,
+      "answers": [
+        {
+          "round": 1,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 15.073434591293335,
+          "timestamp": "2025-09-24T16:28:21.015852"
+        },
+        {
+          "round": 2,
+          "answer": "2",
+          "is_correct": true,
+          "answer_time": 43.0099093914032,
+          "timestamp": "2025-09-24T16:29:25.241754"
+        }
+      ],
+      "last_answer_time": 43.0099093914032
+    }
+  },
+  "submissions": []
+}

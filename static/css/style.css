@@ -1,0 +1,533 @@
+/* 全局样式 */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+/* 课堂容器 */
+.classroom-container {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* 顶部控制栏 */
+.top-control-bar {
+    background: rgba(255, 255, 255, 0.15);
+    padding: 1rem 0;
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.round-status {
+    text-align: center;
+    color: white;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+}
+
+.status-label {
+    font-size: 0.8rem;
+    opacity: 0.8;
+}
+
+.status-value {
+    font-size: 1.2rem;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.2rem 0.6rem;
+    border-radius: 6px;
+}
+
+.status-text {
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
+    opacity: 0.9;
+}
+
+.score-display {
+    text-align: center;
+    color: white;
+}
+
+.score-label {
+    display: block;
+    font-size: 0.8rem;
+    opacity: 0.8;
+    margin-bottom: 0.3rem;
+}
+
+.score-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.3rem;
+}
+
+.score-control .btn {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+}
+
+.score-value {
+    font-size: 1.5rem;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.2);
+    padding: 0.3rem 0.8rem;
+    border-radius: 8px;
+    display: inline-block;
+    min-width: 50px;
+}
+
+.answer-input-group {
+    display: flex;
+    align-items: center;
+}
+
+.answer-input-group .form-control {
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 6px;
+    padding: 0.6rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.timer-display {
+    color: white;
+    font-size: 1.3rem;
+    font-weight: bold;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    display: inline-block;
+    float: right;
+}
+
+.btn-lg {
+    padding: 0.8rem 1.5rem;
+    font-size: 1.1rem;
+    border-radius: 10px;
+    font-weight: bold;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    transition: all 0.3s ease;
+    border: none;
+    position: relative;
+    overflow: hidden;
+}
+
+.btn-lg::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+    transition: left 0.5s;
+}
+
+.btn-lg:hover::before {
+    left: 100%;
+}
+
+.btn-lg:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+
+/* 右下角隐藏按钮 */
+.hidden-controls {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 1000;
+}
+
+.hidden-controls .btn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    opacity: 0.7;
+    transition: all 0.3s ease;
+}
+
+.hidden-controls .btn:hover {
+    opacity: 1;
+    transform: scale(1.1);
+}
+
+/* 学生管理区域 */
+.students-management-area {
+    flex: 1;
+    padding: 2rem 0;
+}
+
+.students-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    padding: 1rem 1.5rem;
+    border-radius: 10px;
+    margin-bottom: 1.5rem;
+    color: white;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.header-right {
+    font-size: 1rem;
+    opacity: 0.9;
+}
+
+.students-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.student-card {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(248, 249, 250, 0.95) 100%);
+    border-radius: 15px;
+    padding: 1.5rem;
+    text-align: center;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    position: relative;
+    overflow: hidden;
+    min-height: 280px;
+    display: flex;
+    flex-direction: column;
+}
+
+.student-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(45deg, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.05) 100%);
+    pointer-events: none;
+}
+
+.student-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.student-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    margin: 0 auto 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.2rem;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    border: 3px solid rgba(255, 255, 255, 0.8);
+    transition: all 0.3s ease;
+}
+
+.student-avatar:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.2);
+}
+
+.student-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #333;
+    margin-bottom: 1rem;
+}
+
+.student-input-group {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    height: 40px;
+    align-items: center;
+}
+
+.student-input-group .form-control {
+    flex: 1;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    font-size: 0.9rem;
+}
+
+.student-input-group .form-control:focus {
+    border-color: #667eea;
+    box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+
+.submit-btn {
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+}
+
+.student-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 1rem;
+}
+
+.stat-item {
+    text-align: center;
+}
+
+.stat-label {
+    display: block;
+    font-size: 0.8rem;
+    color: #666;
+    margin-bottom: 0.2rem;
+}
+
+.stat-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.student-status {
+    text-align: center;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    font-weight: bold;
+}
+
+.student-status.submitted {
+    color: #28a745;
+}
+
+.student-status.correct {
+    color: #28a745;
+}
+
+.student-status.wrong {
+    color: #dc3545;
+}
+
+/* 学生答题状态样式 */
+.student-card.correct-answer {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.8) 0%, rgba(40, 167, 69, 0.6) 100%) !important;
+    border-color: #28a745 !important;
+    border-width: 3px !important;
+    box-shadow: 0 8px 25px rgba(40, 167, 69, 0.3) !important;
+    color: white !important;
+}
+
+.student-card.correct-answer .student-name {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.student-card.correct-answer .stat-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.student-card.correct-answer .stat-value {
+    color: white !important;
+    font-weight: bold;
+}
+
+.student-card.wrong-answer {
+    background: linear-gradient(135deg, rgba(220, 53, 69, 0.8) 0%, rgba(220, 53, 69, 0.6) 100%) !important;
+    border-color: #dc3545 !important;
+    border-width: 3px !important;
+    box-shadow: 0 8px 25px rgba(220, 53, 69, 0.3) !important;
+    color: white !important;
+}
+
+.student-card.wrong-answer .student-name {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.student-card.wrong-answer .stat-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.student-card.wrong-answer .stat-value {
+    color: white !important;
+    font-weight: bold;
+}
+
+.student-card.no-answer {
+    background: linear-gradient(135deg, rgba(108, 117, 125, 0.8) 0%, rgba(108, 117, 125, 0.6) 100%) !important;
+    border-color: #6c757d !important;
+    border-width: 3px !important;
+    box-shadow: 0 8px 25px rgba(108, 117, 125, 0.3) !important;
+    color: white !important;
+}
+
+.student-card.no-answer .student-name {
+    color: white !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.student-card.no-answer .stat-label {
+    color: rgba(255, 255, 255, 0.9) !important;
+}
+
+.student-card.no-answer .stat-value {
+    color: white !important;
+    font-weight: bold;
+}
+
+/* 动画效果 - 只有正确的学生晃动 */
+@keyframes correct-bounce {
+    0%, 20%, 50%, 80%, 100% {
+        transform: translateY(0);
+    }
+    40% {
+        transform: translateY(-8px);
+    }
+    60% {
+        transform: translateY(-4px);
+    }
+}
+
+.correct-bounce-animation {
+    animation: correct-bounce 1s infinite;
+}
+
+/* 学生提交状态样式 */
+.student-submitted {
+    text-align: center;
+    padding: 0.5rem;
+    background-color: rgba(40, 167, 69, 0.1);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.submitted-text {
+    color: #28a745;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.student-result {
+    text-align: center;
+    padding: 0.5rem;
+    border-radius: 6px;
+    margin-top: 0.5rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+}
+
+.result-text {
+    display: inline-block;
+    padding: 0.3rem 0.8rem;
+    border-radius: 15px;
+    font-weight: bold;
+}
+
+.correct-result {
+    background-color: rgba(40, 167, 69, 0.2);
+    color: #28a745;
+    border: 2px solid #28a745;
+}
+
+.wrong-result {
+    background-color: rgba(220, 53, 69, 0.2);
+    color: #dc3545;
+    border: 2px solid #dc3545;
+}
+
+.no-answer-result {
+    background-color: rgba(108, 117, 125, 0.2);
+    color: #6c757d;
+    border: 2px solid #6c757d;
+}
+
+/* 添加学生区域 */
+.add-student-area {
+    padding: 2rem 0;
+    background: rgba(255, 255, 255, 0.05);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.add-student-form {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.add-student-form .form-control {
+    flex: 1;
+    background: rgba(255, 255, 255, 0.9);
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+}
+
+.add-student-form .btn {
+    border-radius: 8px;
+    padding: 0.8rem 1.5rem;
+    font-weight: bold;
+}
+
+.quick-tip {
+    text-align: center;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.9rem;
+    font-style: italic;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .students-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+    
+    .button-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .button-group .btn {
+        margin-bottom: 0.5rem;
+    }
+    
+    .add-student-form {
+        flex-direction: column;
+    }
+    
+    .students-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+}
