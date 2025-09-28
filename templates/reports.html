@@ -17,13 +17,9 @@
                     <!-- 操作按钮 -->
                     <div class="row mb-4">
                         <div class="col-md-6">
-                            <button class="btn btn-success" onclick="createDemoData()">
-                                <i class="fas fa-plus-circle me-2"></i>
-                                创建演示数据
-                            </button>
-                            <a href="/classroom" class="btn btn-info ms-2">
-                                <i class="fas fa-arrow-left me-2"></i>
-                                返回课堂
+                            <a href="/" class="btn btn-primary">
+                                <i class="fas fa-home me-2"></i>
+                                返回首页
                             </a>
                         </div>
                         <div class="col-md-6 text-end">
@@ -36,7 +32,7 @@
                     <!-- 学生列表 -->
                     {% if students %}
                     <div class="row">
-                        {% for student_name, student in students.items() %}
+                        {% for student_id, student in students.items() %}
                         <div class="col-lg-3 col-md-4 col-sm-6 mb-3">
                             <div class="card h-100">
                                 <div class="card-body text-center">
@@ -60,7 +56,7 @@
                                     </div>
                                     
                                     <!-- 学生信息 -->
-                                    <h5 class="card-title">{{ student_name }}</h5>
+                                    <h5 class="card-title">{{ student.name }}</h5>
                                     <p class="card-text">
                                         <small class="text-muted">
                                             总轮次: {{ student.total_rounds or 0 }}<br>
@@ -71,12 +67,12 @@
                                     
                                     <!-- 操作按钮 -->
                                     <div class="d-grid gap-2">
-                                        <a href="/generate_student_report/{{ student_name }}" 
+                                        <a href="/generate_student_report/{{ student.name }}" 
                                            class="btn btn-primary btn-sm" target="_blank">
                                             <i class="fas fa-eye me-1"></i>
                                             查看报告
                                         </a>
-                                        <a href="/generate_student_pdf/{{ student_name }}" 
+                                        <a href="/generate_student_pdf/{{ student.name }}" 
                                            class="btn btn-success btn-sm">
                                             <i class="fas fa-download me-1"></i>
                                             下载PDF
@@ -91,11 +87,11 @@
                     <div class="text-center py-5">
                         <i class="fas fa-users fa-3x text-muted mb-3"></i>
                         <h4 class="text-muted">暂无学生数据</h4>
-                        <p class="text-muted">请先创建演示数据或添加学生</p>
-                        <button class="btn btn-success" onclick="createDemoData()">
-                            <i class="fas fa-plus-circle me-2"></i>
-                            创建演示数据
-                        </button>
+                        <p class="text-muted">请先添加学生到课堂中</p>
+                        <a href="/" class="btn btn-primary">
+                            <i class="fas fa-home me-2"></i>
+                            返回首页
+                        </a>
                     </div>
                     {% endif %}
                 </div>
@@ -104,25 +100,5 @@
     </div>
 </div>
 
-<script>
-function createDemoData() {
-    fetch('/create_demo_data', {
-        method: 'GET'
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            alert('演示数据创建成功！');
-            location.reload();
-        } else {
-            alert('创建演示数据失败：' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('创建演示数据时发生错误');
-    });
-}
-</script>
 {% endblock %}
 

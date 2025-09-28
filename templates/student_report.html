@@ -53,12 +53,54 @@
                             <h4 id="student-name-display">{{ student_name }}</h4>
                             <p class="text-muted">学习表现报告</p>
                             
-                            <!-- 小雷达图 -->
+                            <!-- 雷达图 -->
                             <div class="mt-3">
-                                <canvas id="smallRadarChart" width="150" height="150"></canvas>
+                                <canvas id="smallRadarChart" width="200" height="200"></canvas>
                             </div>
                         </div>
                         <div class="col-md-9">
+                            <!-- 竞赛目标信息 -->
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <div class="card border-warning">
+                                        <div class="card-header bg-warning text-dark">
+                                            <h5 class="mb-0">
+                                                <i class="fas fa-trophy me-2"></i>
+                                                竞赛目标
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="row">
+                                                <div class="col-md-3 text-center">
+                                                    <div class="mb-2">
+                                                        <i class="fas fa-trophy fa-2x text-warning"></i>
+                                                    </div>
+                                                    <h6 class="text-muted">amc10 竞赛目标</h6>
+                                                </div>
+                                                <div class="col-md-3 text-center">
+                                                    <div class="mb-2">
+                                                        <i class="fas fa-calendar fa-2x text-info"></i>
+                                                    </div>
+                                                    <h6 class="text-muted">2025-12-18 比赛日期</h6>
+                                                </div>
+                                                <div class="col-md-3 text-center">
+                                                    <div class="mb-2">
+                                                        <i class="fas fa-clock fa-2x text-primary"></i>
+                                                    </div>
+                                                    <h6 class="text-muted">82天 距离竞赛</h6>
+                                                </div>
+                                                <div class="col-md-3 text-center">
+                                                    <div class="mb-2">
+                                                        <i class="fas fa-file-alt fa-2x text-success"></i>
+                                                    </div>
+                                                    <h6 class="text-muted">11节 赛前上课</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
                             <!-- 核心指标 -->
                             <div class="row mb-4">
                                 <div class="col-md-4 text-center">
@@ -373,7 +415,8 @@ new Chart(smallRadarCtx, {
                 display: false
             },
             legend: {
-                display: false
+                display: true,
+                position: 'bottom'
             }
         },
         scales: {

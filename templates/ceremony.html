@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}颁奖典礼 - Classroom Management System{% endblock %}
+
+{% block content %}
+<div class="ceremony-container">
+    <!-- 颁奖典礼背景 -->
+    <div class="ceremony-background">
+        <div class="celebration-particles"></div>
+        <div class="celebration-confetti"></div>
+        <div class="fireworks-left"></div>
+        <div class="fireworks-right"></div>
+    </div>
+
+    <!-- 主标题 -->
+    <div class="ceremony-header">
+        <h1 class="ceremony-title">
+            <i class="fas fa-trophy ceremony-icon"></i>
+            Classroom Awards Ceremony
+            <i class="fas fa-trophy ceremony-icon"></i>
+        </h1>
+        <p class="ceremony-subtitle">Congratulations to all students for completing the challenge!</p>
+    </div>
+
+    <!-- 领奖台区域 -->
+    <div class="podium-container">
+        <!-- 第二名 -->
+        <div class="podium-place second-place" id="secondPlace">
+            <div class="podium-base">
+                <div class="podium-number">2</div>
+                <div class="podium-trophy">
+                    <i class="fas fa-trophy silver-trophy"></i>
+                </div>
+            </div>
+            <div class="student-on-podium" id="secondStudent">
+                <div class="student-avatar-large">
+                    <span class="student-emoji-large">😊</span>
+                    <div class="medal-on-neck silver-medal-neck">
+                        <i class="fas fa-medal"></i>
+                    </div>
+                </div>
+                <div class="student-name-large">第二名</div>
+                <div class="student-score-large">0分</div>
+            </div>
+        </div>
+
+        <!-- 第一名 -->
+        <div class="podium-place first-place" id="firstPlace">
+            <div class="podium-base">
+                <div class="podium-number">1</div>
+                <div class="podium-trophy">
+                    <i class="fas fa-trophy gold-trophy"></i>
+                </div>
+            </div>
+            <div class="student-on-podium" id="firstStudent">
+                <div class="student-avatar-large">
+                    <span class="student-emoji-large">😊</span>
+                    <div class="medal-on-neck gold-medal-neck">
+                        <i class="fas fa-medal"></i>
+                    </div>
+                </div>
+                <div class="student-name-large">第一名</div>
+                <div class="student-score-large">0分</div>
+            </div>
+        </div>
+
+        <!-- 第三名 -->
+        <div class="podium-place third-place" id="thirdPlace">
+            <div class="podium-base">
+                <div class="podium-number">3</div>
+                <div class="podium-trophy">
+                    <i class="fas fa-trophy bronze-trophy"></i>
+                </div>
+            </div>
+            <div class="student-on-podium" id="thirdStudent">
+                <div class="student-avatar-large">
+                    <span class="student-emoji-large">😊</span>
+                    <div class="medal-on-neck bronze-medal-neck">
+                        <i class="fas fa-medal"></i>
+                    </div>
+                </div>
+                <div class="student-name-large">第三名</div>
+                <div class="student-score-large">0分</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 其他学生欢呼区域 -->
+    <div class="cheering-students" id="cheeringStudents">
+        <!-- 其他学生将通过JavaScript动态生成 -->
+    </div>
+
+    <!-- 控制按钮 -->
+    <div class="ceremony-controls">
+        <button class="btn btn-success btn-lg" onclick="location.href='/reports/{{ classroom_data.id }}'">
+            <i class="fas fa-chart-bar me-2"></i>查看报告
+        </button>
+        <button class="btn btn-warning btn-lg" onclick="location.href='/'">
+            <i class="fas fa-home me-2"></i>返回首页
+        </button>
+    </div>
+</div>
+
+<script>
+let classroomData = {{ classroom_data | tojson }};
+
+// 初始化颁奖典礼
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('颁奖典礼数据:', classroomData);
+    setupCeremony();
+});
+
+// 设置颁奖典礼
+function setupCeremony() {
+    console.log('开始设置颁奖典礼，数据:', classroomData);
+    const students = Object.values(classroomData.students || {});
+    console.log('学生数据:', students);
+    
+    if (students.length === 0) {
+        console.log('没有学生数据，显示提示信息');
+        // 如果没有学生，显示提示信息
+        showNoStudentsMessage();
+        return;
+    }
+    
+    // 按分数排序学生
+    const sortedStudents = students.sort((a, b) => b.score - a.score);
+    console.log('排序后的学生:', sortedStudents);
+    
+    // 设置前三名
+    setupTopThree(sortedStudents);
+    
+    // 设置其他学生
+    setupOtherStudents(sortedStudents.slice(3));
+    
+    // 开始动画效果
+    startCeremonyAnimation();
+}
+
+// 设置前三名
+function setupTopThree(sortedStudents) {
+    // 第一名
+    if (sortedStudents[0]) {
+        const firstStudent = sortedStudents[0];
+        const firstElement = document.getElementById('firstStudent');
+        if (firstElement) {
+            firstElement.querySelector('.student-emoji-large').textContent = '😊';
+            firstElement.querySelector('.student-name-large').textContent = firstStudent.name;
+            firstElement.querySelector('.student-score-large').textContent = firstStudent.score + '分';
+            firstElement.querySelector('.student-avatar-large').style.backgroundColor = firstStudent.avatar_color;
+        }
+    }
+    
+    // 第二名
+    if (sortedStudents[1]) {
+        const secondStudent = sortedStudents[1];
+        const secondElement = document.getElementById('secondStudent');
+        if (secondElement) {
+            secondElement.querySelector('.student-emoji-large').textContent = '😊';
+            secondElement.querySelector('.student-name-large').textContent = secondStudent.name;
+            secondElement.querySelector('.student-score-large').textContent = secondStudent.score + '分';
+            secondElement.querySelector('.student-avatar-large').style.backgroundColor = secondStudent.avatar_color;
+        }
+    }
+    
+    // 第三名
+    if (sortedStudents[2]) {
+        const thirdStudent = sortedStudents[2];
+        const thirdElement = document.getElementById('thirdStudent');
+        const thirdPlace = document.getElementById('thirdPlace');
+        if (thirdElement && thirdPlace) {
+            thirdElement.querySelector('.student-emoji-large').textContent = '😊';
+            thirdElement.querySelector('.student-name-large').textContent = thirdStudent.name;
+            thirdElement.querySelector('.student-score-large').textContent = thirdStudent.score + '分';
+            thirdElement.querySelector('.student-avatar-large').style.backgroundColor = thirdStudent.avatar_color;
+            thirdPlace.style.display = 'flex';  // 显示第三名位置
+        }
+    } else {
+        // 没有第三名学生时隐藏第三名位置
+        const thirdPlace = document.getElementById('thirdPlace');
+        if (thirdPlace) {
+            thirdPlace.style.display = 'none';
+        }
+    }
+}
+
+// 设置其他学生
+function setupOtherStudents(otherStudents) {
+    const cheeringContainer = document.getElementById('cheeringStudents');
+    if (!cheeringContainer) return;
+    
+    cheeringContainer.innerHTML = '';
+    
+    otherStudents.forEach(student => {
+        const studentElement = document.createElement('div');
+        studentElement.className = 'cheering-student';
+        studentElement.innerHTML = `
+            <div class="cheering-student-avatar" style="background-color: ${student.avatar_color}">
+                <span class="cheering-student-emoji">👏</span>
+            </div>
+            <div class="cheering-student-name">${student.name}</div>
+            <div class="cheering-student-score">${student.score}分</div>
+        `;
+        cheeringContainer.appendChild(studentElement);
+    });
+}
+
+// 显示没有学生的提示
+function showNoStudentsMessage() {
+    const cheeringContainer = document.getElementById('cheeringStudents');
+    if (cheeringContainer) {
+        cheeringContainer.innerHTML = `
+            <div class="no-students-message">
+                <i class="fas fa-users fa-3x"></i>
+                <h3>还没有学生参与</h3>
+                <p>请先添加学生并开始课堂活动</p>
+            </div>
+        `;
+    }
+}
+
+// 开始颁奖典礼动画
+function startCeremonyAnimation() {
+    // 延迟显示各个元素
+    setTimeout(() => {
+        document.querySelector('.ceremony-header').style.opacity = '1';
+        document.querySelector('.ceremony-header').style.transform = 'translateY(0)';
+    }, 500);
+    
+    setTimeout(() => {
+        document.querySelector('.podium-container').style.opacity = '1';
+        document.querySelector('.podium-container').style.transform = 'translateY(0)';
+    }, 1000);
+    
+    setTimeout(() => {
+        document.querySelector('.cheering-students').style.opacity = '1';
+        document.querySelector('.cheering-students').style.transform = 'translateY(0)';
+    }, 1500);
+    
+    setTimeout(() => {
+        document.querySelector('.ceremony-controls').style.opacity = '1';
+        document.querySelector('.ceremony-controls').style.transform = 'translateY(0)';
+    }, 2000);
+}
+
+</script>
+{% endblock %}
