@@ -127,6 +127,34 @@ body {
     font-size: 16px;
 }
 
+/* 竞赛目标显示样式 */
+.competition-goal-item {
+    background: rgba(255, 193, 7, 0.2);
+    border: 2px solid rgba(255, 193, 7, 0.4);
+    border-radius: 20px;
+    padding: 8px 16px;
+    min-width: 100px;
+}
+
+.competition-goal-value {
+    background: rgba(255, 193, 7, 0.3);
+    color: #ffc107;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 12px;
+    border-radius: 15px;
+    border: 2px solid rgba(255, 193, 7, 0.5);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 10px rgba(255, 193, 7, 0.2);
+}
+
+.competition-goal-value i {
+    color: #ffc107;
+    font-size: 16px;
+}
+
 /* 答案输入组样式 - 输入框与BINGO按钮融合 */
 .answer-input-group {
     display: flex;

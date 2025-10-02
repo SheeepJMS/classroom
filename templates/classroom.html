@@ -29,6 +29,16 @@
                             <span id="timerDisplay">00:00</span>
                         </div>
                     </div>
+                    <!-- 竞赛目标显示 -->
+                    {% if class_data.competition_goal_id %}
+                    <div class="control-item competition-goal-item">
+                        <div class="control-label">竞赛目标</div>
+                        <div class="control-value competition-goal-value">
+                            <i class="fas fa-trophy"></i>
+                            <span>已激活</span>
+                        </div>
+                    </div>
+                    {% endif %}
                 </div>
                 
                 <!-- 中间区域 -->
