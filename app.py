@@ -704,44 +704,6 @@ def start_class():
     save_data()
     return jsonify({'success': True})
 
-@app.route('/api/add_student', methods=['POST'])
-def add_student():
-    """添加学生"""
-    data = request.get_json()
-    student_name = data.get('name', '').strip()
-    
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
-    
-    if not student_name:
-        return jsonify({'error': '学生姓名不能为空'}), 400
-    
-    course_data = global_data['courses'].get(current_course_id, {})
-    
-    if student_name in course_data.get('students', {}):
-        return jsonify({'error': '学生已存在'}), 400
-    
-    # 添加新学生
-    if 'students' not in course_data:
-        course_data['students'] = {}
-    
-    course_data['students'][student_name] = {
-        'name': student_name,
-        'score': 0,
-        'total_rounds': 0,
-        'correct_rounds': 0,
-        'last_answer_time': 0,
-        'expression': 'neutral',
-        'animation': 'none',
-        'avatar_color': random.choice(['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd']),
-        'answers': [],
-        'last_answer': ''
-    }
-    
-    save_data()
-    return jsonify({'success': True, 'student': course_data['students'][student_name]})
-
 @app.route('/submit_student_answer', methods=['POST'])
 def submit_student_answer_legacy():
     """提交学生答案（兼容旧版本）"""
