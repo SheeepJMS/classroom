@@ -1264,6 +1264,86 @@ def create_demo_data():
     save_data()
     return jsonify({'success': True, 'students': list(course_data['students'].keys())})
 
+@app.route('/api/create_class', methods=['POST'])
+def create_class():
+    """创建新班级"""
+    try:
+        data = request.get_json()
+        class_id = str(uuid.uuid4())
+        
+        class_data = {
+            'id': class_id,
+            'name': data.get('name', ''),
+            'description': data.get('description', ''),
+            'students': {},
+            'courses': [],
+            'competition_goal_id': None,
+            'is_active': True,
+            'created_date': datetime.now().strftime('%Y-%m-%d')
+        }
+        
+        global_data['classes'][class_id] = class_data
+        save_data()
+        
+        return jsonify({'success': True, 'class_id': class_id})
+        
+    except Exception as e:
+        print(f"创建班级时发生错误: {e}")
+        return jsonify({'error': '创建班级时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/create_competition_goal', methods=['POST'])
+def create_competition_goal():
+    """创建新竞赛目标"""
+    try:
+        data = request.get_json()
+        goal_id = str(uuid.uuid4())
+        
+        goal_data = {
+            'id': goal_id,
+            'name': data.get('name', ''),
+            'description': data.get('description', ''),
+            'goal_date': data.get('goal_date', ''),
+            'is_active': True,
+            'ended_date': None,
+            'created_date': datetime.now().strftime('%Y-%m-%d')
+        }
+        
+        global_data['competition_goals'][goal_id] = goal_data
+        save_data()
+        
+        return jsonify({'success': True, 'goal_id': goal_id})
+        
+    except Exception as e:
+        print(f"创建竞赛目标时发生错误: {e}")
+        return jsonify({'error': '创建竞赛目标时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/assign_goal_to_class', methods=['POST'])
+def assign_goal_to_class():
+    """分配竞赛目标到班级"""
+    try:
+        data = request.get_json()
+        goal_id = data.get('goal_id')
+        class_id = data.get('class_id')
+        
+        if not goal_id or not class_id:
+            return jsonify({'error': '竞赛目标ID和班级ID不能为空'}), 400
+        
+        if goal_id not in global_data['competition_goals']:
+            return jsonify({'error': '竞赛目标不存在'}), 404
+        
+        if class_id not in global_data['classes']:
+            return jsonify({'error': '班级不存在'}), 404
+        
+        # 分配竞赛目标到班级
+        global_data['classes'][class_id]['competition_goal_id'] = goal_id
+        save_data()
+        
+        return jsonify({'success': True, 'message': '竞赛目标分配成功'})
+        
+    except Exception as e:
+        print(f"分配竞赛目标时发生错误: {e}")
+        return jsonify({'error': '分配竞赛目标时发生错误', 'details': str(e)}), 500
+
 @app.route('/api/end_competition_goal/<goal_id>', methods=['POST'])
 def end_competition_goal(goal_id):
     """结束竞赛目标"""
