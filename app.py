@@ -30,6 +30,18 @@ else:
 # 应用配置
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
+# 数据文件路径
+DATA_FILE = 'app_data.json'
+
+# 全局数据结构
+global_data = {
+    'classes': {},
+    'competition_goals': {},
+    'courses': {},
+    'current_course': None,
+    'students': {}
+}
+
 def load_data():
     """加载数据"""
     global global_data
@@ -184,8 +196,9 @@ load_data()
 # 如果启用了数据库模式，同步数据
 if USE_DATABASE:
     try:
-        from migrate_data import migrate_data
-        migrate_data()
+        # 延迟导入避免循环导入
+        import migrate_data
+        migrate_data.migrate_data()
         print("数据同步到数据库完成")
     except Exception as e:
         print(f"数据同步失败: {e}")
