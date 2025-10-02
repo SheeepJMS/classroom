@@ -1045,18 +1045,14 @@ function updateProgressBars() {
         const correctStudents = students.filter(student => student.expression === 'smile');
         const accuracyRate = participatedStudents.length > 0 ? (correctStudents.length / participatedStudents.length) * 100 : 0;
         
-        // 计算平均答题时间 - 只计算真正参与且答对或答错的学生
-        const timeStudents = participatedStudents.filter(student => 
-            student.expression === 'smile' || student.expression === 'angry'
-        );
-        const avgTime = timeStudents.length > 0 ? 
-            timeStudents.reduce((sum, student) => sum + (student.last_answer_time || 0), 0) / timeStudents.length : 0;
+        // 计算平均答题时间 - 计算所有参与学生的平均时间
+        const avgTime = participatedStudents.length > 0 ? 
+            participatedStudents.reduce((sum, student) => sum + (student.last_answer_time || 0), 0) / participatedStudents.length : 0;
         
         console.log('参与率:', participationRate);
         console.log('正确率:', accuracyRate);
         console.log('平均时间:', avgTime);
         console.log('参与学生的时间详情:', participatedStudents.map(s => ({name: s.name, time: s.last_answer_time, expression: s.expression})));
-        console.log('计算时间的学生:', timeStudents.map(s => ({name: s.name, time: s.last_answer_time})));
         
         // 更新参与度进度条
         try {

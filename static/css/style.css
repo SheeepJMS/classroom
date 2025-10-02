@@ -1189,9 +1189,9 @@ body.report-page .alert-success div {
 .progress-bar-container {
     position: relative;
     background: rgba(255, 255, 255, 0.15);
-    border-radius: 6px;
-    height: 10px;
-    overflow: hidden;
+    border-radius: 8px;
+    height: 20px;  /* 从16px增加到20px */
+    overflow: visible;  /* 允许内容超出容器显示 */
     border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
@@ -1220,14 +1220,16 @@ body.report-page .alert-success div {
 
 .progress-percentage {
     position: absolute;
-    right: -40px;  /* 放在条形图右侧，增加距离 */
+    right: 10px;  /* 放在条形图内部右侧 */
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.7rem;
+    font-size: 1rem;  /* 增大字体 */
     font-weight: 700;
     color: #ffffff !important;  /* 强制纯白色 */
-    text-shadow: none;  /* 去掉阴影 */
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);  /* 添加阴影以提高可读性 */
     white-space: nowrap;  /* 防止换行 */
+    z-index: 10;  /* 确保文本在进度条上方 */
+    min-width: 50px;  /* 确保有足够空间显示数值 */
 }
 
 @keyframes answerGlow {
@@ -2026,13 +2028,6 @@ body.report-page .alert-success div {
     background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
     height: 100%;
     transition: width 0.3s ease;
-}
-
-.progress-percentage {
-    text-align: center;
-    font-size: 0.9rem;
-    color: #1565c0;
-    font-weight: 600;
 }
 
 /* 课程历史部分 */

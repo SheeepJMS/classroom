@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Virtual Environment
+# Virtual environments
 venv/
 env/
 ENV/
@@ -35,19 +35,27 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Application specific
-app_data.json
-math_homework.db
-uploads/
+# Project specific
+*.db
+*.sqlite
+*.sqlite3
+
+# Cursor extensions and other system files
+.cursor/
+AppData/
 backup_*/
 
-# Logs
-*.log
-
-# Environment variables
-.env
-.env.local
-.env.production
-
-# Render
-.render/
+# Only include project files
+!app.py
+!app_v2.py
+!app_backup.py
+!app_data.json
+!data_structure_design.py
+!math_homework.db
+!README.md
+!render.yaml
+!requirements.txt
+!classroom/
+!static/
+!templates/
+!.gitignore

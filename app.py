@@ -5,11 +5,6 @@ import os
 import uuid
 from datetime import datetime
 import random
-from reportlab.lib.pagesizes import letter, A4
-from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import inch
-from reportlab.lib import colors
 from io import BytesIO
 
 app = Flask(__name__)
@@ -302,6 +297,28 @@ def ceremony():
                          students=students_ranking,
                          classroom_data=course_data)
 
+@app.route('/reports')
+def reports_list():
+    """报告列表页面"""
+    # 获取所有课程数据
+    courses = global_data.get('courses', {})
+    
+    # 如果没有课程数据，返回主页
+    if not courses:
+        return redirect('/')
+    
+    # 获取第一个课程作为默认显示
+    first_course_id = list(courses.keys())[0] if courses else None
+    
+    if first_course_id:
+        course_data = courses[first_course_id]
+        return render_template('reports.html',
+                             students=course_data.get('students', {}),
+                             classroom_data=course_data,
+                             course_id=first_course_id)
+    else:
+        return redirect('/')
+
 @app.route('/reports/<course_id>')
 def reports(course_id):
     """报告页面"""
@@ -312,16 +329,22 @@ def reports(course_id):
                          course_id=course_id)
 
 @app.route('/generate_student_report/<student_name>')
-def generate_student_report(student_name):
+@app.route('/generate_student_report/<student_name>/<course_id>')
+def generate_student_report(student_name, course_id=None):
     """生成学生个人报告"""
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
+    # 优先使用传入的course_id，否则使用current_course_id
+    if course_id:
+        target_course_id = course_id
+    else:
+        target_course_id = global_data.get('current_course')
+    
+    if not target_course_id:
         return redirect(url_for('index'))
     
-    course_data = global_data['courses'].get(current_course_id, {})
+    course_data = global_data['courses'].get(target_course_id, {})
     
     if student_name not in course_data.get('students', {}):
-        return redirect(url_for('reports', course_id=current_course_id))
+        return redirect(url_for('reports', course_id=target_course_id))
     
     student = course_data['students'][student_name]
     
@@ -353,6 +376,17 @@ def generate_student_report(student_name):
     
     # 计算平均反应时间
     avg_response_time = (total_answer_time / participated_rounds) if participated_rounds > 0 else 0
+    
+    # 计算学生实际得分
+    student_total_score = 0
+    total_possible_score = 0
+    for round_result in round_results:
+        question_score = round_result.get('question_score', 1)
+        total_possible_score += question_score
+        if student_name in round_result.get('results', {}):
+            student_result = round_result['results'][student_name]
+            if student_result.get('correct', False):
+                student_total_score += question_score
     
     # 计算未参与轮次
     missed_rounds = total_rounds_available - participated_rounds
@@ -386,16 +420,80 @@ def generate_student_report(student_name):
         
         class_avg_participation = class_participation_sum / len(all_students)
         class_avg_response_time = (class_response_time_sum / class_response_time_count) if class_response_time_count > 0 else 0
+        
+        # 计算班级平均得分
+        class_total_score_sum = 0
+        for student in all_students:
+            student_name_inner = student.get('name', '')
+            student_score = 0
+            for round_result in round_results:
+                question_score = round_result.get('question_score', 1)
+                if student_name_inner in round_result.get('results', {}):
+                    student_result = round_result['results'][student_name_inner]
+                    if student_result.get('correct', False):
+                        student_score += question_score
+            class_total_score_sum += student_score
+        
+        class_avg_score = class_total_score_sum / len(all_students) if all_students else 0
     else:
         class_avg_accuracy = 0
         class_avg_participation = 0
         class_avg_response_time = 0
+        class_avg_score = 0
     
     # 生成个性化评价
     personalized_feedback = generate_personalized_feedback(
         accuracy, avg_response_time, participation_rate,
         class_avg_accuracy, class_avg_response_time, class_avg_participation
     )
+    
+    # 计算班级每题统计数据
+    class_round_stats = []
+    total_class_correct = 0
+    total_class_participation = 0
+    total_class_time = 0
+    total_class_time_count = 0
+    
+    for i, round_result in enumerate(round_results):
+        round_correct_count = 0
+        round_participation_count = 0
+        round_total_time = 0
+        round_time_count = 0
+        
+        # 统计这一轮所有学生的表现
+        for student_id, student_data in course_data.get('students', {}).items():
+            if student_id in round_result.get('results', {}):
+                student_result = round_result['results'][student_id]
+                if student_result.get('answer', '').strip():  # 有参与
+                    round_participation_count += 1
+                    if student_result.get('correct', False):  # 答对了
+                        round_correct_count += 1
+                    # 模拟答题时间
+                    answer_time = 30 + (i + 1) * 5
+                    round_total_time += answer_time
+                    round_time_count += 1
+        
+        total_students = len(course_data.get('students', {}))
+        round_accuracy = (round_correct_count / round_participation_count * 100) if round_participation_count > 0 else 0
+        round_participation_rate = (round_participation_count / total_students * 100) if total_students > 0 else 0
+        round_avg_time = (round_total_time / round_time_count) if round_time_count > 0 else 0
+        
+        class_round_stats.append({
+            'round': i + 1,
+            'accuracy': round_accuracy,
+            'participation_rate': round_participation_rate,
+            'avg_time': round_avg_time
+        })
+        
+        total_class_correct += round_correct_count
+        total_class_participation += round_participation_count
+        total_class_time += round_total_time
+        total_class_time_count += round_time_count
+    
+    # 计算班级总体统计
+    class_total_accuracy = (total_class_correct / total_class_participation * 100) if total_class_participation > 0 else 0
+    class_total_participation = (total_class_participation / (len(course_data.get('students', {})) * len(round_results)) * 100) if len(course_data.get('students', {})) > 0 and len(round_results) > 0 else 0
+    class_avg_time_per_question = (total_class_time / total_class_time_count) if total_class_time_count > 0 else 0
     
     # 生成学生提交记录（从round_results中提取）
     student_submissions = []
@@ -409,7 +507,8 @@ def generate_student_report(student_name):
                 'is_correct': student_result.get('correct', False),  # 为了兼容模板
                 'score': student_result.get('score', 0),
                 'time': 30 + (i + 1) * 5,  # 模拟时间
-                'answer_time': 30 + (i + 1) * 5  # 为了兼容模板
+                'answer_time': 30 + (i + 1) * 5,  # 为了兼容模板
+                'question_score': round_result.get('question_score', 1)  # 题目分数
             }
             student_submissions.append(submission)
     
@@ -432,7 +531,16 @@ def generate_student_report(student_name):
                          class_avg_accuracy=round(class_avg_accuracy, 1),
                          class_avg_participation=round(class_avg_participation, 1),
                          class_avg_response_time=round(class_avg_response_time, 1),
+                         student_total_score=student_total_score,
+                         total_possible_score=total_possible_score,
+                         class_avg_score=round(class_avg_score, 1),
                          personalized_feedback=personalized_feedback,
+                         # 新增班级统计数据
+                         class_round_stats=class_round_stats,
+                         class_total_accuracy=round(class_total_accuracy, 1),
+                         class_total_participation=round(class_total_participation, 1),
+                         class_total_rounds=len(round_results),
+                         class_avg_time_per_question=round(class_avg_time_per_question, 1),
                          global_data=global_data)
 
 def generate_personalized_feedback(
@@ -443,53 +551,49 @@ def generate_personalized_feedback(
         class_avg_response_time,
         class_avg_participation):
     """根据学生表现生成个性化评价（按照新的文案逻辑）"""
-
-    # 1. 专注度评价（绝对档位，不参考班级平均）
-    if participation_rate >= 80:
-        focus_title = "高专注"
-        focus_feedback = "孩子在课堂上全程保持投入，专注力非常稳定。这种良好的学习习惯，让孩子能最大程度吸收课堂知识。"
-    elif participation_rate >= 60:
-        focus_title = "中等专注"
-        focus_feedback = "孩子在大部分时间里都能专心投入学习，展现出对课程的兴趣。随着课堂难度的逐步提升，这种专注力还会进一步增强。"
-    elif participation_rate >= 40:
-        focus_title = "初步专注"
-        focus_feedback = "孩子在课堂上能展现出专心学习的时刻，说明已经具备良好的学习意愿。随着课程的深入和更多互动，孩子的专注力会逐渐延长并变得更加稳定。"
-    else:
-        focus_title = "需要鼓励"
-        focus_feedback = "孩子在课堂参与上还有提升空间，建议多参与课堂互动，勇敢尝试回答。"
-
-    # 2. 正确率评价（与班级平均对比）
-    accuracy_diff = accuracy - class_avg_accuracy
-    if accuracy_diff > 10:
-        accuracy_title = "掌握扎实"
-        accuracy_feedback = "正确率高于班级平均，说明对本节课的内容掌握得非常扎实，可以逐步尝试更具挑战性的题目。"
-    elif abs(accuracy_diff) <= 10:
-        accuracy_title = "学习良好"
-        accuracy_feedback = "正确率接近班级平均，说明整体学习状态良好，在细节上稍加注意就能进一步提升。"
-    else:
-        accuracy_title = "面对挑战"
-        accuracy_feedback = "正确率低于班级平均，说明孩子正面对更有挑战的内容。虽然题目难度较高，但这种训练能帮助孩子在思维和解题能力上获得更大成长。"
-
-    # 3. 反应速度评价（与班级平均对比）
-    time_diff = avg_response_time - class_avg_response_time
-    if time_diff < -30:  # 快于平均30秒以上
-        speed_title = "思维灵敏"
-        speed_feedback = "答题速度快于班级平均，说明孩子思维反应灵敏，知识点掌握熟练。"
-    elif abs(time_diff) <= 30:  # 接近平均（±30秒内）
-        speed_title = "节奏稳健"
-        speed_feedback = "答题速度与班级平均相近，说明孩子的思考节奏稳健，能够在课堂中良好跟随。"
-    else:  # 慢于平均30秒以上
-        speed_title = "认真思考"
-        speed_feedback = "答题用时比班级平均更久，体现了孩子在解题时更愿意认真思考。保持这种耐心，同时逐步提升答题效率，会让学习更加高效。"
-
+    
+    # 使用新的评价规则
+    comment = generate_comment(accuracy, class_avg_accuracy, participation_rate, avg_response_time, class_avg_response_time)
+    
+    # 保持原有的结构，但使用新的评价内容
     return {
-        'focus_title': focus_title,
-        'focus_feedback': focus_feedback,
-        'accuracy_title': accuracy_title,
-        'accuracy_feedback': accuracy_feedback,
-        'speed_title': speed_title,
-        'speed_feedback': speed_feedback
+        'focus_title': "学习评价",
+        'focus_feedback': comment,
+        'accuracy_title': "",
+        'accuracy_feedback': "",
+        'speed_title': "",
+        'speed_feedback': ""
     }
+
+def generate_comment(accuracy, class_avg, focus, reaction, reaction_avg):
+    """生成学习评价内容"""
+    comment_parts = []
+
+    # 专注度
+    if focus >= 80:
+        comment_parts.append("孩子在课堂中始终保持高度专注，积极参与每个环节，学习态度非常认真。")
+    elif focus >= 60:
+        comment_parts.append("孩子在课堂中能较好地保持专注，大部分时间认真参与，学习状态稳定。")
+    else:
+        comment_parts.append("孩子在课堂中展现出一定的专注度，说明具备学习意愿，但整体专注力还需进一步加强，才能更好地跟上课堂节奏。")
+
+    # 正确率
+    if accuracy > class_avg + 5:
+        comment_parts.append("答题正确率高于班级平均，说明对知识点掌握扎实，能够轻松应对课堂内容。")
+    elif abs(accuracy - class_avg) <= 5:
+        comment_parts.append("答题正确率接近班级平均，说明学习状态稳健，能够很好地跟上课堂节奏。")
+    else:
+        comment_parts.append("答题正确率低于班级平均，说明本节课难度对孩子有挑战，但也能带来更多成长空间。")
+
+    # 反应时间
+    if reaction < reaction_avg - 2:
+        comment_parts.append("答题速度快于班级平均，展现出思维敏捷。")
+    elif abs(reaction - reaction_avg) <= 2:
+        comment_parts.append("答题速度与班级平均接近，思维节奏稳定。")
+    else:
+        comment_parts.append("答题速度慢于班级平均，体现了认真思考的态度，但需要逐步提升运算速度，减少对计算器的依赖。")
+
+    return " ".join(comment_parts)
 
 # API 路由
 @app.route('/start_class', methods=['POST'])
@@ -634,6 +738,10 @@ def submit_student_answer():
     
     course_data['answer_times'][student_name] = answer_time
     course_data['current_answers'][student_name] = answer
+    
+    # 更新学生的答题时间
+    if student_name in course_data['students']:
+        course_data['students'][student_name]['last_answer_time'] = answer_time
     
     save_data()
     return jsonify({'success': True, 'answer_time': answer_time})
