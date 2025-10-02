@@ -270,7 +270,7 @@ def set_current_course(course_id):
     return jsonify({'success': True})
 
 @app.route('/start_course')
-def start_course():
+def start_course_page():
     """开始课程页面"""
     current_course_id = global_data.get('current_course')
     if not current_course_id:
@@ -1076,94 +1076,6 @@ def reset_classroom():
     
     save_data()
     return jsonify({'success': True})
-
-@app.route('/api/start_course', methods=['POST'])
-def api_start_course():
-    """API: 创建并开始新课程"""
-    try:
-        data = request.get_json()
-        class_id = data.get('class_id')
-        course_name = data.get('course_name', '新课程')
-        
-        if not class_id:
-            return jsonify({
-                'success': False,
-                'message': '班级ID不能为空'
-            }), 400
-        
-        # 获取班级数据
-        class_data = global_data['classes'].get(class_id)
-        if not class_data:
-            return jsonify({
-                'success': False,
-                'message': '班级不存在'
-            }), 400
-        
-        # 创建新课程
-        course_id = str(uuid.uuid4())
-        
-        # 将班级中的学生复制到课程中
-        course_students = {}
-        for student_id, student_data in class_data.get('students', {}).items():
-            course_students[student_data.get('name', student_id)] = {
-                'name': student_data.get('name', student_id),
-                'score': 0,
-                'total_rounds': 0,
-                'correct_rounds': 0,
-                'last_answer_time': 0,
-                'expression': 'neutral',
-                'animation': 'none',
-                'avatar_color': student_data.get('avatar_color', '#ff6b6b'),
-                'answers': [],
-                'last_answer': ''
-            }
-        
-        new_course = {
-            'id': course_id,
-            'name': course_name,
-            'class_id': class_id,
-            'students': course_students,
-            'submissions': [],
-            'is_active': True,
-            'start_time': datetime.now().isoformat(),
-            'current_round': 1,
-            'round_active': False,
-            'current_answers': {},
-            'answer_times': {},
-            'correct_answer': '',
-            'round_results': [],
-            'created_date': datetime.now().isoformat()
-        }
-        
-        # 保存课程到全局数据
-        global_data['courses'][course_id] = new_course
-        global_data['current_course'] = course_id
-        
-        # 将课程添加到班级的课程列表中
-        if class_id in global_data['classes']:
-            if 'courses' not in global_data['classes'][class_id]:
-                global_data['classes'][class_id]['courses'] = []
-            
-            global_data['classes'][class_id]['courses'].append({
-                'id': course_id,
-                'name': course_name,
-                'start_date': datetime.now().isoformat(),
-                'is_active': True
-            })
-        
-        save_data()
-        
-        return jsonify({
-            'success': True,
-            'course_id': course_id,
-            'message': '课程创建成功'
-        })
-        
-    except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': f'创建课程失败: {str(e)}'
-        }), 500
 
 @app.route('/api/create_demo_data', methods=['POST'])
 def create_demo_data():
