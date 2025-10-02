@@ -153,7 +153,7 @@ def init_default_data():
         }
     }
     
-    # 创建默认班级
+    # 创建默认班级（空班级，无预设学生）
     class_id_1 = str(uuid.uuid4())
     class_id_2 = str(uuid.uuid4())
     class_id_3 = str(uuid.uuid4())
@@ -167,7 +167,8 @@ def init_default_data():
             'competition_goal_id': goal_id_1,
             'students': {},
             'courses': [],
-            'active_course': None
+            'active_course': None,
+            'is_active': True
         },
         class_id_2: {
             'id': class_id_2,
@@ -177,7 +178,8 @@ def init_default_data():
             'competition_goal_id': goal_id_2,
             'students': {},
             'courses': [],
-            'active_course': None
+            'active_course': None,
+            'is_active': True
         },
         class_id_3: {
             'id': class_id_3,
@@ -187,12 +189,19 @@ def init_default_data():
             'competition_goal_id': goal_id_2,
             'students': {},
             'courses': [],
-            'active_course': None
+            'active_course': None,
+            'is_active': True
         }
     }
     
+    # 清理预设的学生数据
+    global_data['students'] = {}
+    
+    # 清理预设的课程数据
+    global_data['courses'] = {}
+    
     save_data()
-    print("初始化默认数据完成")
+    print("初始化默认数据完成（已清理预设学生和课程数据）")
 
 # 在应用启动时加载数据
 load_data()
@@ -252,15 +261,98 @@ def index():
 @app.route('/class/<class_id>')
 def class_detail(class_id):
     """班级详情页面"""
-    if class_id not in global_data['classes']:
-        return redirect(url_for('index'))
-    
-    class_data = global_data['classes'][class_id]
-    goal_data = global_data['competition_goals'].get(class_data['competition_goal_id'], {})
+    if USE_DATABASE:
+        # 使用数据库
+        with app.app_context():
+            class_obj = Class.query.get(class_id)
+            if not class_obj:
+                return redirect(url_for('index'))
+            
+            # 获取班级数据
+            class_data = {
+                'id': class_obj.id,
+                'name': class_obj.name,
+                'description': class_obj.description,
+                'created_date': class_obj.created_date.strftime('%Y-%m-%d') if class_obj.created_date else '',
+                'students': {student.id: {'id': student.id, 'name': student.name} for student in class_obj.students},
+                'courses': [{'id': course.id, 'name': course.name, 'start_date': course.created_date.strftime('%Y-%m-%d') if course.created_date else '', 'current_round': 1} for course in class_obj.courses],
+                'competition_goal_id': class_obj.competition_goal_id
+            }
+            
+            # 获取竞赛目标数据
+            goal = None
+            goal_progress = None
+            if class_obj.competition_goal_id:
+                goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
+                if goal_obj:
+                    goal = {
+                        'id': goal_obj.id,
+                        'name': goal_obj.title,
+                        'description': goal_obj.description,
+                        'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
+                    }
+                    
+                    # 计算竞赛目标进度
+                    if goal_obj.created_date:
+                        from datetime import datetime, timedelta
+                        days_since_start = (datetime.utcnow() - goal_obj.created_date).days
+                        total_days = 77  # 11周 * 7天
+                        days_left = max(0, total_days - days_since_start)
+                        weeks_left = max(0, days_left // 7)
+                        lessons_left = max(0, weeks_left)  # 每周1节课
+                        
+                        goal_progress = {
+                            'days_left': days_left,
+                            'weeks_left': weeks_left,
+                            'lessons_left': lessons_left
+                        }
+    else:
+        # 使用JSON文件
+        if class_id not in global_data['classes']:
+            return redirect(url_for('index'))
+        
+        class_data = global_data['classes'][class_id]
+        
+        # 获取竞赛目标数据
+        goal = None
+        goal_progress = None
+        if class_data.get('competition_goal_id'):
+            goal_data = global_data['competition_goals'].get(class_data['competition_goal_id'], {})
+            if goal_data:
+                goal = {
+                    'id': goal_data['id'],
+                    'name': goal_data['name'],
+                    'description': goal_data['description'],
+                    'created_date': goal_data.get('created_date', '')
+                }
+                
+                # 计算竞赛目标进度
+                if goal_data.get('created_date'):
+                    from datetime import datetime, timedelta
+                    try:
+                        start_date = datetime.strptime(goal_data['created_date'], '%Y-%m-%d')
+                        days_since_start = (datetime.now() - start_date).days
+                        total_days = 77  # 11周 * 7天
+                        days_left = max(0, total_days - days_since_start)
+                        weeks_left = max(0, days_left // 7)
+                        lessons_left = max(0, weeks_left)  # 每周1节课
+                        
+                        goal_progress = {
+                            'days_left': days_left,
+                            'weeks_left': weeks_left,
+                            'lessons_left': lessons_left
+                        }
+                    except:
+                        goal_progress = {
+                            'days_left': 77,
+                            'weeks_left': 11,
+                            'lessons_left': 11
+                        }
     
     return render_template('class_detail.html',
                          class_data=class_data,
-                         goal_data=goal_data)
+                         goal=goal,
+                         goal_progress=goal_progress)
 
 @app.route('/api/set_current_course/<course_id>')
 def set_current_course(course_id):
