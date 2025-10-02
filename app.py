@@ -6,24 +6,29 @@ import uuid
 from datetime import datetime
 import random
 from io import BytesIO
+from models import db, Class, Student, CompetitionGoal, Course, CourseRound, StudentSubmission, init_db
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 
+# 数据库配置（可选）
+USE_DATABASE = os.environ.get('USE_DATABASE', 'false').lower() == 'true'
+if USE_DATABASE:
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
+    if DATABASE_URL.startswith('postgres://'):
+        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # 初始化数据库
+    init_db(app)
+    print("数据库模式已启用")
+else:
+    print("使用JSON文件模式")
+
 # 应用配置
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
-
-# 数据文件路径
-DATA_FILE = 'app_data.json'
-
-# 全局数据结构
-global_data = {
-    'classes': {},
-    'competition_goals': {},
-    'courses': {},
-    'current_course': None,
-    'students': {}
-}
 
 def load_data():
     """加载数据"""
@@ -175,6 +180,16 @@ def init_default_data():
 
 # 在应用启动时加载数据
 load_data()
+
+# 如果启用了数据库模式，同步数据
+if USE_DATABASE:
+    try:
+        from migrate_data import migrate_data
+        migrate_data()
+        print("数据同步到数据库完成")
+    except Exception as e:
+        print(f"数据同步失败: {e}")
+        print("继续使用JSON文件模式")
 
 @app.route('/')
 def index():
