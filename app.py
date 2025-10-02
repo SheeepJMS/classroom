@@ -1245,6 +1245,33 @@ def create_demo_data():
     save_data()
     return jsonify({'success': True, 'students': list(course_data['students'].keys())})
 
+@app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
+def delete_competition_goal(goal_id):
+    """删除竞赛目标"""
+    try:
+        if goal_id not in global_data['competition_goals']:
+            return jsonify({'error': '竞赛目标不存在'}), 404
+        
+        # 检查是否有班级正在使用这个竞赛目标
+        classes_using_goal = [cls for cls in global_data['classes'].values() 
+                            if cls.get('competition_goal_id') == goal_id]
+        
+        if classes_using_goal:
+            class_names = [cls['name'] for cls in classes_using_goal]
+            return jsonify({
+                'error': f'无法删除竞赛目标，以下班级正在使用：{", ".join(class_names)}'
+            }), 400
+        
+        # 删除竞赛目标
+        del global_data['competition_goals'][goal_id]
+        save_data()
+        
+        return jsonify({'success': True, 'message': '竞赛目标已删除'})
+        
+    except Exception as e:
+        print(f"删除竞赛目标时发生错误: {e}")
+        return jsonify({'error': '删除竞赛目标时发生错误', 'details': str(e)}), 500
+
 @app.route('/api/test')
 def test_api():
     """测试API是否正常工作"""

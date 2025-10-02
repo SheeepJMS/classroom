@@ -1141,7 +1141,7 @@ function assignGoal(goalId) {
 function deleteGoal(goalId) {
     if (confirm('确定要删除这个竞赛目标吗？')) {
         fetch(`/api/delete_competition_goal/${goalId}`, {
-            method: 'POST'
+            method: 'DELETE'
         })
         .then(response => response.json())
         .then(data => {
