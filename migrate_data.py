@@ -11,18 +11,50 @@ from app import app
 from models import db, Class, Student, CompetitionGoal, Course, CourseRound, StudentSubmission
 
 def migrate_data():
-    """迁移数据从JSON文件到PostgreSQL"""
-    
-    # 检查是否存在JSON数据文件
-    data_file = 'app_data.json'
-    if not os.path.exists(data_file):
-        print(f"数据文件 {data_file} 不存在，跳过迁移")
-        return
+    """迁移数据从JSON文件到PostgreSQL，如果JSON文件不存在则创建默认数据"""
     
     with app.app_context():
-        # 读取JSON数据
-        with open(data_file, 'r', encoding='utf-8') as f:
-            data = json.load(f)
+        # 检查是否存在JSON数据文件
+        data_file = 'app_data.json'
+        if os.path.exists(data_file):
+            print(f"找到数据文件 {data_file}，开始迁移...")
+            # 读取JSON数据
+            with open(data_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        else:
+            print(f"数据文件 {data_file} 不存在，创建默认数据...")
+            # 创建默认数据结构
+            data = {
+                'competition_goals': {
+                    'default_goal_1': {
+                        'id': 'default_goal_1',
+                        'name': 'AMC 8 竞赛',
+                        'description': '美国数学竞赛 AMC 8准备',
+                        'start_date': '2025-01-15',
+                        'end_date': '2025-01-15',
+                        'total_weeks': 11,
+                        'lessons_per_week': 1,
+                        'created_date': '2025-09-26',
+                        'is_active': True,
+                        'ended_date': None
+                    },
+                    'default_goal_2': {
+                        'id': 'default_goal_2',
+                        'name': 'amc10',
+                        'description': '111',
+                        'start_date': '2025-01-15',
+                        'end_date': '2025-12-18',
+                        'total_weeks': 11,
+                        'lessons_per_week': 1,
+                        'created_date': '2025-09-26',
+                        'is_active': True,
+                        'ended_date': None
+                    }
+                },
+                'classes': {},
+                'students': {},
+                'courses': {}
+            }
         
         print("开始迁移数据...")
         
@@ -32,10 +64,12 @@ def migrate_data():
             if not CompetitionGoal.query.get(goal_id):
                 goal = CompetitionGoal(
                     id=goal_id,
-                    title=goal_data.get('title', ''),
+                    title=goal_data.get('name', goal_data.get('title', '')),
                     description=goal_data.get('description', ''),
                     target_score=goal_data.get('target_score', 100),
-                    created_date=datetime.utcnow()
+                    created_date=datetime.utcnow(),
+                    is_active=goal_data.get('is_active', True),
+                    ended_date=None
                 )
                 db.session.add(goal)
         

@@ -3,7 +3,7 @@ services:
     name: math-classroom-app
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python -c "from app import app; from models import init_db; init_db(app); print('数据库初始化完成')"
     startCommand: python app.py
     envVars:
       - key: PYTHON_VERSION

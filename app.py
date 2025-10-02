@@ -204,7 +204,10 @@ def init_default_data():
     print("初始化默认数据完成（已清理预设学生和课程数据）")
 
 # 在应用启动时加载数据
-load_data()
+if USE_DATABASE:
+    print("使用数据库模式，跳过JSON文件加载")
+else:
+    load_data()
 
 # 如果启用了数据库模式，同步数据
 if USE_DATABASE:
@@ -218,6 +221,7 @@ if USE_DATABASE:
         print("继续使用JSON文件模式")
         # 如果数据库同步失败，强制使用JSON模式
         USE_DATABASE = False
+        load_data()
 
 @app.route('/')
 def index():
