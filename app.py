@@ -1317,6 +1317,25 @@ def create_competition_goal():
         print(f"创建竞赛目标时发生错误: {e}")
         return jsonify({'error': '创建竞赛目标时发生错误', 'details': str(e)}), 500
 
+@app.route('/api/get_competition_goals')
+def get_competition_goals():
+    """获取所有竞赛目标"""
+    try:
+        # 只返回活跃的竞赛目标，为没有is_active字段的目标设置默认值True
+        active_goals = []
+        for goal in global_data['competition_goals'].values():
+            if goal.get('is_active', True):  # 默认为True
+                active_goals.append(goal)
+        
+        return jsonify({
+            'success': True,
+            'goals': active_goals
+        })
+        
+    except Exception as e:
+        print(f"获取竞赛目标时发生错误: {e}")
+        return jsonify({'error': '获取竞赛目标时发生错误', 'details': str(e)}), 500
+
 @app.route('/api/assign_goal_to_class', methods=['POST'])
 def assign_goal_to_class():
     """分配竞赛目标到班级"""
