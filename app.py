@@ -203,6 +203,8 @@ if USE_DATABASE:
     except Exception as e:
         print(f"数据同步失败: {e}")
         print("继续使用JSON文件模式")
+        # 如果数据库同步失败，强制使用JSON模式
+        USE_DATABASE = False
 
 @app.route('/')
 def index():
@@ -368,6 +370,13 @@ def generate_student_report(student_name, course_id=None):
         target_course_id = course_id
     else:
         target_course_id = global_data.get('current_course')
+    
+    # 如果没有指定课程，尝试找到包含该学生的第一个课程
+    if not target_course_id:
+        for course_id, course_data in global_data['courses'].items():
+            if student_name in course_data.get('students', {}):
+                target_course_id = course_id
+                break
     
     if not target_course_id:
         return redirect(url_for('index'))
