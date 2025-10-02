@@ -396,25 +396,64 @@ def start_course_page():
 @app.route('/class/<class_id>/classroom')
 def class_classroom(class_id):
     """班级课堂页面"""
-    # 获取班级数据
-    class_data = global_data['classes'].get(class_id)
-    if not class_data:
-        return redirect(url_for('index'))
-    
-    # 获取当前课程
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return redirect(url_for('class_detail', class_id=class_id))
-    
-    # 获取课程数据
-    course_data = global_data['courses'].get(current_course_id, {})
-    if not course_data:
-        return redirect(url_for('class_detail', class_id=class_id))
+    if USE_DATABASE:
+        # 使用数据库
+        with app.app_context():
+            class_obj = Class.query.get(class_id)
+            if not class_obj:
+                return redirect(url_for('index'))
+            
+            # 获取当前课程（从数据库）
+            current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+            if not current_course:
+                return redirect(url_for('class_detail', class_id=class_id))
+            
+            # 构建课程数据
+            course_data = {
+                'id': current_course.id,
+                'name': current_course.name,
+                'class_id': current_course.class_id,
+                'is_active': current_course.is_active,
+                'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
+                'students': {},  # 空的学生数据
+                'submissions': [],
+                'round_results': [],
+                'current_round': 1,
+                'round_active': False,
+                'current_answers': {},
+                'answer_times': {},
+                'correct_answer': '',
+                'start_time': None
+            }
+            
+            # 构建班级数据
+            class_data = {
+                'id': class_obj.id,
+                'name': class_obj.name,
+                'description': class_obj.description,
+                'created_date': class_obj.created_date.strftime('%Y-%m-%d') if class_obj.created_date else '',
+                'competition_goal_id': class_obj.competition_goal_id
+            }
+    else:
+        # 使用JSON文件
+        class_data = global_data['classes'].get(class_id)
+        if not class_data:
+            return redirect(url_for('index'))
+        
+        # 获取当前课程
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return redirect(url_for('class_detail', class_id=class_id))
+        
+        # 获取课程数据
+        course_data = global_data['courses'].get(current_course_id, {})
+        if not course_data:
+            return redirect(url_for('class_detail', class_id=class_id))
     
     return render_template('classroom.html',
                          classroom_data=course_data,
                          class_data=class_data,
-                         course_id=current_course_id)
+                         course_id=course_data.get('id'))
 
 @app.route('/classroom')
 def classroom():
@@ -1106,21 +1145,77 @@ def next_round():
 @app.route('/get_classroom_data')
 def get_classroom_data_legacy():
     """获取课堂数据（兼容旧版本）"""
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
+    if USE_DATABASE:
+        # 使用数据库
+        with app.app_context():
+            # 获取当前课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            # 构建课程数据
+            course_data = {
+                'id': current_course.id,
+                'name': current_course.name,
+                'class_id': current_course.class_id,
+                'is_active': current_course.is_active,
+                'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
+                'students': {},  # 空的学生数据
+                'submissions': [],
+                'round_results': [],
+                'current_round': 1,
+                'round_active': False,
+                'current_answers': {},
+                'answer_times': {},
+                'correct_answer': '',
+                'start_time': None
+            }
+    else:
+        # 使用JSON文件
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
     
-    course_data = global_data['courses'].get(current_course_id, {})
     return jsonify(course_data)
 
 @app.route('/api/get_classroom_data')
 def get_classroom_data():
     """获取课堂数据"""
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
+    if USE_DATABASE:
+        # 使用数据库
+        with app.app_context():
+            # 获取当前课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            # 构建课程数据
+            course_data = {
+                'id': current_course.id,
+                'name': current_course.name,
+                'class_id': current_course.class_id,
+                'is_active': current_course.is_active,
+                'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
+                'students': {},  # 空的学生数据
+                'submissions': [],
+                'round_results': [],
+                'current_round': 1,
+                'round_active': False,
+                'current_answers': {},
+                'answer_times': {},
+                'correct_answer': '',
+                'start_time': None
+            }
+    else:
+        # 使用JSON文件
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
     
-    course_data = global_data['courses'].get(current_course_id, {})
     return jsonify(course_data)
 
 @app.route('/reset_classroom', methods=['POST'])
