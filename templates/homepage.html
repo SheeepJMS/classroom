@@ -851,8 +851,7 @@
         </div>
                 
         <div class="classes-grid" id="historyClassesGrid">
-            {% for class_data in classes %}
-                {% if class_data.get('is_ended', False) %}
+            {% for class_data in inactive_classes %}
                 <div class="class-card history-class" data-class-id="{{ class_data.id }}">
                 <div class="class-card-header">
                     <h3 class="class-name">{{ class_data.name }}</h3>
@@ -891,17 +890,13 @@
                     {% endif %}
                     </div>
                 </div>
-                {% endif %}
-            {% endfor %}
-            
-            {% set has_history = classes|selectattr('is_ended', 'equalto', True)|list %}
-            {% if not has_history %}
+            {% else %}
             <div class="empty-state">
                 <i class="fas fa-history fa-3x mb-3"></i>
                 <h3>暂无历史班级</h3>
                 <p>结束的班级将显示在这里</p>
             </div>
-            {% endif %}
+            {% endfor %}
         </div>
     </div>
 </div>

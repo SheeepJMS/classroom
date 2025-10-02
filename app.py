@@ -179,11 +179,14 @@ load_data()
 @app.route('/')
 def index():
     """数学竞赛课堂管理系统主页"""
-    classes_list = list(global_data['classes'].values())
+    # 只显示活跃的班级
+    active_classes = [cls for cls in global_data['classes'].values() if cls.get('is_active', True)]
+    inactive_classes = [cls for cls in global_data['classes'].values() if not cls.get('is_active', True)]
     goals_list = list(global_data['competition_goals'].values())
-    print(f"首页访问 - 班级数量: {len(classes_list)}, 竞赛目标数量: {len(goals_list)}")
+    print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 竞赛目标数量: {len(goals_list)}")
     return render_template('homepage.html',
-                         classes=classes_list,
+                         classes=active_classes,
+                         inactive_classes=inactive_classes,
                          competition_goals=goals_list)
 
 @app.route('/class/<class_id>')
@@ -1214,5 +1217,41 @@ def create_demo_data():
     save_data()
     return jsonify({'success': True, 'students': list(course_data['students'].keys())})
 
+@app.route('/api/test')
+def test_api():
+    """测试API是否正常工作"""
+    return jsonify({'message': 'API正常工作', 'timestamp': datetime.now().isoformat()})
+
+@app.route('/api/end_class/<class_id>', methods=['POST'])
+def end_class(class_id):
+    """结束班级"""
+    try:
+        print(f"收到结束班级请求: {class_id}")
+        print(f"当前班级列表: {list(global_data['classes'].keys())}")
+        
+        if class_id not in global_data['classes']:
+            print(f"班级 {class_id} 不存在")
+            return jsonify({'error': '班级不存在'}), 404
+        
+        class_data = global_data['classes'][class_id]
+        
+        # 标记班级为已结束
+        class_data['is_active'] = False
+        class_data['ended_date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        # 结束该班级的所有课程
+        for course_id, course_data in global_data['courses'].items():
+            if course_data.get('class_id') == class_id:
+                course_data['is_active'] = False
+        
+        save_data()
+        print(f"班级 {class_id} 已成功结束")
+        return jsonify({'success': True, 'message': '班级已成功结束'})
+        
+    except Exception as e:
+        print(f"结束班级时发生错误: {e}")
+        return jsonify({'error': '结束班级时发生错误', 'details': str(e)}), 500
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5001)
+    port = int(os.environ.get('PORT', 5001))
+    app.run(debug=False, host='0.0.0.0', port=port)
