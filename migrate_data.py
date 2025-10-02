@@ -14,6 +14,15 @@ def migrate_data():
     """迁移数据从JSON文件到PostgreSQL，如果JSON文件不存在则创建默认数据"""
     
     with app.app_context():
+        # 检查数据库是否已经有数据
+        existing_goals = CompetitionGoal.query.count()
+        existing_classes = Class.query.count()
+        
+        if existing_goals > 0 or existing_classes > 0:
+            print(f"数据库已有数据 - 竞赛目标: {existing_goals}, 班级: {existing_classes}")
+            print("跳过数据迁移，保留现有数据")
+            return
+        
         # 检查是否存在JSON数据文件
         data_file = 'app_data.json'
         if os.path.exists(data_file):
