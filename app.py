@@ -213,21 +213,41 @@ if USE_DATABASE:
 @app.route('/')
 def index():
     """数学竞赛课堂管理系统主页"""
-    # 只显示活跃的班级
-    active_classes = [cls for cls in global_data['classes'].values() if cls.get('is_active', True)]
-    inactive_classes = [cls for cls in global_data['classes'].values() if not cls.get('is_active', True)]
-    
-    # 区分活跃和历史竞赛目标
-    active_goals = [goal for goal in global_data['competition_goals'].values() if goal.get('is_active', True)]
-    inactive_goals = [goal for goal in global_data['competition_goals'].values() if not goal.get('is_active', True)]
-    
-    print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
-    
-    return render_template('homepage.html',
-                         classes=active_classes,
-                         inactive_classes=inactive_classes,
-                         competition_goals=active_goals,
-                         inactive_competition_goals=inactive_goals)
+    if USE_DATABASE:
+        # 使用数据库
+        with app.app_context():
+            # 只显示活跃的班级
+            active_classes = Class.query.filter_by(is_active=True).all()
+            inactive_classes = Class.query.filter_by(is_active=False).all()
+            
+            # 区分活跃和历史竞赛目标
+            active_goals = CompetitionGoal.query.all()  # 暂时所有目标都是活跃的
+            inactive_goals = []  # 暂时没有历史目标
+            
+            print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
+            
+            return render_template('homepage.html',
+                                 classes=active_classes,
+                                 inactive_classes=inactive_classes,
+                                 competition_goals=active_goals,
+                                 inactive_competition_goals=inactive_goals)
+    else:
+        # 使用JSON文件
+        # 只显示活跃的班级
+        active_classes = [cls for cls in global_data['classes'].values() if cls.get('is_active', True)]
+        inactive_classes = [cls for cls in global_data['classes'].values() if not cls.get('is_active', True)]
+        
+        # 区分活跃和历史竞赛目标
+        active_goals = [goal for goal in global_data['competition_goals'].values() if goal.get('is_active', True)]
+        inactive_goals = [goal for goal in global_data['competition_goals'].values() if not goal.get('is_active', True)]
+        
+        print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
+        
+        return render_template('homepage.html',
+                             classes=active_classes,
+                             inactive_classes=inactive_classes,
+                             competition_goals=active_goals,
+                             inactive_competition_goals=inactive_goals)
 
 @app.route('/class/<class_id>')
 def class_detail(class_id):
@@ -1264,6 +1284,48 @@ def create_demo_data():
     save_data()
     return jsonify({'success': True, 'students': list(course_data['students'].keys())})
 
+@app.route('/api/add_student', methods=['POST'])
+def add_student():
+    """添加学生到班级"""
+    try:
+        data = request.get_json()
+        student_id = str(uuid.uuid4())
+        
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                student = Student(
+                    id=student_id,
+                    name=data.get('name', ''),
+                    class_id=data.get('class_id'),
+                    created_date=datetime.utcnow()
+                )
+                db.session.add(student)
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            student_data = {
+                'id': student_id,
+                'name': data.get('name', ''),
+                'class_id': data.get('class_id'),
+                'created_date': datetime.now().strftime('%Y-%m-%d')
+            }
+            
+            # 添加到全局学生数据
+            global_data['students'][student_id] = student_data
+            
+            # 添加到班级的学生列表
+            if data.get('class_id') in global_data['classes']:
+                global_data['classes'][data.get('class_id')]['students'][student_id] = student_data
+            
+            save_data()
+        
+        return jsonify({'success': True, 'student_id': student_id})
+        
+    except Exception as e:
+        print(f"添加学生时发生错误: {e}")
+        return jsonify({'error': '添加学生时发生错误', 'details': str(e)}), 500
+
 @app.route('/api/create_class', methods=['POST'])
 def create_class():
     """创建新班级"""
@@ -1271,19 +1333,32 @@ def create_class():
         data = request.get_json()
         class_id = str(uuid.uuid4())
         
-        class_data = {
-            'id': class_id,
-            'name': data.get('name', ''),
-            'description': data.get('description', ''),
-            'students': {},
-            'courses': [],
-            'competition_goal_id': None,
-            'is_active': True,
-            'created_date': datetime.now().strftime('%Y-%m-%d')
-        }
-        
-        global_data['classes'][class_id] = class_data
-        save_data()
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                class_obj = Class(
+                    id=class_id,
+                    name=data.get('name', ''),
+                    description=data.get('description', ''),
+                    is_active=True,
+                    created_date=datetime.utcnow()
+                )
+                db.session.add(class_obj)
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            class_data = {
+                'id': class_id,
+                'name': data.get('name', ''),
+                'description': data.get('description', ''),
+                'students': {},
+                'courses': [],
+                'competition_goal_id': None,
+                'is_active': True,
+                'created_date': datetime.now().strftime('%Y-%m-%d')
+            }
+            global_data['classes'][class_id] = class_data
+            save_data()
         
         return jsonify({'success': True, 'class_id': class_id})
         
@@ -1298,18 +1373,31 @@ def create_competition_goal():
         data = request.get_json()
         goal_id = str(uuid.uuid4())
         
-        goal_data = {
-            'id': goal_id,
-            'name': data.get('name', ''),
-            'description': data.get('description', ''),
-            'goal_date': data.get('goal_date', ''),
-            'is_active': True,
-            'ended_date': None,
-            'created_date': datetime.now().strftime('%Y-%m-%d')
-        }
-        
-        global_data['competition_goals'][goal_id] = goal_data
-        save_data()
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                goal_obj = CompetitionGoal(
+                    id=goal_id,
+                    title=data.get('name', ''),
+                    description=data.get('description', ''),
+                    target_score=100,
+                    created_date=datetime.utcnow()
+                )
+                db.session.add(goal_obj)
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            goal_data = {
+                'id': goal_id,
+                'name': data.get('name', ''),
+                'description': data.get('description', ''),
+                'goal_date': data.get('goal_date', ''),
+                'is_active': True,
+                'ended_date': None,
+                'created_date': datetime.now().strftime('%Y-%m-%d')
+            }
+            global_data['competition_goals'][goal_id] = goal_data
+            save_data()
         
         return jsonify({'success': True, 'goal_id': goal_id})
         
@@ -1321,16 +1409,34 @@ def create_competition_goal():
 def get_competition_goals():
     """获取所有竞赛目标"""
     try:
-        # 只返回活跃的竞赛目标，为没有is_active字段的目标设置默认值True
-        active_goals = []
-        for goal in global_data['competition_goals'].values():
-            if goal.get('is_active', True):  # 默认为True
-                active_goals.append(goal)
-        
-        return jsonify({
-            'success': True,
-            'goals': active_goals
-        })
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                goals = CompetitionGoal.query.all()
+                goals_data = []
+                for goal in goals:
+                    goals_data.append({
+                        'id': goal.id,
+                        'name': goal.title,
+                        'description': goal.description,
+                        'goal_date': goal.created_date.strftime('%Y-%m-%d') if goal.created_date else '',
+                        'is_active': True
+                    })
+                return jsonify({
+                    'success': True,
+                    'goals': goals_data
+                })
+        else:
+            # 使用JSON文件
+            active_goals = []
+            for goal in global_data['competition_goals'].values():
+                if goal.get('is_active', True):  # 默认为True
+                    active_goals.append(goal)
+            
+            return jsonify({
+                'success': True,
+                'goals': active_goals
+            })
         
     except Exception as e:
         print(f"获取竞赛目标时发生错误: {e}")
@@ -1347,15 +1453,26 @@ def assign_goal_to_class():
         if not goal_id or not class_id:
             return jsonify({'error': '竞赛目标ID和班级ID不能为空'}), 400
         
-        if goal_id not in global_data['competition_goals']:
-            return jsonify({'error': '竞赛目标不存在'}), 404
-        
-        if class_id not in global_data['classes']:
-            return jsonify({'error': '班级不存在'}), 404
-        
-        # 分配竞赛目标到班级
-        global_data['classes'][class_id]['competition_goal_id'] = goal_id
-        save_data()
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                class_obj = Class.query.get(class_id)
+                if not class_obj:
+                    return jsonify({'error': '班级不存在'}), 404
+                
+                class_obj.competition_goal_id = goal_id
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            if goal_id not in global_data['competition_goals']:
+                return jsonify({'error': '竞赛目标不存在'}), 404
+            
+            if class_id not in global_data['classes']:
+                return jsonify({'error': '班级不存在'}), 404
+            
+            # 分配竞赛目标到班级
+            global_data['classes'][class_id]['competition_goal_id'] = goal_id
+            save_data()
         
         return jsonify({'success': True, 'message': '竞赛目标分配成功'})
         
@@ -1421,30 +1538,168 @@ def end_class(class_id):
     """结束班级"""
     try:
         print(f"收到结束班级请求: {class_id}")
-        print(f"当前班级列表: {list(global_data['classes'].keys())}")
         
-        if class_id not in global_data['classes']:
-            print(f"班级 {class_id} 不存在")
-            return jsonify({'error': '班级不存在'}), 404
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                class_obj = Class.query.get(class_id)
+                if not class_obj:
+                    print(f"班级 {class_id} 不存在")
+                    return jsonify({'error': '班级不存在'}), 404
+                
+                # 标记班级为已结束
+                class_obj.is_active = False
+                class_obj.ended_date = datetime.utcnow()
+                
+                # 结束该班级的所有课程
+                courses = Course.query.filter_by(class_id=class_id).all()
+                for course in courses:
+                    course.is_active = False
+                
+                db.session.commit()
+                print(f"班级 {class_id} 已成功结束")
+        else:
+            # 使用JSON文件
+            print(f"当前班级列表: {list(global_data['classes'].keys())}")
+            
+            if class_id not in global_data['classes']:
+                print(f"班级 {class_id} 不存在")
+                return jsonify({'error': '班级不存在'}), 404
+            
+            class_data = global_data['classes'][class_id]
+            
+            # 标记班级为已结束
+            class_data['is_active'] = False
+            class_data['ended_date'] = datetime.now().strftime('%Y-%m-%d')
+            
+            # 结束该班级的所有课程
+            for course_id, course_data in global_data['courses'].items():
+                if course_data.get('class_id') == class_id:
+                    course_data['is_active'] = False
+            
+            save_data()
+            print(f"班级 {class_id} 已成功结束")
         
-        class_data = global_data['classes'][class_id]
-        
-        # 标记班级为已结束
-        class_data['is_active'] = False
-        class_data['ended_date'] = datetime.now().strftime('%Y-%m-%d')
-        
-        # 结束该班级的所有课程
-        for course_id, course_data in global_data['courses'].items():
-            if course_data.get('class_id') == class_id:
-                course_data['is_active'] = False
-        
-        save_data()
-        print(f"班级 {class_id} 已成功结束")
         return jsonify({'success': True, 'message': '班级已成功结束'})
         
     except Exception as e:
         print(f"结束班级时发生错误: {e}")
         return jsonify({'error': '结束班级时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/start_course', methods=['POST'])
+def start_course():
+    """开始课程"""
+    try:
+        data = request.get_json()
+        course_id = str(uuid.uuid4())
+        
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                course = Course(
+                    id=course_id,
+                    name=data.get('name', ''),
+                    class_id=data.get('class_id'),
+                    is_active=True,
+                    created_date=datetime.utcnow()
+                )
+                db.session.add(course)
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            course_data = {
+                'id': course_id,
+                'name': data.get('name', ''),
+                'class_id': data.get('class_id'),
+                'is_active': True,
+                'created_date': datetime.now().strftime('%Y-%m-%d'),
+                'students': {},
+                'submissions': [],
+                'round_results': [],
+                'current_round': 1,
+                'round_active': False
+            }
+            
+            global_data['courses'][course_id] = course_data
+            save_data()
+        
+        return jsonify({'success': True, 'course_id': course_id})
+        
+    except Exception as e:
+        print(f"开始课程时发生错误: {e}")
+        return jsonify({'error': '开始课程时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/submit_answer', methods=['POST'])
+def submit_answer():
+    """提交答案"""
+    try:
+        data = request.get_json()
+        
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                # 查找或创建课程轮次
+                round_id = f"{data['course_id']}_round_{data['round_number']}"
+                round_obj = CourseRound.query.get(round_id)
+                
+                if not round_obj:
+                    round_obj = CourseRound(
+                        id=round_id,
+                        course_id=data['course_id'],
+                        round_number=data['round_number'],
+                        question_text=data.get('question', ''),
+                        correct_answer=data.get('correct_answer', ''),
+                        question_score=data.get('question_score', 1),
+                        created_date=datetime.utcnow()
+                    )
+                    db.session.add(round_obj)
+                
+                # 创建学生提交记录
+                submission_id = f"{data['student_id']}_{round_id}"
+                submission = StudentSubmission(
+                    id=submission_id,
+                    student_id=data['student_id'],
+                    round_id=round_id,
+                    answer=data['answer'],
+                    is_correct=data['answer'] == data['correct_answer'],
+                    answer_time=data.get('answer_time', 0.0),
+                    submitted_at=datetime.utcnow()
+                )
+                
+                db.session.add(submission)
+                db.session.commit()
+                
+                return jsonify({'success': True, 'is_correct': submission.is_correct})
+        else:
+            # 使用JSON文件（保持原有逻辑）
+            course_id = data.get('course_id')
+            student_name = data.get('student_name')
+            answer = data.get('answer')
+            correct_answer = data.get('correct_answer')
+            
+            if not course_id or not student_name or not answer:
+                return jsonify({'error': '课程ID、学生姓名和答案不能为空'}), 400
+            
+            course_data = global_data['courses'].get(course_id, {})
+            if not course_data:
+                return jsonify({'error': '课程不存在'}), 400
+            
+            # 记录答案
+            course_data['current_answers'][student_name] = answer
+            
+            # 记录答题时间（模拟）
+            current_time = time.time()
+            if 'start_time' in course_data:
+                answer_time = current_time - course_data['start_time']
+                course_data['answer_times'][student_name] = answer_time
+            
+            save_data()
+            
+            return jsonify({'success': True, 'message': '答案已提交'})
+        
+    except Exception as e:
+        print(f"提交答案时发生错误: {e}")
+        return jsonify({'error': '提交答案时发生错误', 'details': str(e)}), 500
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5001))
