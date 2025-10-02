@@ -135,7 +135,9 @@ def init_default_data():
             'end_date': '2025-01-15',
             'total_weeks': 11,
             'lessons_per_week': 1,
-            'created_date': '2025-09-26'
+            'created_date': '2025-09-26',
+            'is_active': True,
+            'ended_date': None
         },
         goal_id_2: {
             'id': goal_id_2,
@@ -145,7 +147,9 @@ def init_default_data():
             'end_date': '2025-01-15',
             'total_weeks': 11,
             'lessons_per_week': 1,
-            'created_date': '2025-09-26'
+            'created_date': '2025-09-26',
+            'is_active': True,
+            'ended_date': None
         }
     }
     
@@ -212,12 +216,18 @@ def index():
     # 只显示活跃的班级
     active_classes = [cls for cls in global_data['classes'].values() if cls.get('is_active', True)]
     inactive_classes = [cls for cls in global_data['classes'].values() if not cls.get('is_active', True)]
-    goals_list = list(global_data['competition_goals'].values())
-    print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 竞赛目标数量: {len(goals_list)}")
+    
+    # 区分活跃和历史竞赛目标
+    active_goals = [goal for goal in global_data['competition_goals'].values() if goal.get('is_active', True)]
+    inactive_goals = [goal for goal in global_data['competition_goals'].values() if not goal.get('is_active', True)]
+    
+    print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
+    
     return render_template('homepage.html',
                          classes=active_classes,
                          inactive_classes=inactive_classes,
-                         competition_goals=goals_list)
+                         competition_goals=active_goals,
+                         inactive_competition_goals=inactive_goals)
 
 @app.route('/class/<class_id>')
 def class_detail(class_id):
@@ -1254,21 +1264,42 @@ def create_demo_data():
     save_data()
     return jsonify({'success': True, 'students': list(course_data['students'].keys())})
 
-@app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
-def delete_competition_goal(goal_id):
-    """删除竞赛目标"""
+@app.route('/api/end_competition_goal/<goal_id>', methods=['POST'])
+def end_competition_goal(goal_id):
+    """结束竞赛目标"""
     try:
         if goal_id not in global_data['competition_goals']:
             return jsonify({'error': '竞赛目标不存在'}), 404
         
-        # 检查是否有班级正在使用这个竞赛目标
+        goal_data = global_data['competition_goals'][goal_id]
+        
+        # 标记竞赛目标为已结束
+        goal_data['is_active'] = False
+        goal_data['ended_date'] = datetime.now().strftime('%Y-%m-%d')
+        
+        save_data()
+        
+        return jsonify({'success': True, 'message': '竞赛目标已结束'})
+        
+    except Exception as e:
+        print(f"结束竞赛目标时发生错误: {e}")
+        return jsonify({'error': '结束竞赛目标时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
+def delete_competition_goal(goal_id):
+    """删除竞赛目标（仅限未使用的目标）"""
+    try:
+        if goal_id not in global_data['competition_goals']:
+            return jsonify({'error': '竞赛目标不存在'}), 404
+        
+        # 检查是否有班级正在使用这个竞赛目标（包括已结束的班级）
         classes_using_goal = [cls for cls in global_data['classes'].values() 
                             if cls.get('competition_goal_id') == goal_id]
         
         if classes_using_goal:
             class_names = [cls['name'] for cls in classes_using_goal]
             return jsonify({
-                'error': f'无法删除竞赛目标，以下班级正在使用：{", ".join(class_names)}'
+                'error': f'无法删除竞赛目标，以下班级正在使用：{", ".join(class_names)}。建议使用"结束竞赛"功能。'
             }), 400
         
         # 删除竞赛目标

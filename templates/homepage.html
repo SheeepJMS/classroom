@@ -815,9 +815,12 @@
                         <button class="btn btn-outline-warning" onclick="assignGoal('{{ goal_data.id }}')">
                             <i class="fas fa-link me-1"></i>分配
                                 </button>
+                        <button class="btn btn-outline-warning" onclick="endGoal('{{ goal_data.id }}')">
+                            <i class="fas fa-stop me-1"></i>结束竞赛
+                        </button>
                         <button class="btn btn-outline-danger" onclick="deleteGoal('{{ goal_data.id }}')">
                             <i class="fas fa-trash me-1"></i>删除
-                                </button>
+                        </button>
                             </div>
                         </div>
                         
@@ -899,6 +902,35 @@
             {% endfor %}
         </div>
     </div>
+    
+    <!-- 历史竞赛目标区域 -->
+    {% if inactive_competition_goals %}
+    <div class="goals-section">
+        <div class="section-header">
+            <h2 class="section-title">历史竞赛目标</h2>
+        </div>
+        
+        <div class="goals-grid">
+            {% for goal_data in inactive_competition_goals %}
+            <div class="goal-card history-goal-card">
+                <div class="goal-header">
+                    <h3 class="goal-name">{{ goal_data.name }}</h3>
+                    <span class="goal-status ended">已结束</span>
+                </div>
+                <div class="goal-info">
+                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.get('ended_date', '未知') }}</p>
+                    <p><i class="fas fa-info-circle"></i> {{ goal_data.description or '暂无描述' }}</p>
+                </div>
+                <div class="goal-actions">
+                    <button class="btn btn-outline-info btn-sm" onclick="viewHistoryGoal('{{ goal_data.id }}')">
+                        <i class="fas fa-eye"></i> 查看详情
+                    </button>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 
 <!-- 创建班级模态框 -->
@@ -1075,6 +1107,12 @@ function viewHistoryClass(classId) {
     window.location.href = `/class/${classId}`;
 }
 
+// 查看历史竞赛目标
+function viewHistoryGoal(goalId) {
+    // 可以显示竞赛目标的详细信息
+    alert('查看历史竞赛目标详情功能待实现');
+}
+
 // 删除班级
 function deleteClass(classId) {
     if (confirm('确定要删除这个班级吗？此操作无法撤销。')) {
@@ -1133,6 +1171,27 @@ function assignGoal(goalId) {
         .catch(error => {
             console.error('Error:', error);
             alert('分配目标时发生错误');
+        });
+    }
+}
+
+// 结束竞赛目标
+function endGoal(goalId) {
+    if (confirm('确定要结束这个竞赛目标吗？竞赛目标将被移动到历史竞赛目标中。')) {
+        fetch(`/api/end_competition_goal/${goalId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert(data.message || '结束竞赛目标失败');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('结束竞赛目标时发生错误');
         });
     }
 }
