@@ -1211,6 +1211,20 @@ def get_classroom_data_legacy():
                             'answers': [],
                             'last_answer': ''
                         }
+        
+        # 确保课程数据有正确的轮次信息，不要重置为1
+        if 'current_round' not in course_data:
+            course_data['current_round'] = 1
+        if 'round_active' not in course_data:
+            course_data['round_active'] = False
+        if 'current_answers' not in course_data:
+            course_data['current_answers'] = {}
+        if 'answer_times' not in course_data:
+            course_data['answer_times'] = {}
+        if 'correct_answer' not in course_data:
+            course_data['correct_answer'] = ''
+        if 'start_time' not in course_data:
+            course_data['start_time'] = None
     
     return jsonify(course_data)
 
@@ -1253,7 +1267,7 @@ def get_classroom_data():
                 'students': students_data,  # 从数据库获取的学生数据
                 'submissions': [],
                 'round_results': [],
-                'current_round': 1,
+                'current_round': 1,  # 数据库模式下从1开始
                 'round_active': False,
                 'current_answers': {},
                 'answer_times': {},
@@ -1271,6 +1285,20 @@ def get_classroom_data():
         # 确保课程数据有完整的学生数据结构
         if course_data and 'students' not in course_data:
             course_data['students'] = {}
+        
+        # 确保课程数据有正确的轮次信息，不要重置为1
+        if 'current_round' not in course_data:
+            course_data['current_round'] = 1
+        if 'round_active' not in course_data:
+            course_data['round_active'] = False
+        if 'current_answers' not in course_data:
+            course_data['current_answers'] = {}
+        if 'answer_times' not in course_data:
+            course_data['answer_times'] = {}
+        if 'correct_answer' not in course_data:
+            course_data['correct_answer'] = ''
+        if 'start_time' not in course_data:
+            course_data['start_time'] = None
     
     return jsonify(course_data)
 
