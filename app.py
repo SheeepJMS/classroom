@@ -354,6 +354,24 @@ def class_classroom(class_id):
             if not current_course:
                 return redirect(url_for('class_detail', class_id=class_id))
             
+            # 获取班级中的所有学生
+            class_students = Student.query.filter_by(class_id=class_id).all()
+            students_data = {}
+            
+            for student in class_students:
+                students_data[student.name] = {
+                    'name': student.name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0,
+                    'last_answer_time': 0,
+                    'expression': 'neutral',
+                    'animation': 'none',
+                    'avatar_color': '#4ecdc4',  # 默认颜色
+                    'answers': [],
+                    'last_answer': ''
+                }
+            
             # 构建课程数据
             course_data = {
                 'id': current_course.id,
@@ -361,7 +379,7 @@ def class_classroom(class_id):
                 'class_id': current_course.class_id,
                 'is_active': current_course.is_active,
                 'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
-                'students': {},  # 空的学生数据
+                'students': students_data,  # 从数据库获取的学生数据
                 'submissions': [],
                 'round_results': [],
                 'current_round': 1,
@@ -1109,13 +1127,40 @@ def next_round():
 @app.route('/get_classroom_data')
 def get_classroom_data_legacy():
     """获取课堂数据（兼容旧版本）"""
+    # 获取请求头中的班级ID
+    class_id = request.headers.get('X-Class-ID')
+    
     if USE_DATABASE:
         # 使用数据库
         with app.app_context():
-            # 获取当前课程
-            current_course = Course.query.filter_by(is_active=True).first()
-            if not current_course:
-                return jsonify({'error': '没有当前课程'}), 400
+            # 如果有班级ID，优先使用该班级的活跃课程
+            if class_id:
+                current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+                if not current_course:
+                    return jsonify({'error': '该班级没有活跃课程'}), 400
+            else:
+                # 否则使用全局当前课程
+                current_course = Course.query.filter_by(is_active=True).first()
+                if not current_course:
+                    return jsonify({'error': '没有当前课程'}), 400
+            
+            # 获取班级中的所有学生
+            class_students = Student.query.filter_by(class_id=current_course.class_id).all()
+            students_data = {}
+            
+            for student in class_students:
+                students_data[student.name] = {
+                    'name': student.name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0,
+                    'last_answer_time': 0,
+                    'expression': 'neutral',
+                    'animation': 'none',
+                    'avatar_color': '#4ecdc4',  # 默认颜色
+                    'answers': [],
+                    'last_answer': ''
+                }
             
             # 构建课程数据
             course_data = {
@@ -1124,7 +1169,7 @@ def get_classroom_data_legacy():
                 'class_id': current_course.class_id,
                 'is_active': current_course.is_active,
                 'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
-                'students': {},  # 空的学生数据
+                'students': students_data,  # 从数据库获取的学生数据
                 'submissions': [],
                 'round_results': [],
                 'current_round': 1,
@@ -1145,6 +1190,27 @@ def get_classroom_data_legacy():
         # 确保课程数据有完整的学生数据结构
         if course_data and 'students' not in course_data:
             course_data['students'] = {}
+        
+        # 如果有班级ID，从班级中加载学生数据到课程中
+        if class_id and class_id in global_data['classes']:
+            class_data = global_data['classes'][class_id]
+            if 'students' in class_data:
+                # 将班级中的学生添加到课程中
+                for student_id, student_info in class_data['students'].items():
+                    student_name = student_info.get('name', '')
+                    if student_name and student_name not in course_data.get('students', {}):
+                        course_data['students'][student_name] = {
+                            'name': student_name,
+                            'score': 0,
+                            'total_rounds': 0,
+                            'correct_rounds': 0,
+                            'last_answer_time': 0,
+                            'expression': 'neutral',
+                            'animation': 'none',
+                            'avatar_color': student_info.get('avatar_color', '#4ecdc4'),
+                            'answers': [],
+                            'last_answer': ''
+                        }
     
     return jsonify(course_data)
 
@@ -1159,6 +1225,24 @@ def get_classroom_data():
             if not current_course:
                 return jsonify({'error': '没有当前课程'}), 400
             
+            # 获取班级中的所有学生
+            class_students = Student.query.filter_by(class_id=current_course.class_id).all()
+            students_data = {}
+            
+            for student in class_students:
+                students_data[student.name] = {
+                    'name': student.name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0,
+                    'last_answer_time': 0,
+                    'expression': 'neutral',
+                    'animation': 'none',
+                    'avatar_color': '#4ecdc4',  # 默认颜色
+                    'answers': [],
+                    'last_answer': ''
+                }
+            
             # 构建课程数据
             course_data = {
                 'id': current_course.id,
@@ -1166,7 +1250,7 @@ def get_classroom_data():
                 'class_id': current_course.class_id,
                 'is_active': current_course.is_active,
                 'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
-                'students': {},  # 空的学生数据
+                'students': students_data,  # 从数据库获取的学生数据
                 'submissions': [],
                 'round_results': [],
                 'current_round': 1,
@@ -1326,34 +1410,64 @@ def add_student():
     """添加学生到班级"""
     try:
         data = request.get_json()
-        student_id = str(uuid.uuid4())
+        student_name = data.get('name', '').strip()
+        class_id = data.get('class_id')
+        
+        if not student_name:
+            return jsonify({'error': '学生姓名不能为空'}), 400
+        
+        if not class_id:
+            return jsonify({'error': '班级ID不能为空'}), 400
         
         if USE_DATABASE:
             # 使用数据库
             with app.app_context():
+                # 检查学生是否已存在
+                existing_student = Student.query.filter_by(name=student_name, class_id=class_id).first()
+                if existing_student:
+                    return jsonify({'error': '该班级中已存在同名学生'}), 400
+                
+                student_id = str(uuid.uuid4())
                 student = Student(
                     id=student_id,
-                    name=data.get('name', ''),
-                    class_id=data.get('class_id'),
+                    name=student_name,
+                    class_id=class_id,
                     created_date=datetime.utcnow()
                 )
                 db.session.add(student)
                 db.session.commit()
         else:
             # 使用JSON文件
+            # 检查学生是否已存在
+            if class_id in global_data['classes']:
+                class_data = global_data['classes'][class_id]
+                if 'students' in class_data:
+                    for existing_student in class_data['students'].values():
+                        if existing_student.get('name') == student_name:
+                            return jsonify({'error': '该班级中已存在同名学生'}), 400
+            
+            student_id = str(uuid.uuid4())
             student_data = {
                 'id': student_id,
-                'name': data.get('name', ''),
-                'class_id': data.get('class_id'),
-                'created_date': datetime.now().strftime('%Y-%m-%d')
+                'name': student_name,
+                'class_id': class_id,
+                'created_date': datetime.now().strftime('%Y-%m-%d'),
+                'avatar_color': f'linear-gradient(135deg, #{random.randint(0, 255):02x}{random.randint(0, 255):02x}{random.randint(0, 255):02x} 0%, #{random.randint(0, 255):02x}{random.randint(0, 255):02x}{random.randint(0, 255):02x} 100%)',
+                'total_score_all_courses': 0,
+                'courses_attended': [],
+                'attendance_rate': 100,
+                'absence_count': 0,
+                'long_term_member': True
             }
             
             # 添加到全局学生数据
             global_data['students'][student_id] = student_data
             
             # 添加到班级的学生列表
-            if data.get('class_id') in global_data['classes']:
-                global_data['classes'][data.get('class_id')]['students'][student_id] = student_data
+            if class_id in global_data['classes']:
+                if 'students' not in global_data['classes'][class_id]:
+                    global_data['classes'][class_id]['students'] = {}
+                global_data['classes'][class_id]['students'][student_id] = student_data
             
             save_data()
         
@@ -1362,6 +1476,56 @@ def add_student():
     except Exception as e:
         print(f"添加学生时发生错误: {e}")
         return jsonify({'error': '添加学生时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/delete_student', methods=['POST'])
+def delete_student():
+    """删除学生"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id')
+        class_id = data.get('class_id')
+        
+        if not student_id:
+            return jsonify({'error': '学生ID不能为空'}), 400
+        
+        if not class_id:
+            return jsonify({'error': '班级ID不能为空'}), 400
+        
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                student = Student.query.get(student_id)
+                if not student:
+                    return jsonify({'error': '学生不存在'}), 404
+                
+                if student.class_id != class_id:
+                    return jsonify({'error': '学生不属于该班级'}), 400
+                
+                db.session.delete(student)
+                db.session.commit()
+        else:
+            # 使用JSON文件
+            # 从班级中删除学生
+            if class_id in global_data['classes']:
+                class_data = global_data['classes'][class_id]
+                if 'students' in class_data and student_id in class_data['students']:
+                    del class_data['students'][student_id]
+                else:
+                    return jsonify({'error': '学生不存在'}), 404
+            else:
+                return jsonify({'error': '班级不存在'}), 404
+            
+            # 从全局学生数据中删除
+            if student_id in global_data['students']:
+                del global_data['students'][student_id]
+            
+            save_data()
+        
+        return jsonify({'success': True, 'message': '学生删除成功'})
+        
+    except Exception as e:
+        print(f"删除学生时发生错误: {e}")
+        return jsonify({'error': '删除学生时发生错误', 'details': str(e)}), 500
 
 @app.route('/api/add_student_to_course', methods=['POST'])
 def add_student_to_course():
@@ -1377,40 +1541,94 @@ def add_student_to_course():
         if not course_id:
             return jsonify({'error': '课程ID不能为空'}), 400
         
-        # 获取当前课程数据
-        current_course_id = global_data.get('current_course') or course_id
-        course_data = global_data['courses'].get(current_course_id, {})
-        
-        if not course_data:
-            return jsonify({'error': '课程不存在'}), 400
-        
-        # 检查学生是否已存在
-        if student_name in course_data.get('students', {}):
-            return jsonify({'error': '学生已存在'}), 400
-        
-        # 创建学生数据
-        import random
-        student_data = {
-            'name': student_name,
-            'score': 0,
-            'total_rounds': 0,
-            'correct_rounds': 0,
-            'last_answer_time': 0,
-            'expression': 'neutral',
-            'animation': 'none',
-            'avatar_color': random.choice(['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd']),
-            'answers': [],
-            'last_answer': ''
-        }
-        
-        # 添加到课程的学生列表
-        if 'students' not in course_data:
-            course_data['students'] = {}
-        course_data['students'][student_name] = student_data
-        
-        save_data()
-        
-        return jsonify({'success': True, 'student': student_data})
+        if USE_DATABASE:
+            # 使用数据库
+            with app.app_context():
+                # 获取当前课程
+                current_course = Course.query.filter_by(is_active=True).first()
+                if not current_course:
+                    return jsonify({'error': '没有当前课程'}), 400
+                
+                # 检查学生是否已存在
+                existing_student = Student.query.filter_by(name=student_name, class_id=current_course.class_id).first()
+                if existing_student:
+                    return jsonify({'error': '学生已存在'}), 400
+                
+                # 创建新学生
+                student_id = str(uuid.uuid4())
+                student = Student(
+                    id=student_id,
+                    name=student_name,
+                    class_id=current_course.class_id,
+                    created_date=datetime.utcnow()
+                )
+                db.session.add(student)
+                db.session.commit()
+                
+                # 创建学生数据
+                import random
+                student_data = {
+                    'name': student_name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0,
+                    'last_answer_time': 0,
+                    'expression': 'neutral',
+                    'animation': 'none',
+                    'avatar_color': random.choice(['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd']),
+                    'answers': [],
+                    'last_answer': ''
+                }
+                
+                return jsonify({'success': True, 'student': student_data})
+        else:
+            # 使用JSON文件
+            # 获取当前课程数据
+            current_course_id = global_data.get('current_course') or course_id
+            course_data = global_data['courses'].get(current_course_id, {})
+            
+            if not course_data:
+                return jsonify({'error': '课程不存在'}), 400
+            
+            # 检查学生是否已存在
+            if student_name in course_data.get('students', {}):
+                return jsonify({'error': '学生已存在'}), 400
+            
+            # 创建学生数据
+            import random
+            student_data = {
+                'name': student_name,
+                'score': 0,
+                'total_rounds': 0,
+                'correct_rounds': 0,
+                'last_answer_time': 0,
+                'expression': 'neutral',
+                'animation': 'none',
+                'avatar_color': random.choice(['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd']),
+                'answers': [],
+                'last_answer': ''
+            }
+            
+            # 添加到课程的学生列表
+            if 'students' not in course_data:
+                course_data['students'] = {}
+            course_data['students'][student_name] = student_data
+            
+            # 同时添加到班级的学生列表
+            class_id = course_data.get('class_id')
+            if class_id and class_id in global_data['classes']:
+                if 'students' not in global_data['classes'][class_id]:
+                    global_data['classes'][class_id]['students'] = {}
+                global_data['classes'][class_id]['students'][student_name] = {
+                    'name': student_name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0
+                }
+            
+            save_data()
+            
+            return jsonify({'success': True, 'student': student_data})
         
     except Exception as e:
         print(f"添加学生到课程时发生错误: {e}")
@@ -1686,6 +1904,9 @@ def start_course():
         if USE_DATABASE:
             # 使用数据库
             with app.app_context():
+                # 先将其他课程设为非活跃状态
+                Course.query.filter_by(class_id=data.get('class_id')).update({'is_active': False})
+                
                 course = Course(
                     id=course_id,
                     name=data.get('name', ''),
@@ -1695,6 +1916,9 @@ def start_course():
                 )
                 db.session.add(course)
                 db.session.commit()
+                
+                # 设置当前课程
+                global_data['current_course'] = course_id
         else:
             # 使用JSON文件
             course_data = {
@@ -1711,6 +1935,7 @@ def start_course():
             }
             
             global_data['courses'][course_id] = course_data
+            global_data['current_course'] = course_id
             save_data()
         
         return jsonify({'success': True, 'course_id': course_id})

@@ -968,6 +968,35 @@
       "active_course": "e3348ad8-39e1-4ef9-9a6a-e1a09084515b",
       "is_active": false,
       "ended_date": "2025-10-01"
+    },
+    "368d7e52-8b84-41e9-b5dc-7fad38eced10": {
+      "id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "name": "1",
+      "description": "1",
+      "students": {
+        "dce90a34-7312-40fd-9c76-532ea9d06e6b": {
+          "id": "dce90a34-7312-40fd-9c76-532ea9d06e6b",
+          "name": "11",
+          "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+          "created_date": "2025-10-03"
+        },
+        "a68c8fab-593f-4999-947d-46cc49b8898a": {
+          "id": "a68c8fab-593f-4999-947d-46cc49b8898a",
+          "name": "12",
+          "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+          "created_date": "2025-10-03"
+        },
+        "153527b9-34e5-43e0-a816-798398e1f29c": {
+          "id": "153527b9-34e5-43e0-a816-798398e1f29c",
+          "name": "13",
+          "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+          "created_date": "2025-10-03"
+        }
+      },
+      "courses": [],
+      "competition_goal_id": null,
+      "is_active": true,
+      "created_date": "2025-10-03"
     }
   },
   "competition_goals": {
@@ -2062,8 +2091,75 @@
         }
       ],
       "created_date": "2025-10-01T15:39:17.719813"
+    },
+    "1e323e98-91bb-4dbb-96f4-b79842561fb4": {
+      "id": "1e323e98-91bb-4dbb-96f4-b79842561fb4",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": true,
+      "created_date": "2025-10-03",
+      "students": {},
+      "submissions": [],
+      "round_results": [],
+      "current_round": 1,
+      "round_active": false
+    },
+    "a45b9b6c-1847-4d27-9fc7-bd72a60c6c53": {
+      "id": "a45b9b6c-1847-4d27-9fc7-bd72a60c6c53",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": true,
+      "created_date": "2025-10-03",
+      "students": {},
+      "submissions": [],
+      "round_results": [],
+      "current_round": 1,
+      "round_active": false
+    },
+    "41cb610c-72c5-4e9f-b3c6-d0f18b9a7650": {
+      "id": "41cb610c-72c5-4e9f-b3c6-d0f18b9a7650",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": true,
+      "created_date": "2025-10-03",
+      "students": {},
+      "submissions": [],
+      "round_results": [],
+      "current_round": 1,
+      "round_active": false
+    },
+    "9d57de88-9dbb-4bcd-8573-827f503cac50": {
+      "id": "9d57de88-9dbb-4bcd-8573-827f503cac50",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": true,
+      "created_date": "2025-10-03",
+      "students": {},
+      "submissions": [],
+      "round_results": [],
+      "current_round": 1,
+      "round_active": false
     }
   },
-  "current_course": "8e218371-ffcd-4049-b8b3-9dbb12ab72ea",
-  "students": {}
+  "current_course": "9d57de88-9dbb-4bcd-8573-827f503cac50",
+  "students": {
+    "dce90a34-7312-40fd-9c76-532ea9d06e6b": {
+      "id": "dce90a34-7312-40fd-9c76-532ea9d06e6b",
+      "name": "11",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "created_date": "2025-10-03"
+    },
+    "a68c8fab-593f-4999-947d-46cc49b8898a": {
+      "id": "a68c8fab-593f-4999-947d-46cc49b8898a",
+      "name": "12",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "created_date": "2025-10-03"
+    },
+    "153527b9-34e5-43e0-a816-798398e1f29c": {
+      "id": "153527b9-34e5-43e0-a816-798398e1f29c",
+      "name": "13",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "created_date": "2025-10-03"
+    }
+  }
 }
