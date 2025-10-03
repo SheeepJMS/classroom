@@ -49,7 +49,15 @@ def load_data():
         try:
             with open(DATA_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-                global_data.update(data)
+                # 只更新缺失的键，不覆盖现有数据
+                for key, value in data.items():
+                    if key not in global_data:
+                        global_data[key] = value
+                    elif isinstance(value, dict) and isinstance(global_data[key], dict):
+                        # 对于字典类型，合并而不是覆盖
+                        global_data[key].update(value)
+                    else:
+                        global_data[key] = value
                 
                 # 迁移旧格式的课程数据到新格式
                 migrate_course_data()
@@ -57,8 +65,10 @@ def load_data():
                 print(f"使用现有数据 - 班级数量: {len(global_data['classes'])}, 竞赛目标数量: {len(global_data['competition_goals'])}, 课程数量: {len(global_data['courses'])}")
         except Exception as e:
             print(f"加载数据失败: {e}")
-            init_default_data()
+            print("数据文件损坏，但保留现有内存数据，不进行重置")
+            # 不再调用 init_default_data()，避免数据丢失
     else:
+        print("数据文件不存在，创建空数据结构")
         init_default_data()
 
 def migrate_course_data():
@@ -119,89 +129,20 @@ def save_data():
         print(f"保存数据失败: {e}")
 
 def init_default_data():
-    """初始化默认数据"""
+    """初始化默认数据 - 仅在数据文件完全不存在时创建"""
     global global_data
     
-    # 创建默认竞赛目标
-    goal_id_1 = str(uuid.uuid4())
-    goal_id_2 = str(uuid.uuid4())
+    print("数据文件不存在，创建初始数据结构...")
     
-    global_data['competition_goals'] = {
-        goal_id_1: {
-            'id': goal_id_1,
-            'name': 'AMC 8 竞赛',
-            'description': '111',
-            'start_date': '2025-01-15',
-            'end_date': '2025-01-15',
-            'total_weeks': 11,
-            'lessons_per_week': 1,
-            'created_date': '2025-09-26',
-            'is_active': True,
-            'ended_date': None
-        },
-        goal_id_2: {
-            'id': goal_id_2,
-            'name': 'amc10',
-            'description': '',
-            'start_date': '2025-01-15',
-            'end_date': '2025-01-15',
-            'total_weeks': 11,
-            'lessons_per_week': 1,
-            'created_date': '2025-09-26',
-            'is_active': True,
-            'ended_date': None
-        }
-    }
-    
-    # 创建默认班级（空班级，无预设学生）
-    class_id_1 = str(uuid.uuid4())
-    class_id_2 = str(uuid.uuid4())
-    class_id_3 = str(uuid.uuid4())
-    
-    global_data['classes'] = {
-        class_id_1: {
-            'id': class_id_1,
-            'name': '数学竞赛班',
-            'description': 'AMC 8 数学竞赛准备班级',
-            'created_date': '2025-09-26',
-            'competition_goal_id': goal_id_1,
-            'students': {},
-            'courses': [],
-            'active_course': None,
-            'is_active': True
-        },
-        class_id_2: {
-            'id': class_id_2,
-            'name': '123',
-            'description': '1',
-            'created_date': '2025-09-26',
-            'competition_goal_id': goal_id_2,
-            'students': {},
-            'courses': [],
-            'active_course': None,
-            'is_active': True
-        },
-        class_id_3: {
-            'id': class_id_3,
-            'name': '1',
-            'description': '',
-            'created_date': '2025-09-26',
-            'competition_goal_id': goal_id_2,
-            'students': {},
-            'courses': [],
-            'active_course': None,
-            'is_active': True
-        }
-    }
-    
-    # 清理预设的学生数据
+    # 只初始化基本结构，不创建预设数据
+    global_data['competition_goals'] = {}
+    global_data['classes'] = {}
     global_data['students'] = {}
-    
-    # 清理预设的课程数据
     global_data['courses'] = {}
+    global_data['current_course'] = None
     
     save_data()
-    print("初始化默认数据完成（已清理预设学生和课程数据）")
+    print("初始化空数据结构完成 - 不会覆盖现有数据")
 
 # 在应用启动时加载数据
 if USE_DATABASE:
