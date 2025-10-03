@@ -3,11 +3,11 @@ services:
     name: math-classroom-app
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python -c "from app import app; from models import init_db; init_db(app); print('数据库初始化完成')" && python migrate_data.py
+    buildCommand: pip install -r requirements.txt && python -c "from app import app; from models import init_db; init_db(app); print('数据库初始化完成')" && python sync_to_database.py
     startCommand: python app.py
     envVars:
       - key: PYTHON_VERSION
-        value: 3.11.0
+        value: 3.11.7
       - key: SECRET_KEY
         generateValue: true
       - key: USE_DATABASE
