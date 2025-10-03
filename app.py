@@ -13,7 +13,13 @@ app.secret_key = 'your-secret-key-here'
 
 # 数据库配置
 import os
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
+DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
+
+# 如果是PostgreSQL，强制使用psycopg3驱动
+if DATABASE_URL.startswith('postgresql://') or DATABASE_URL.startswith('postgres://'):
+    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://').replace('postgres://', 'postgresql+psycopg://')
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 检查是否使用数据库模式
