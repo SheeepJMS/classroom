@@ -11,16 +11,15 @@ from models import db, Class, Student, CompetitionGoal, Course, CourseRound, Stu
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
 
-# 数据库配置（可选）
-USE_DATABASE = os.environ.get('USE_DATABASE', 'false').lower() == 'true'
+# 数据库配置
+import os
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 检查是否使用数据库模式
+USE_DATABASE = os.environ.get('DATABASE_URL') is not None
+
 if USE_DATABASE:
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
-    if DATABASE_URL.startswith('postgres://'):
-        DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
-    
-    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
-    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-    
     # 初始化数据库
     init_db(app)
     print("数据库模式已启用")
