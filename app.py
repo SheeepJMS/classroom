@@ -448,7 +448,25 @@ def class_classroom(class_id):
         # 获取课程数据
         course_data = global_data['courses'].get(current_course_id, {})
         if not course_data:
-            return redirect(url_for('class_detail', class_id=class_id))
+            # 如果没有找到课程数据，创建一个新的课程
+            course_data = {
+                'id': current_course_id,
+                'name': '新课程',
+                'class_id': class_id,
+                'is_active': True,
+                'created_date': datetime.now().strftime('%Y-%m-%d'),
+                'students': {},
+                'submissions': [],
+                'round_results': [],
+                'current_round': 1,
+                'round_active': False,
+                'current_answers': {},
+                'answer_times': {},
+                'correct_answer': '',
+                'start_time': None
+            }
+            global_data['courses'][current_course_id] = course_data
+            save_data()
     
     return render_template('classroom.html',
                          classroom_data=course_data,
@@ -1177,6 +1195,10 @@ def get_classroom_data_legacy():
             return jsonify({'error': '没有当前课程'}), 400
         
         course_data = global_data['courses'].get(current_course_id, {})
+        
+        # 确保课程数据有完整的学生数据结构
+        if course_data and 'students' not in course_data:
+            course_data['students'] = {}
     
     return jsonify(course_data)
 
@@ -1215,6 +1237,10 @@ def get_classroom_data():
             return jsonify({'error': '没有当前课程'}), 400
         
         course_data = global_data['courses'].get(current_course_id, {})
+        
+        # 确保课程数据有完整的学生数据结构
+        if course_data and 'students' not in course_data:
+            course_data['students'] = {}
     
     return jsonify(course_data)
 
@@ -1389,6 +1415,59 @@ def add_student():
         
     except Exception as e:
         print(f"添加学生时发生错误: {e}")
+        return jsonify({'error': '添加学生时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/add_student_to_course', methods=['POST'])
+def add_student_to_course():
+    """添加学生到课程"""
+    try:
+        data = request.get_json()
+        student_name = data.get('name', '').strip()
+        course_id = data.get('course_id')
+        
+        if not student_name:
+            return jsonify({'error': '学生姓名不能为空'}), 400
+        
+        if not course_id:
+            return jsonify({'error': '课程ID不能为空'}), 400
+        
+        # 获取当前课程数据
+        current_course_id = global_data.get('current_course') or course_id
+        course_data = global_data['courses'].get(current_course_id, {})
+        
+        if not course_data:
+            return jsonify({'error': '课程不存在'}), 400
+        
+        # 检查学生是否已存在
+        if student_name in course_data.get('students', {}):
+            return jsonify({'error': '学生已存在'}), 400
+        
+        # 创建学生数据
+        import random
+        student_data = {
+            'name': student_name,
+            'score': 0,
+            'total_rounds': 0,
+            'correct_rounds': 0,
+            'last_answer_time': 0,
+            'expression': 'neutral',
+            'animation': 'none',
+            'avatar_color': random.choice(['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd']),
+            'answers': [],
+            'last_answer': ''
+        }
+        
+        # 添加到课程的学生列表
+        if 'students' not in course_data:
+            course_data['students'] = {}
+        course_data['students'][student_name] = student_data
+        
+        save_data()
+        
+        return jsonify({'success': True, 'student': student_data})
+        
+    except Exception as e:
+        print(f"添加学生到课程时发生错误: {e}")
         return jsonify({'error': '添加学生时发生错误', 'details': str(e)}), 500
 
 @app.route('/api/create_class', methods=['POST'])

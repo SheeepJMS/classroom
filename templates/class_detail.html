@@ -388,7 +388,7 @@
                     </div>
                     <div class="class-numbers">
                         <div class="class-number">{{ class_data.name }}</div>
-                        <div class="class-number">{{ class_data.courses|length }}</div>
+                        <div class="class-number">{{ class_data.students|length }}</div>
                     </div>
                 </div>
                 <div class="class-meta">
@@ -482,11 +482,11 @@
                         <div class="student-avatar">😊</div>
                         <div class="student-name">{{ student.name }}</div>
                         <div class="student-stats">
-                            TOTAL 0<br>
-                            COURSES: 0<br>
-                            ATTENDANCE: 100%<br>
-                            ABSENCES: 0<br>
-                            SCORE:
+                            TOTAL {{ student.get('total_score_all_courses', 0) }}<br>
+                            COURSES: {{ student.get('courses_attended', [])|length }}<br>
+                            ATTENDANCE: {{ student.get('attendance_rate', 100) }}%<br>
+                            ABSENCES: {{ student.get('absence_count', 0) }}<br>
+                            SCORE: {{ student.get('total_score_all_courses', 0) }}
                         </div>
                         <button class="btn btn-danger btn-sm mt-2" onclick="deleteStudent('{{ student.id }}')">
                             <i class="fas fa-trash"></i>
@@ -560,9 +560,7 @@ function addStudent() {
         },
         body: JSON.stringify({
             class_id: '{{ class_data.id }}',
-            student_data: {
-                name: name
-            }
+            name: name
         })
     })
     .then(response => response.json())

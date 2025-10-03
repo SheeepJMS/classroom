@@ -249,24 +249,29 @@ function addStudent() {
         return;
     }
     
-    fetch('/add_student', {
+    fetch('/api/add_student_to_course', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            name: studentName
+            name: studentName,
+            course_id: '{{ course_id }}'
         })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // 更新课堂数据
+            if (!classroomData.students) {
+                classroomData.students = {};
+            }
             classroomData.students[data.student.name] = data.student;
             updateStudentsDisplay();
             document.getElementById('studentNameInput').value = '';
             document.getElementById('studentCount').textContent = Object.keys(classroomData.students).length;
         } else {
-            alert(data.message || 'Failed to add student');
+            alert(data.error || data.message || 'Failed to add student');
         }
     })
     .catch(error => {

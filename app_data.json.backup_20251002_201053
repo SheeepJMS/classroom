@@ -713,7 +713,63 @@
       "description": "周六上午10-12",
       "created_date": "2025-09-27",
       "competition_goal_id": "c9a0686a-606a-4ac1-9792-351774c8dd8f",
-      "students": {},
+      "students": {
+        "82fa5c51-c090-4aed-adae-ed74f3728f8e": {
+          "id": "82fa5c51-c090-4aed-adae-ed74f3728f8e",
+          "name": "11",
+          "avatar_color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true,
+          "created_date": "2025-09-27"
+        },
+        "05c3a057-ef89-4dce-bfe4-335d5f34555c": {
+          "id": "05c3a057-ef89-4dce-bfe4-335d5f34555c",
+          "name": "22",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true,
+          "created_date": "2025-09-27"
+        },
+        "afa35c61-3964-4be7-868d-71e4b8247191": {
+          "id": "afa35c61-3964-4be7-868d-71e4b8247191",
+          "name": "33",
+          "avatar_color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true,
+          "created_date": "2025-09-27"
+        },
+        "7e3f570b-00b4-4229-b094-2a2638ea1134": {
+          "id": "7e3f570b-00b4-4229-b094-2a2638ea1134",
+          "name": "44",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true,
+          "created_date": "2025-09-27"
+        },
+        "77fe41cc-9a6e-4ade-963b-e9a6beb30415": {
+          "id": "77fe41cc-9a6e-4ade-963b-e9a6beb30415",
+          "name": "55",
+          "avatar_color": "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true,
+          "created_date": "2025-09-27"
+        }
+      },
       "courses": [
         {
           "id": "e3348ad8-39e1-4ef9-9a6a-e1a09084515b",
@@ -1340,6 +1396,18 @@
           "avatar_color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
           "answers": [],
           "last_answer": ""
+        },
+        "11": {
+          "name": "11",
+          "score": 0,
+          "total_rounds": 1,
+          "correct_rounds": 0,
+          "last_answer_time": 4.387520790100098,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%)",
+          "answers": [],
+          "last_answer": ""
         }
       },
       "submissions": [],
@@ -1355,7 +1423,68 @@
     },
     "e3348ad8-39e1-4ef9-9a6a-e1a09084515b": {
       "id": "e3348ad8-39e1-4ef9-9a6a-e1a09084515b",
-      "students": {},
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 7,
+          "total_rounds": 4,
+          "correct_rounds": 3,
+          "last_answer_time": 1.88576340675354,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "22": {
+          "name": "22",
+          "score": 8,
+          "total_rounds": 4,
+          "correct_rounds": 4,
+          "last_answer_time": 3.087947130203247,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "33": {
+          "name": "33",
+          "score": 2,
+          "total_rounds": 4,
+          "correct_rounds": 2,
+          "last_answer_time": 4.20613169670105,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "44": {
+          "name": "44",
+          "score": 0,
+          "total_rounds": 3,
+          "correct_rounds": 0,
+          "last_answer_time": 5.143318176269531,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "55": {
+          "name": "55",
+          "score": 0,
+          "total_rounds": 3,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
       "submissions": [],
       "is_active": false,
       "start_time": 1759040041.2123673,
@@ -1419,7 +1548,68 @@
       "id": "24b95569-10e1-485d-aca1-bc8c9dbef69c",
       "name": "2223334",
       "class_id": "0b63662a-97cf-4667-ae3a-dc959d53675a",
-      "students": {},
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 11,
+          "total_rounds": 7,
+          "correct_rounds": 7,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "22": {
+          "name": "22",
+          "score": 10,
+          "total_rounds": 8,
+          "correct_rounds": 6,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "33": {
+          "name": "33",
+          "score": 2,
+          "total_rounds": 8,
+          "correct_rounds": 2,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+          "answers": [],
+          "last_answer": "2"
+        },
+        "44": {
+          "name": "44",
+          "score": 2,
+          "total_rounds": 3,
+          "correct_rounds": 2,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "55": {
+          "name": "55",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "neutral",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
       "submissions": [],
       "is_active": false,
       "start_time": 1759043245.4250996,
@@ -1692,7 +1882,68 @@
       "id": "8e218371-ffcd-4049-b8b3-9dbb12ab72ea",
       "name": "555",
       "class_id": "0b63662a-97cf-4667-ae3a-dc959d53675a",
-      "students": {},
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 10,
+          "total_rounds": 11,
+          "correct_rounds": 8,
+          "last_answer_time": 0,
+          "expression": "angry",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+          "answers": [],
+          "last_answer": "2"
+        },
+        "22": {
+          "name": "22",
+          "score": 11,
+          "total_rounds": 11,
+          "correct_rounds": 9,
+          "last_answer_time": 0,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": "3"
+        },
+        "33": {
+          "name": "33",
+          "score": 7,
+          "total_rounds": 10,
+          "correct_rounds": 5,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #ffecd2 0%, #fcb69f 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "44": {
+          "name": "44",
+          "score": 4,
+          "total_rounds": 7,
+          "correct_rounds": 4,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+          "answers": [],
+          "last_answer": ""
+        },
+        "55": {
+          "name": "55",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #a8edea 0%, #fed6e3 100%)",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
       "submissions": [],
       "is_active": false,
       "start_time": 1759363809.3560972,
