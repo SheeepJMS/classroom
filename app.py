@@ -254,11 +254,13 @@ def class_detail(class_id):
                     }
                     
                     # 计算竞赛目标进度
+                    # 注意：数据库模式下的CompetitionGoal模型没有goal_date字段
+                    # 这里使用created_date作为竞赛日期，实际应用中应该添加goal_date字段
                     if goal_obj.created_date:
                         from datetime import datetime, timedelta
-                        days_since_start = (datetime.utcnow() - goal_obj.created_date).days
-                        total_days = 77  # 11周 * 7天
-                        days_left = max(0, total_days - days_since_start)
+                        # 假设竞赛日期是创建日期后77天
+                        goal_date = goal_obj.created_date + timedelta(days=77)
+                        days_left = max(0, (goal_date - datetime.utcnow()).days)
                         weeks_left = max(0, days_left // 7)
                         lessons_left = max(0, weeks_left)  # 每周1节课
                         
@@ -304,13 +306,12 @@ def class_detail(class_id):
                 }
                 
                 # 计算竞赛目标进度
-                if goal_data.get('created_date'):
+                if goal_data.get('goal_date'):
                     from datetime import datetime, timedelta
                     try:
-                        start_date = datetime.strptime(goal_data['created_date'], '%Y-%m-%d')
-                        days_since_start = (datetime.now() - start_date).days
-                        total_days = 77  # 11周 * 7天
-                        days_left = max(0, total_days - days_since_start)
+                        goal_date = datetime.strptime(goal_data['goal_date'], '%Y-%m-%d')
+                        today = datetime.now()
+                        days_left = max(0, (goal_date - today).days)
                         weeks_left = max(0, days_left // 7)
                         lessons_left = max(0, weeks_left)  # 每周1节课
                         
@@ -320,10 +321,11 @@ def class_detail(class_id):
                             'lessons_left': lessons_left
                         }
                     except:
+                        # 如果日期解析失败，使用默认值
                         goal_progress = {
-                            'days_left': 77,
-                            'weeks_left': 11,
-                            'lessons_left': 11
+                            'days_left': 0,
+                            'weeks_left': 0,
+                            'lessons_left': 0
                         }
     
     return render_template('class_detail.html',
