@@ -568,10 +568,22 @@ def generate_student_report(student_name, course_id=None):
     
     course_data = global_data['courses'].get(target_course_id, {})
     
-    if student_name not in course_data.get('students', {}):
-        return redirect(url_for('reports', course_id=target_course_id))
+    # 修复学生查找逻辑：支持两种数据结构
+    student = None
+    students_data = course_data.get('students', {})
     
-    student = course_data['students'][student_name]
+    # 首先尝试直接用学生姓名查找
+    if student_name in students_data:
+        student = students_data[student_name]
+    else:
+        # 如果找不到，尝试通过学生姓名在值中查找
+        for student_key, student_data in students_data.items():
+            if student_data.get('name') == student_name:
+                student = student_data
+                break
+    
+    if not student:
+        return redirect(url_for('reports', course_id=target_course_id))
     
     # 计算统计数据
     total_rounds = student.get('total_rounds', 0)
@@ -588,14 +600,26 @@ def generate_student_report(student_name, course_id=None):
     answer_times = []
     
     for round_result in round_results:
-        if student_name in round_result.get('results', {}):
-            student_result = round_result['results'][student_name]
-            if student_result.get('answer', '').strip():  # 有答案
-                participated_rounds += 1
-                # 使用真实的答题时间
-                answer_time = student_result.get('answer_time', 0)
-                answer_times.append(answer_time)
-                total_answer_time += answer_time
+        results = round_result.get('results', {})
+        student_result = None
+        
+        # 首先尝试直接用学生姓名查找
+        if student_name in results:
+            student_result = results[student_name]
+        else:
+            # 如果找不到，尝试通过学生姓名在值中查找
+            for result_key, result_data in results.items():
+                # 检查是否有其他方式匹配学生
+                if result_key == student_name or (isinstance(result_data, dict) and result_data.get('student_name') == student_name):
+                    student_result = result_data
+                    break
+        
+        if student_result and student_result.get('answer', '').strip():  # 有答案
+            participated_rounds += 1
+            # 使用真实的答题时间
+            answer_time = student_result.get('answer_time', 0)
+            answer_times.append(answer_time)
+            total_answer_time += answer_time
     
     participation_rate = (participated_rounds / total_rounds_available * 100) if total_rounds_available > 0 else 0
     
@@ -723,8 +747,21 @@ def generate_student_report(student_name, course_id=None):
     # 生成学生提交记录（从round_results中提取）
     student_submissions = []
     for i, round_result in enumerate(round_results):
-        if student_name in round_result.get('results', {}):
-            student_result = round_result['results'][student_name]
+        results = round_result.get('results', {})
+        student_result = None
+        
+        # 首先尝试直接用学生姓名查找
+        if student_name in results:
+            student_result = results[student_name]
+        else:
+            # 如果找不到，尝试通过学生姓名在值中查找
+            for result_key, result_data in results.items():
+                # 检查是否有其他方式匹配学生
+                if result_key == student_name or (isinstance(result_data, dict) and result_data.get('student_name') == student_name):
+                    student_result = result_data
+                    break
+        
+        if student_result:
             # 使用真实的答题时间，如果没有则使用0
             real_answer_time = student_result.get('answer_time', 0)
             
