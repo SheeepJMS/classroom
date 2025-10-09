@@ -49,7 +49,6 @@ backup_*/
 !app.py
 !app_v2.py
 !app_backup.py
-!app_data.json
 !data_structure_design.py
 !math_homework.db
 !README.md
@@ -59,3 +58,7 @@ backup_*/
 !static/
 !templates/
 !.gitignore
+
+# Exclude data files to prevent git from overwriting local data
+app_data.json
+*.json.backup*

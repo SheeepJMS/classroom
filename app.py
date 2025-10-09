@@ -149,6 +149,14 @@ def init_default_data():
     save_data()
     print("初始化空数据结构完成 - 不会覆盖现有数据")
 
+# 在应用启动时创建数据备份
+if not USE_DATABASE:
+    try:
+        import auto_backup
+        auto_backup.create_backup()
+    except Exception as e:
+        print(f"自动备份失败: {e}")
+
 # 在应用启动时加载数据
 if USE_DATABASE:
     print("使用数据库模式，跳过JSON文件加载")
