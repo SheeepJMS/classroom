@@ -703,14 +703,17 @@ def generate_student_report(student_name, course_id=None):
     for i, round_result in enumerate(round_results):
         if student_name in round_result.get('results', {}):
             student_result = round_result['results'][student_name]
+            # 使用真实的答题时间，如果没有则使用0
+            real_answer_time = student_result.get('answer_time', 0)
+            
             submission = {
                 'round': i + 1,
                 'answer': student_result.get('answer', ''),
                 'correct': student_result.get('correct', False),
                 'is_correct': student_result.get('correct', False),  # 为了兼容模板
                 'score': student_result.get('score', 0),
-                'time': 30 + (i + 1) * 5,  # 模拟时间
-                'answer_time': 30 + (i + 1) * 5,  # 为了兼容模板
+                'time': real_answer_time,  # 使用真实时间
+                'answer_time': real_answer_time,  # 为了兼容模板
                 'question_score': round_result.get('question_score', 1)  # 题目分数
             }
             student_submissions.append(submission)
@@ -858,14 +861,23 @@ def submit_student_answer_legacy():
     if not course_data:
         return jsonify({'error': '课程不存在'}), 400
     
-    # 记录答案
+    # 记录答案和答题时间
     course_data['current_answers'][student_name] = answer
-    course_data['answer_times'][student_name] = time.time()
+    
+    # 计算答题时间
+    current_time = time.time()
+    if course_data.get('start_time'):
+        answer_time = current_time - course_data['start_time']
+    else:
+        answer_time = 0
+    
+    course_data['answer_times'][student_name] = answer_time
     
     # 更新学生状态
     if student_name in course_data['students']:
         course_data['students'][student_name]['expression'] = 'submitted'
         course_data['students'][student_name]['last_answer'] = answer
+        course_data['students'][student_name]['last_answer_time'] = answer_time
     
     save_data()
     return jsonify({'success': True})
@@ -960,10 +972,14 @@ def judge_answers_legacy():
             student_data['total_rounds'] += 1
             student_data['last_answer'] = student_answer
             
+            # 获取答题时间
+            answer_time = course_data.get('answer_times', {}).get(student_id, 0)
+            
             round_result['results'][student_id] = {
                 'answer': student_answer,
                 'correct': is_correct,
-                'score': student_data['score']
+                'score': student_data['score'],
+                'answer_time': answer_time
             }
         else:  # 学生未提交答案
             student_data['expression'] = 'embarrassed'  # 未作答状态
@@ -973,7 +989,8 @@ def judge_answers_legacy():
             round_result['results'][student_id] = {
                 'answer': '',
                 'correct': False,
-                'score': student_data['score']
+                'score': student_data['score'],
+                'answer_time': 0  # 未提交答案，时间为0
             }
     
     # 添加轮次结果
@@ -1167,27 +1184,30 @@ def get_classroom_data_legacy():
                 if not current_course:
                     return jsonify({'error': '没有当前课程'}), 400
             
+            # 构建课程数据 - 从全局数据中读取轮次信息
+            current_course_id = str(current_course.id)
+            global_course_data = global_data['courses'].get(current_course_id, {})
+            
             # 获取班级中的所有学生
             class_students = Student.query.filter_by(class_id=current_course.class_id).all()
             students_data = {}
             
             for student in class_students:
+                # 从全局数据中获取该学生的答题时间
+                global_student_data = global_course_data.get('students', {}).get(student.name, {})
+                
                 students_data[student.name] = {
                     'name': student.name,
-                    'score': 0,
-                    'total_rounds': 0,
-                    'correct_rounds': 0,
-                    'last_answer_time': 0,
-                    'expression': 'neutral',
-                    'animation': 'none',
-                    'avatar_color': '#4ecdc4',  # 默认颜色
-                    'answers': [],
-                    'last_answer': ''
+                    'score': global_student_data.get('score', 0),
+                    'total_rounds': global_student_data.get('total_rounds', 0),
+                    'correct_rounds': global_student_data.get('correct_rounds', 0),
+                    'last_answer_time': global_student_data.get('last_answer_time', 0),
+                    'expression': global_student_data.get('expression', 'neutral'),
+                    'animation': global_student_data.get('animation', 'none'),
+                    'avatar_color': global_student_data.get('avatar_color', '#4ecdc4'),
+                    'answers': global_student_data.get('answers', []),
+                    'last_answer': global_student_data.get('last_answer', '')
                 }
-            
-            # 构建课程数据 - 从全局数据中读取轮次信息
-            current_course_id = str(current_course.id)
-            global_course_data = global_data['courses'].get(current_course_id, {})
             
             # 调试信息
             print(f"DEBUG: get_classroom_data_legacy - 课程ID: {current_course_id}")

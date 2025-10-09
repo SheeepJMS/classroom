@@ -1003,7 +1003,32 @@
       "id": "6016fecd-ce97-4856-b957-4cae109416c5",
       "name": "VISST竞赛班",
       "description": "周四中午13:10-14:40",
-      "students": {},
+      "students": {
+        "d6f7cf32-9c55-4661-9e48-03740b17ec5f": {
+          "id": "d6f7cf32-9c55-4661-9e48-03740b17ec5f",
+          "name": "1",
+          "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+          "created_date": "2025-10-08",
+          "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true
+        },
+        "a4747145-eed3-4bf1-8880-90bcb26d796e": {
+          "id": "a4747145-eed3-4bf1-8880-90bcb26d796e",
+          "name": "2",
+          "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+          "created_date": "2025-10-08",
+          "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+          "total_score_all_courses": 0,
+          "courses_attended": [],
+          "attendance_rate": 100,
+          "absence_count": 0,
+          "long_term_member": true
+        }
+      },
       "courses": [],
       "competition_goal_id": null,
       "is_active": true,
@@ -2550,9 +2575,74 @@
       },
       "correct_answer": "1",
       "start_time": 1759976029.1002648
+    },
+    "2974516d-fbd6-4361-ad63-e845417ef3e0": {
+      "id": "2974516d-fbd6-4361-ad63-e845417ef3e0",
+      "name": "",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "is_active": true,
+      "created_date": "2025-10-08",
+      "students": {
+        "1": {
+          "name": "1",
+          "score": 1,
+          "total_rounds": 1,
+          "correct_rounds": 1,
+          "last_answer_time": 4.831409931182861,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "2": {
+          "name": "2",
+          "score": 0,
+          "total_rounds": 1,
+          "correct_rounds": 0,
+          "last_answer_time": 10.036164283752441,
+          "expression": "angry",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+          "answers": [],
+          "last_answer": "2"
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 1
+            },
+            "2": {
+              "answer": "2",
+              "correct": false,
+              "score": 0
+            }
+          }
+        }
+      ],
+      "current_round": 1,
+      "round_active": false,
+      "current_answers": {
+        "1": "1",
+        "2": "2"
+      },
+      "answer_times": {
+        "1": 4.831409931182861,
+        "2": 10.036164283752441
+      },
+      "correct_answer": "1",
+      "start_time": 1759977351.3555937
     }
   },
-  "current_course": "9313411e-7893-4ddd-868d-4bf9c1ad96e0",
+  "current_course": "2974516d-fbd6-4361-ad63-e845417ef3e0",
   "students": {
     "dce90a34-7312-40fd-9c76-532ea9d06e6b": {
       "id": "dce90a34-7312-40fd-9c76-532ea9d06e6b",
@@ -2571,6 +2661,30 @@
       "name": "13",
       "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
       "created_date": "2025-10-03"
+    },
+    "d6f7cf32-9c55-4661-9e48-03740b17ec5f": {
+      "id": "d6f7cf32-9c55-4661-9e48-03740b17ec5f",
+      "name": "1",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "created_date": "2025-10-08",
+      "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+      "total_score_all_courses": 0,
+      "courses_attended": [],
+      "attendance_rate": 100,
+      "absence_count": 0,
+      "long_term_member": true
+    },
+    "a4747145-eed3-4bf1-8880-90bcb26d796e": {
+      "id": "a4747145-eed3-4bf1-8880-90bcb26d796e",
+      "name": "2",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "created_date": "2025-10-08",
+      "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+      "total_score_all_courses": 0,
+      "courses_attended": [],
+      "attendance_rate": 100,
+      "absence_count": 0,
+      "long_term_member": true
     }
   }
 }
