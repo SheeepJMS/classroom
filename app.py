@@ -302,7 +302,8 @@ def class_detail(class_id):
                     'id': goal_data['id'],
                     'name': goal_data['name'],
                     'description': goal_data['description'],
-                    'created_date': goal_data.get('created_date', '')
+                    'created_date': goal_data.get('created_date', ''),
+                    'goal_date': goal_data.get('goal_date', '')
                 }
                 
                 # 计算竞赛目标进度

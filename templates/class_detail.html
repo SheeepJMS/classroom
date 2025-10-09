@@ -432,9 +432,14 @@
                 <span class="goal-status">ACTIVE</span>
             </div>
             <div class="goal-content">
-                <div>
+                <div class="goal-info">
                     <div class="goal-name">{{ goal.name }}</div>
-                    <div class="goal-score">{{ goal_progress.lessons_left }}</div>
+                    {% if goal.goal_date %}
+                    <div class="goal-date">
+                        <i class="fas fa-calendar-alt"></i>
+                        {{ goal.goal_date }}
+                    </div>
+                    {% endif %}
                 </div>
             </div>
             <div class="goal-metrics">
