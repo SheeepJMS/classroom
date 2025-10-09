@@ -1029,8 +1029,37 @@
           "long_term_member": true
         }
       },
-      "courses": [],
-      "competition_goal_id": null,
+      "courses": [
+        {
+          "id": "2974516d-fbd6-4361-ad63-e845417ef3e0",
+          "name": "数学课堂测试",
+          "start_date": "2025-10-08",
+          "current_round": 1,
+          "is_active": true
+        },
+        {
+          "id": "8f35b1f2-246f-41be-9b17-6678dafc74b4",
+          "name": "",
+          "start_date": "2025-10-08",
+          "current_round": 1,
+          "is_active": true
+        },
+        {
+          "id": "36da9822-fed2-422a-be96-c221fc242597",
+          "name": "",
+          "start_date": "2025-10-08",
+          "current_round": 2,
+          "is_active": true
+        },
+        {
+          "id": "3888b1ed-a940-4e66-8909-442602da4059",
+          "name": "",
+          "start_date": "2025-10-08",
+          "current_round": 2,
+          "is_active": true
+        }
+      ],
+      "competition_goal_id": "ad6432f4-c1f4-4cbf-a97c-90219d9dd902",
       "is_active": true,
       "created_date": "2025-10-08"
     }
@@ -1053,6 +1082,15 @@
       "created_date": "2025-09-26",
       "is_active": false,
       "ended_date": "2025-10-08"
+    },
+    "ad6432f4-c1f4-4cbf-a97c-90219d9dd902": {
+      "id": "ad6432f4-c1f4-4cbf-a97c-90219d9dd902",
+      "name": "AMC 10",
+      "description": "1111",
+      "goal_date": "2025-11-05",
+      "is_active": true,
+      "ended_date": null,
+      "created_date": "2025-10-08"
     }
   },
   "courses": {
@@ -1506,27 +1544,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "22": {
               "answer": "2",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "33": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "44": {
               "answer": "2",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1538,27 +1581,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1570,27 +1618,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "44": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1602,27 +1655,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "44": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1634,27 +1692,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 7
+              "score": 7,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 6
+              "score": 6,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1666,27 +1729,32 @@
             "11": {
               "answer": "",
               "correct": false,
-              "score": 7
+              "score": 7,
+              "answer_time": 0
             },
             "22": {
               "answer": "2",
               "correct": false,
-              "score": 6
+              "score": 6,
+              "answer_time": 0
             },
             "33": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1698,27 +1766,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 8
+              "score": 8,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 7
+              "score": 7,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1730,27 +1803,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 11
+              "score": 11,
+              "answer_time": 0
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 10
+              "score": 10,
+              "answer_time": 0
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         }
@@ -1785,27 +1863,32 @@
             "11": {
               "answer": "2",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1817,27 +1900,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 4
+              "score": 4,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "1",
               "correct": true,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "44": {
               "answer": "2",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1849,27 +1937,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 5
+              "score": 5,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1881,27 +1974,32 @@
             "11": {
               "answer": "2",
               "correct": true,
-              "score": 6
+              "score": 6,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": false,
-              "score": 2
+              "score": 2,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "1",
               "correct": false,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1913,27 +2011,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 7
+              "score": 7,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "44": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1945,27 +2048,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 8
+              "score": 8,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 4
+              "score": 4,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "1",
               "correct": true,
-              "score": 5
+              "score": 5,
+              "answer_time": 0
             },
             "44": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -1977,27 +2085,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 9
+              "score": 9,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 5
+              "score": 5,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "1",
               "correct": true,
-              "score": 6
+              "score": 6,
+              "answer_time": 0
             },
             "44": {
               "answer": "2",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2009,27 +2122,32 @@
             "11": {
               "answer": "11",
               "correct": false,
-              "score": 9
+              "score": 9,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 6
+              "score": 6,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 6
+              "score": 6,
+              "answer_time": 0
             },
             "44": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2041,27 +2159,32 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 10
+              "score": 10,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "1",
               "correct": true,
-              "score": 7
+              "score": 7,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": false,
-              "score": 6
+              "score": 6,
+              "answer_time": 0
             },
             "44": {
               "answer": "1",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2073,27 +2196,32 @@
             "11": {
               "answer": "11",
               "correct": false,
-              "score": 10
+              "score": 10,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "2",
               "correct": true,
-              "score": 8
+              "score": 8,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "2",
               "correct": true,
-              "score": 7
+              "score": 7,
+              "answer_time": 0
             },
             "44": {
               "answer": "2",
               "correct": true,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2105,27 +2233,32 @@
             "11": {
               "answer": "2",
               "correct": false,
-              "score": 10
+              "score": 10,
+              "answer_time": 4.707313060760498
             },
             "22": {
               "answer": "3",
               "correct": true,
-              "score": 11
+              "score": 11,
+              "answer_time": 3.1486692428588867
             },
             "33": {
               "answer": "",
               "correct": false,
-              "score": 7
+              "score": 7,
+              "answer_time": 0
             },
             "44": {
               "answer": "",
               "correct": false,
-              "score": 4
+              "score": 4,
+              "answer_time": 0
             },
             "55": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         }
@@ -2234,17 +2367,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 1.8234193325042725
             },
             "12": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2256,17 +2392,20 @@
             "11": {
               "answer": "2",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 1.8234193325042725
             },
             "12": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         }
@@ -2336,17 +2475,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 2.2906925678253174
             },
             "12": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2358,17 +2500,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 2.2906925678253174
             },
             "12": {
               "answer": "2",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2380,17 +2525,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 3
+              "score": 3,
+              "answer_time": 2.2906925678253174
             },
             "12": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         }
@@ -2460,17 +2608,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 1.2702627182006836
             },
             "12": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 1.8212618827819824
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2482,17 +2633,20 @@
             "11": {
               "answer": "11",
               "correct": false,
-              "score": 1
+              "score": 1,
+              "answer_time": 1.2702627182006836
             },
             "12": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 1.8212618827819824
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2504,17 +2658,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 1.2702627182006836
             },
             "12": {
               "answer": "1",
               "correct": true,
-              "score": 2
+              "score": 2,
+              "answer_time": 1.8212618827819824
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2526,17 +2683,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 5
+              "score": 5,
+              "answer_time": 1.2702627182006836
             },
             "12": {
               "answer": "1",
               "correct": true,
-              "score": 5
+              "score": 5,
+              "answer_time": 1.8212618827819824
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         },
@@ -2548,17 +2708,20 @@
             "11": {
               "answer": "1",
               "correct": true,
-              "score": 8
+              "score": 8,
+              "answer_time": 1.2702627182006836
             },
             "12": {
               "answer": "1",
               "correct": true,
-              "score": 8
+              "score": 8,
+              "answer_time": 1.8212618827819824
             },
             "13": {
               "answer": "",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 0
             }
           }
         }
@@ -2578,7 +2741,7 @@
     },
     "2974516d-fbd6-4361-ad63-e845417ef3e0": {
       "id": "2974516d-fbd6-4361-ad63-e845417ef3e0",
-      "name": "",
+      "name": "数学课堂测试",
       "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
       "is_active": true,
       "created_date": "2025-10-08",
@@ -2618,12 +2781,14 @@
             "1": {
               "answer": "1",
               "correct": true,
-              "score": 1
+              "score": 1,
+              "answer_time": 4.831409931182861
             },
             "2": {
               "answer": "2",
               "correct": false,
-              "score": 0
+              "score": 0,
+              "answer_time": 10.036164283752441
             }
           }
         }
@@ -2640,9 +2805,258 @@
       },
       "correct_answer": "1",
       "start_time": 1759977351.3555937
+    },
+    "8f35b1f2-246f-41be-9b17-6678dafc74b4": {
+      "id": "8f35b1f2-246f-41be-9b17-6678dafc74b4",
+      "name": "",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "is_active": true,
+      "created_date": "2025-10-08",
+      "students": {},
+      "submissions": [],
+      "round_results": [],
+      "current_round": 1,
+      "round_active": false
+    },
+    "36da9822-fed2-422a-be96-c221fc242597": {
+      "id": "36da9822-fed2-422a-be96-c221fc242597",
+      "name": "",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "is_active": true,
+      "created_date": "2025-10-08",
+      "students": {
+        "1": {
+          "name": "1",
+          "score": 3,
+          "total_rounds": 2,
+          "correct_rounds": 2,
+          "last_answer_time": 7.9486329555511475,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "2": {
+          "name": "2",
+          "score": 1,
+          "total_rounds": 2,
+          "correct_rounds": 1,
+          "last_answer_time": 11.035289287567139,
+          "expression": "angry",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+          "answers": [],
+          "last_answer": "2"
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 1,
+              "answer_time": 5.6885974407196045
+            },
+            "2": {
+              "answer": "1",
+              "correct": true,
+              "score": 1,
+              "answer_time": 12.361505031585693
+            }
+          }
+        },
+        {
+          "round": 2,
+          "correct_answer": "1",
+          "question_score": 2,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 3,
+              "answer_time": 7.9486329555511475
+            },
+            "2": {
+              "answer": "2",
+              "correct": false,
+              "score": 1,
+              "answer_time": 11.035289287567139
+            }
+          }
+        }
+      ],
+      "current_round": 2,
+      "round_active": false,
+      "current_answers": {
+        "1": "1",
+        "2": "2"
+      },
+      "answer_times": {
+        "1": 7.9486329555511475,
+        "2": 11.035289287567139
+      },
+      "correct_answer": "1",
+      "start_time": 1759978883.2221704
+    },
+    "3888b1ed-a940-4e66-8909-442602da4059": {
+      "id": "3888b1ed-a940-4e66-8909-442602da4059",
+      "name": "",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "is_active": true,
+      "created_date": "2025-10-08",
+      "students": {
+        "1": {
+          "name": "1",
+          "score": 4,
+          "total_rounds": 2,
+          "correct_rounds": 2,
+          "last_answer_time": 8.253597497940063,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "2": {
+          "name": "2",
+          "score": 0,
+          "total_rounds": 1,
+          "correct_rounds": 0,
+          "last_answer_time": 4.767838716506958,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 1,
+              "answer_time": 2.18798565864563
+            },
+            "2": {
+              "answer": "2",
+              "correct": false,
+              "score": 0,
+              "answer_time": 4.767838716506958
+            }
+          }
+        },
+        {
+          "round": 2,
+          "correct_answer": "1",
+          "question_score": 3,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 4,
+              "answer_time": 8.253597497940063
+            },
+            "2": {
+              "answer": "",
+              "correct": false,
+              "score": 0,
+              "answer_time": 0
+            }
+          }
+        }
+      ],
+      "current_round": 2,
+      "round_active": false,
+      "current_answers": {
+        "1": "1"
+      },
+      "answer_times": {
+        "1": 8.253597497940063
+      },
+      "correct_answer": "1",
+      "start_time": 1759979258.823292
+    },
+    "16c8d158-7f18-4666-95bc-9a169ada5b8f": {
+      "id": "16c8d158-7f18-4666-95bc-9a169ada5b8f",
+      "name": "test class name",
+      "class_id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "is_active": true,
+      "created_date": "2025-10-08",
+      "students": {
+        "1": {
+          "name": "1",
+          "score": 1,
+          "total_rounds": 1,
+          "correct_rounds": 1,
+          "last_answer_time": 3.618243455886841,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #6b8253 0%, #6febb5 100%)",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "2": {
+          "name": "2",
+          "score": 1,
+          "total_rounds": 1,
+          "correct_rounds": 1,
+          "last_answer_time": 7.308198690414429,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "linear-gradient(135deg, #b76fcd 0%, #2d7891 100%)",
+          "answers": [],
+          "last_answer": "1"
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "1": {
+              "answer": "1",
+              "correct": true,
+              "score": 1,
+              "answer_time": 3.618243455886841
+            },
+            "2": {
+              "answer": "1",
+              "correct": true,
+              "score": 1,
+              "answer_time": 7.308198690414429
+            }
+          }
+        }
+      ],
+      "current_round": 1,
+      "round_active": false,
+      "current_answers": {
+        "1": "1",
+        "2": "1"
+      },
+      "answer_times": {
+        "1": 3.618243455886841,
+        "2": 7.308198690414429
+      },
+      "correct_answer": "1",
+      "start_time": 1759979634.7786489
     }
   },
-  "current_course": "2974516d-fbd6-4361-ad63-e845417ef3e0",
+  "current_course": "16c8d158-7f18-4666-95bc-9a169ada5b8f",
   "students": {
     "dce90a34-7312-40fd-9c76-532ea9d06e6b": {
       "id": "dce90a34-7312-40fd-9c76-532ea9d06e6b",

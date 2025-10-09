@@ -183,13 +183,17 @@ def index():
             active_goals = CompetitionGoal.query.all()  # 暂时所有目标都是活跃的
             inactive_goals = []  # 暂时没有历史目标
             
-            print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
+            # 计算总学生数量
+            total_students = Student.query.count()
+            
+            print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}, 总学生数量: {total_students}")
             
             return render_template('homepage.html',
                                  classes=active_classes,
                                  inactive_classes=inactive_classes,
                                  competition_goals=active_goals,
-                                 inactive_competition_goals=inactive_goals)
+                                 inactive_competition_goals=inactive_goals,
+                                 total_students=total_students)
     else:
         # 使用JSON文件
         # 只显示活跃的班级
@@ -200,13 +204,20 @@ def index():
         active_goals = [goal for goal in global_data['competition_goals'].values() if goal.get('is_active', True)]
         inactive_goals = [goal for goal in global_data['competition_goals'].values() if not goal.get('is_active', True)]
         
-        print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}")
+        # 计算总学生数量
+        total_students = 0
+        for class_data in active_classes:
+            students = class_data.get('students', {})
+            total_students += len(students)
+        
+        print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}, 总学生数量: {total_students}")
         
         return render_template('homepage.html',
                              classes=active_classes,
                              inactive_classes=inactive_classes,
                              competition_goals=active_goals,
-                             inactive_competition_goals=inactive_goals)
+                             inactive_competition_goals=inactive_goals,
+                             total_students=total_students)
 
 @app.route('/class/<class_id>')
 def class_detail(class_id):
@@ -570,8 +581,8 @@ def generate_student_report(student_name, course_id=None):
             student_result = round_result['results'][student_name]
             if student_result.get('answer', '').strip():  # 有答案
                 participated_rounds += 1
-                # 模拟答题时间（实际应用中应该有真实的时间记录）
-                answer_time = 30 + (participated_rounds * 5)  # 模拟时间
+                # 使用真实的答题时间
+                answer_time = student_result.get('answer_time', 0)
                 answer_times.append(answer_time)
                 total_answer_time += answer_time
     
@@ -720,6 +731,35 @@ def generate_student_report(student_name, course_id=None):
     
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
+    # 获取竞赛目标信息
+    class_id = course_data.get('class_id')
+    competition_goal_name = None
+    competition_goal_date = None
+    days_to_competition = None
+    classes_before_competition = None
+    
+    if class_id and class_id in global_data.get('classes', {}):
+        class_data = global_data['classes'][class_id]
+        competition_goal_id = class_data.get('competition_goal_id')
+        
+        if competition_goal_id and competition_goal_id in global_data.get('competition_goals', {}):
+            competition_goal = global_data['competition_goals'][competition_goal_id]
+            competition_goal_name = competition_goal.get('name', '')
+            competition_goal_date = competition_goal.get('goal_date', '')
+            
+            # 计算距离竞赛的天数
+            if competition_goal_date:
+                try:
+                    goal_date = datetime.strptime(competition_goal_date, '%Y-%m-%d')
+                    today = datetime.now()
+                    days_to_competition = (goal_date - today).days
+                except:
+                    days_to_competition = None
+            
+            # 计算赛前上课次数（这里可以基于历史课程数据计算）
+            classes_before_competition = len([c for c in class_data.get('courses', []) 
+                                            if c.get('is_active', False) or c.get('status') == 'completed'])
+    
     return render_template('student_report.html',
                          student=student,
                          student_name=student['name'],
@@ -748,7 +788,12 @@ def generate_student_report(student_name, course_id=None):
                          class_total_rounds=len(round_results),
                          class_avg_time_per_question=round(class_avg_time_per_question, 1),
                          course_data=course_data,  # 添加课程数据
-                         global_data=global_data)
+                         global_data=global_data,
+                         # 竞赛目标信息
+                         competition_goal_name=competition_goal_name,
+                         competition_goal_date=competition_goal_date,
+                         days_to_competition=days_to_competition,
+                         classes_before_competition=classes_before_competition)
 
 def generate_personalized_feedback(
         accuracy,
@@ -1990,7 +2035,7 @@ def start_course():
                 
                 course = Course(
                     id=course_id,
-                    name=data.get('name', ''),
+                    name=data.get('course_name', ''),
                     class_id=data.get('class_id'),
                     is_active=True,
                     created_date=datetime.utcnow()
@@ -2004,7 +2049,7 @@ def start_course():
             # 使用JSON文件
             course_data = {
                 'id': course_id,
-                'name': data.get('name', ''),
+                'name': data.get('course_name', ''),
                 'class_id': data.get('class_id'),
                 'is_active': True,
                 'created_date': datetime.now().strftime('%Y-%m-%d'),

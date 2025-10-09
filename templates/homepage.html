@@ -652,7 +652,10 @@
     <!-- 主导航栏 -->
 <div class="main-nav">
     <div class="container">
-        <h1 class="nav-title">烧脑数学课堂管理系统</h1>
+        <h1 class="nav-title">
+            <img src="{{ url_for('static', filename='icons/classroom_icon.svg') }}" alt="课堂图标" width="32" height="32" style="margin-right: 10px; vertical-align: middle;">
+            烧脑数学课堂管理系统
+        </h1>
     </div>
 </div>
 
@@ -685,53 +688,6 @@
         </div>
     </div>
 
-    <!-- 最近课程活动 -->
-    <div class="activity-section">
-        <h2 class="activity-title">最近课程活动</h2>
-        <div class="recent-courses-container">
-            {% set recent_courses = [] %}
-            {% for class_data in classes %}
-                {% for course in class_data.courses %}
-                    {% if course.get('current_round', 0) > 0 %}
-                        {% set _ = recent_courses.append({
-                            'class_id': class_data.id,
-                            'class_name': class_data.name,
-                            'course_id': course.id,
-                            'course_name': course.get('name', '未命名课程'),
-                            'created_date': class_data.get('created_date', '未知'),
-                            'current_round': course.get('current_round', 0)
-                        }) %}
-                    {% endif %}
-                {% endfor %}
-            {% endfor %}
-            
-            {% for course in recent_courses[-4:] %}
-            <div class="course-card">
-                <div class="course-number">{{ course.course_name }}</div>
-                <div class="course-class">{{ course.class_name }}</div>
-                <div class="course-date">{{ course.created_date }}</div>
-                <div class="course-status-badge">已结束</div>
-                <div class="course-progress">
-                    <div class="progress-bar">
-                        <div class="progress-fill green" style="width: 100%;"></div>
-                    </div>
-                    <span class="progress-text">已完成</span>
-                </div>
-                <button class="view-course-report-btn" onclick="window.location.href='/reports/{{ course.course_id }}'">
-                    <i class="fas fa-chart-line me-1"></i>查看报告
-                </button>
-            </div>
-            {% endfor %}
-            
-            {% if not recent_courses %}
-            <div class="empty-courses">
-                <i class="fas fa-book fa-2x mb-3"></i>
-                <h4>暂无课程活动</h4>
-                <p>开始创建课程来查看活动记录</p>
-            </div>
-            {% endif %}
-        </div>
-    </div>
 
             <!-- 班级管理区域 -->
             <div class="classes-section">

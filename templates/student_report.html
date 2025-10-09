@@ -88,25 +88,25 @@
                                                     <div class="mb-2">
                                                         <i class="fas fa-trophy fa-lg text-warning"></i>
                                                     </div>
-                                                    <small class="text-muted">amc10 竞赛目标</small>
+                                                    <small class="text-muted">{{ competition_goal_name if competition_goal_name else '暂无竞赛目标' }}</small>
                                                 </div>
                                                 <div class="col-3 text-center">
                                                     <div class="mb-2">
                                                         <i class="fas fa-calendar fa-lg text-info"></i>
                                                     </div>
-                                                    <small class="text-muted">2025-12-18 比赛日期</small>
+                                                    <small class="text-muted">{{ competition_goal_date if competition_goal_date else '暂无日期' }}</small>
                                                 </div>
                                                 <div class="col-3 text-center">
                                                     <div class="mb-2">
                                                         <i class="fas fa-clock fa-lg text-primary"></i>
                                                     </div>
-                                                    <small class="text-muted">82天 距离竞赛</small>
+                                                    <small class="text-muted">{{ days_to_competition if days_to_competition else '暂无' }}天 距离竞赛</small>
                                                 </div>
                                                 <div class="col-3 text-center">
                                                     <div class="mb-2">
                                                         <i class="fas fa-file-alt fa-lg text-success"></i>
                                                     </div>
-                                                    <small class="text-muted">11节 赛前上课</small>
+                                                    <small class="text-muted">{{ classes_before_competition if classes_before_competition else '暂无' }}节 赛前上课</small>
                                                 </div>
                                             </div>
                                         </div>

@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>课堂图标展示</title>
+    <style>
+        body {
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+        
+        .icons-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .icon-card {
+            text-align: center;
+            padding: 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            background: #fafafa;
+        }
+        
+        .icon-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            border-color: #4A90E2;
+        }
+        
+        .icon-preview {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .icon-preview img {
+            width: 64px;
+            height: 64px;
+            display: block;
+            margin: 0 auto;
+        }
+        
+        h3 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 1.3em;
+        }
+        
+        .icon-description {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.5;
+            margin-bottom: 15px;
+        }
+        
+        .copy-code {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.8em;
+            color: #495057;
+            text-align: left;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .copy-code:hover {
+            background: #e9ecef;
+            border-color: #4A90E2;
+        }
+        
+        .copy-btn {
+            background: #4A90E2;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background 0.2s ease;
+        }
+        
+        .copy-btn:hover {
+            background: #357ABD;
+        }
+        
+        .usage-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 30px;
+        }
+        
+        .usage-section h2 {
+            color: #333;
+            margin-bottom: 15px;
+        }
+        
+        .usage-code {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+            overflow-x: auto;
+            margin-bottom: 10px;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: #4CAF50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+            z-index: 1000;
+        }
+        
+        .toast.show {
+            transform: translateX(0);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎓 课堂图标集合</h1>
+        
+        <div class="icons-grid">
+            <div class="icon-card">
+                <div class="icon-preview">
+                    <img src="classroom_icon.svg" alt="传统课堂图标">
+                </div>
+                <h3>传统课堂图标</h3>
+                <div class="icon-description">
+                    经典的学校建筑设计，包含房屋、烟囱、窗户等元素，适合传统教育主题
+                </div>
+                <div class="copy-code" onclick="copyCode(this)">
+&lt;img src="classroom_icon.svg" alt="课堂图标"&gt;
+                </div>
+                <button class="copy-btn" onclick="copyCode(this.previousElementSibling)">复制代码</button>
+            </div>
+            
+            <div class="icon-card">
+                <div class="icon-preview">
+                    <img src="modern_classroom_icon.svg" alt="现代课堂图标">
+                </div>
+                <h3>现代课堂图标</h3>
+                <div class="icon-description">
+                    现代简约设计，包含黑板、课桌、学生等元素，适合在线教育平台
+                </div>
+                <div class="copy-code" onclick="copyCode(this)">
+&lt;img src="modern_classroom_icon.svg" alt="课堂图标"&gt;
+                </div>
+                <button class="copy-btn" onclick="copyCode(this.previousElementSibling)">复制代码</button>
+            </div>
+            
+            <div class="icon-card">
+                <div class="icon-preview">
+                    <img src="simple_classroom_icon.svg" alt="简洁课堂图标">
+                </div>
+                <h3>简洁课堂图标</h3>
+                <div class="icon-description">
+                    简洁明了的设计，突出黑板和数学元素，适合数学教育应用
+                </div>
+                <div class="copy-code" onclick="copyCode(this)">
+&lt;img src="simple_classroom_icon.svg" alt="课堂图标"&gt;
+                </div>
+                <button class="copy-btn" onclick="copyCode(this.previousElementSibling)">复制代码</button>
+            </div>
+        </div>
+        
+        <div class="usage-section">
+            <h2>📋 使用方法</h2>
+            <p>您可以通过以下方式在网站中使用这些图标：</p>
+            
+            <h3>1. 直接使用SVG文件</h3>
+            <div class="usage-code">
+&lt;img src="classroom_icon.svg" alt="课堂图标" width="64" height="64"&gt;
+            </div>
+            
+            <h3>2. 作为CSS背景图片</h3>
+            <div class="usage-code">
+.classroom-icon {
+    background-image: url('classroom_icon.svg');
+    background-size: 64px 64px;
+    width: 64px;
+    height: 64px;
+}
+            </div>
+            
+            <h3>3. 内联SVG代码</h3>
+            <div class="usage-code">
+&lt;svg width="64" height="64" viewBox="0 0 64 64"&gt;
+    &lt;!-- SVG内容 --&gt;
+&lt;/svg&gt;
+            </div>
+            
+            <h3>4. 在Flask模板中使用</h3>
+            <div class="usage-code">
+&lt;img src="{{ url_for('static', filename='icons/classroom_icon.svg') }}" alt="课堂图标"&gt;
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast" class="toast"></div>
+    
+    <script>
+        function copyCode(element) {
+            const text = element.textContent.trim();
+            navigator.clipboard.writeText(text).then(() => {
+                showToast('代码已复制到剪贴板！');
+            }).catch(() => {
+                // 备用方法
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                showToast('代码已复制到剪贴板！');
+            });
+        }
+        
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 2000);
+        }
+    </script>
+</body>
+</html>
