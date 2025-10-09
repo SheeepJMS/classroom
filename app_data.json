@@ -995,8 +995,19 @@
       },
       "courses": [],
       "competition_goal_id": null,
+      "is_active": false,
+      "created_date": "2025-10-03",
+      "ended_date": "2025-10-08"
+    },
+    "6016fecd-ce97-4856-b957-4cae109416c5": {
+      "id": "6016fecd-ce97-4856-b957-4cae109416c5",
+      "name": "VISST竞赛班",
+      "description": "周四中午13:10-14:40",
+      "students": {},
+      "courses": [],
+      "competition_goal_id": null,
       "is_active": true,
-      "created_date": "2025-10-03"
+      "created_date": "2025-10-08"
     }
   },
   "competition_goals": {
@@ -1005,14 +1016,18 @@
       "name": "AMC 8 竞赛",
       "description": "美国数学竞赛 AMC 8 准备",
       "goal_date": "2025-01-15",
-      "created_date": "2025-09-26"
+      "created_date": "2025-09-26",
+      "is_active": false,
+      "ended_date": "2025-10-08"
     },
     "c9a0686a-606a-4ac1-9792-351774c8dd8f": {
       "id": "c9a0686a-606a-4ac1-9792-351774c8dd8f",
       "name": "amc10",
       "description": "111",
       "goal_date": "2025-12-18",
-      "created_date": "2025-09-26"
+      "created_date": "2025-09-26",
+      "is_active": false,
+      "ended_date": "2025-10-08"
     }
   },
   "courses": {
@@ -2096,7 +2111,7 @@
       "id": "1e323e98-91bb-4dbb-96f4-b79842561fb4",
       "name": "",
       "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
-      "is_active": true,
+      "is_active": false,
       "created_date": "2025-10-03",
       "students": {},
       "submissions": [],
@@ -2108,7 +2123,7 @@
       "id": "a45b9b6c-1847-4d27-9fc7-bd72a60c6c53",
       "name": "",
       "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
-      "is_active": true,
+      "is_active": false,
       "created_date": "2025-10-03",
       "students": {},
       "submissions": [],
@@ -2120,7 +2135,7 @@
       "id": "41cb610c-72c5-4e9f-b3c6-d0f18b9a7650",
       "name": "",
       "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
-      "is_active": true,
+      "is_active": false,
       "created_date": "2025-10-03",
       "students": {},
       "submissions": [],
@@ -2132,16 +2147,412 @@
       "id": "9d57de88-9dbb-4bcd-8573-827f503cac50",
       "name": "",
       "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
-      "is_active": true,
+      "is_active": false,
       "created_date": "2025-10-03",
       "students": {},
       "submissions": [],
       "round_results": [],
       "current_round": 1,
       "round_active": false
+    },
+    "aaf9492e-22f1-45bc-945d-711ba0c9dff8": {
+      "id": "aaf9492e-22f1-45bc-945d-711ba0c9dff8",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": false,
+      "created_date": "2025-10-08",
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 2,
+          "total_rounds": 2,
+          "correct_rounds": 2,
+          "last_answer_time": 0,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": "2"
+        },
+        "12": {
+          "name": "12",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": ""
+        },
+        "13": {
+          "name": "13",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 1
+            },
+            "12": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 1,
+          "correct_answer": "2",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "2",
+              "correct": true,
+              "score": 2
+            },
+            "12": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        }
+      ],
+      "current_round": 1,
+      "round_active": false,
+      "current_answers": {
+        "11": "2"
+      },
+      "answer_times": {
+        "11": 1759975603.1738305
+      },
+      "correct_answer": "2",
+      "start_time": 1759975601.3504112
+    },
+    "b7db76ab-6a5a-4139-9e56-e033c22ac880": {
+      "id": "b7db76ab-6a5a-4139-9e56-e033c22ac880",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": false,
+      "created_date": "2025-10-08",
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 3,
+          "total_rounds": 3,
+          "correct_rounds": 3,
+          "last_answer_time": 0,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "12": {
+          "name": "12",
+          "score": 0,
+          "total_rounds": 1,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": ""
+        },
+        "13": {
+          "name": "13",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 1
+            },
+            "12": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 2
+            },
+            "12": {
+              "answer": "2",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 3
+            },
+            "12": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        }
+      ],
+      "current_round": 1,
+      "round_active": false,
+      "current_answers": {
+        "11": "1"
+      },
+      "answer_times": {
+        "11": 1759975864.9457705
+      },
+      "correct_answer": "1",
+      "start_time": 1759975862.655078
+    },
+    "9313411e-7893-4ddd-868d-4bf9c1ad96e0": {
+      "id": "9313411e-7893-4ddd-868d-4bf9c1ad96e0",
+      "name": "",
+      "class_id": "368d7e52-8b84-41e9-b5dc-7fad38eced10",
+      "is_active": false,
+      "created_date": "2025-10-08",
+      "students": {
+        "11": {
+          "name": "11",
+          "score": 8,
+          "total_rounds": 5,
+          "correct_rounds": 4,
+          "last_answer_time": 0,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "12": {
+          "name": "12",
+          "score": 8,
+          "total_rounds": 4,
+          "correct_rounds": 4,
+          "last_answer_time": 0,
+          "expression": "smile",
+          "animation": "celebration",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": "1"
+        },
+        "13": {
+          "name": "13",
+          "score": 0,
+          "total_rounds": 0,
+          "correct_rounds": 0,
+          "last_answer_time": 0,
+          "expression": "embarrassed",
+          "animation": "none",
+          "avatar_color": "#4ecdc4",
+          "answers": [],
+          "last_answer": ""
+        }
+      },
+      "submissions": [],
+      "round_results": [
+        {
+          "round": 1,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 1
+            },
+            "12": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 2,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "11",
+              "correct": false,
+              "score": 1
+            },
+            "12": {
+              "answer": "1",
+              "correct": true,
+              "score": 1
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 3,
+          "correct_answer": "1",
+          "question_score": 1,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 2
+            },
+            "12": {
+              "answer": "1",
+              "correct": true,
+              "score": 2
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 4,
+          "correct_answer": "1",
+          "question_score": 3,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 5
+            },
+            "12": {
+              "answer": "1",
+              "correct": true,
+              "score": 5
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        },
+        {
+          "round": 5,
+          "correct_answer": "1",
+          "question_score": 3,
+          "results": {
+            "11": {
+              "answer": "1",
+              "correct": true,
+              "score": 8
+            },
+            "12": {
+              "answer": "1",
+              "correct": true,
+              "score": 8
+            },
+            "13": {
+              "answer": "",
+              "correct": false,
+              "score": 0
+            }
+          }
+        }
+      ],
+      "current_round": 5,
+      "round_active": false,
+      "current_answers": {
+        "11": "1",
+        "12": "1"
+      },
+      "answer_times": {
+        "11": 1759976030.3705275,
+        "12": 1759976030.9215267
+      },
+      "correct_answer": "1",
+      "start_time": 1759976029.1002648
     }
   },
-  "current_course": "9d57de88-9dbb-4bcd-8573-827f503cac50",
+  "current_course": "9313411e-7893-4ddd-868d-4bf9c1ad96e0",
   "students": {
     "dce90a34-7312-40fd-9c76-532ea9d06e6b": {
       "id": "dce90a34-7312-40fd-9c76-532ea9d06e6b",

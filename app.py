@@ -263,6 +263,22 @@ def class_detail(class_id):
         
         class_data = global_data['classes'][class_id]
         
+        # 获取该班级的所有课程（包括已结束的课程）
+        class_courses = []
+        for course_id, course_data in global_data['courses'].items():
+            if course_data.get('class_id') == class_id:
+                class_courses.append({
+                    'id': course_id,
+                    'name': course_data.get('name', '未命名课程'),
+                    'start_date': course_data.get('created_date', ''),
+                    'current_round': course_data.get('current_round', 1),
+                    'is_active': course_data.get('is_active', False)
+                })
+        
+        # 按创建日期排序（最新的在前）
+        class_courses.sort(key=lambda x: x['start_date'], reverse=True)
+        class_data['courses'] = class_courses
+        
         # 获取竞赛目标数据
         goal = None
         goal_progress = None
@@ -728,6 +744,7 @@ def generate_student_report(student_name, course_id=None):
                          class_total_participation=round(class_total_participation, 1),
                          class_total_rounds=len(round_results),
                          class_avg_time_per_question=round(class_avg_time_per_question, 1),
+                         course_data=course_data,  # 添加课程数据
                          global_data=global_data)
 
 def generate_personalized_feedback(
@@ -798,7 +815,9 @@ def start_class_legacy():
     course_data['is_active'] = True
     course_data['round_active'] = True
     course_data['start_time'] = time.time()
-    course_data['current_round'] = 1
+    # 不要重置current_round，保持当前轮次
+    if 'current_round' not in course_data:
+        course_data['current_round'] = 1  # 只在第一次时设置为1
     course_data['current_answers'] = {}
     course_data['answer_times'] = {}
     course_data['correct_answer'] = ''
@@ -1080,7 +1099,11 @@ def next_round_legacy():
         return jsonify({'error': '课程不存在'}), 400
     
     # 进入下一轮
+    old_round = course_data.get('current_round', 1)
     course_data['current_round'] += 1
+    new_round = course_data['current_round']
+    print(f"DEBUG: next_round_legacy - 轮次从 {old_round} 增加到 {new_round}")
+    
     course_data['round_active'] = True
     course_data['current_answers'] = {}
     course_data['answer_times'] = {}
@@ -1162,7 +1185,15 @@ def get_classroom_data_legacy():
                     'last_answer': ''
                 }
             
-            # 构建课程数据
+            # 构建课程数据 - 从全局数据中读取轮次信息
+            current_course_id = str(current_course.id)
+            global_course_data = global_data['courses'].get(current_course_id, {})
+            
+            # 调试信息
+            print(f"DEBUG: get_classroom_data_legacy - 课程ID: {current_course_id}")
+            print(f"DEBUG: 全局课程数据: {global_course_data}")
+            print(f"DEBUG: 当前轮次: {global_course_data.get('current_round', 1)}")
+            
             course_data = {
                 'id': current_course.id,
                 'name': current_course.name,
@@ -1170,15 +1201,17 @@ def get_classroom_data_legacy():
                 'is_active': current_course.is_active,
                 'created_date': current_course.created_date.strftime('%Y-%m-%d') if current_course.created_date else '',
                 'students': students_data,  # 从数据库获取的学生数据
-                'submissions': [],
-                'round_results': [],
-                'current_round': 1,
-                'round_active': False,
-                'current_answers': {},
-                'answer_times': {},
-                'correct_answer': '',
-                'start_time': None
+                'submissions': global_course_data.get('submissions', []),
+                'round_results': global_course_data.get('round_results', []),
+                'current_round': global_course_data.get('current_round', 1),  # 从全局数据读取实际轮次
+                'round_active': global_course_data.get('round_active', False),  # 从全局数据读取轮次状态
+                'current_answers': global_course_data.get('current_answers', {}),
+                'answer_times': global_course_data.get('answer_times', {}),
+                'correct_answer': global_course_data.get('correct_answer', ''),
+                'start_time': global_course_data.get('start_time', None)
             }
+            
+            print(f"DEBUG: 返回的课程数据轮次: {course_data.get('current_round')}")
     else:
         # 使用JSON文件
         current_course_id = global_data.get('current_course')

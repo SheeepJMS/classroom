@@ -769,8 +769,11 @@ function stopTimer() {
                 console.log('评判数据:', data);
                 if (data.success) {
                     console.log('评判成功');
+                    console.log('评判前的轮次:', classroomData.current_round);
                     classroomData.students = data.students;
                     classroomData.round_active = false;
+                    
+                    console.log('评判后的轮次:', classroomData.current_round);
                     
                     // 只更新统计数据，不重新创建卡片
                     updateStudentsDisplay(true);
@@ -1245,7 +1248,10 @@ function updateRoundStatus() {
     try {
         const roundNumber = document.getElementById('roundNumber');
         
+        console.log('updateRoundStatus - 当前轮次:', classroomData.current_round);
+        
         if (roundNumber) {
+            console.log('updateRoundStatus - 更新轮次显示为:', classroomData.current_round);
             roundNumber.textContent = classroomData.current_round;
         }
         

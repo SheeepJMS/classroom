@@ -395,7 +395,8 @@ def generate_student_pdf(student_name):
                                  avg_response_time=round(avg_response_time, 1),
                                  class_avg_accuracy=round(class_avg_accuracy, 1),
                                  class_avg_participation=round(class_avg_participation, 1),
-                                 class_avg_response_time=round(class_avg_response_time, 1))
+                                 class_avg_response_time=round(class_avg_response_time, 1),
+                                 course_data=classroom_data)  # 添加课程数据
     
     return html_content, 200, {'Content-Type': 'text/html; charset=utf-8'}
 

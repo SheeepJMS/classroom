@@ -31,10 +31,23 @@ def migrate_data():
             with open(data_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
         else:
-            print(f"数据文件 {data_file} 不存在，创建空数据结构...")
-            # 创建空的数据结构，不创建默认竞赛目标
+            print(f"数据文件 {data_file} 不存在，创建默认竞赛目标...")
+            # 创建默认的竞赛目标（仅在部署环境中）
             data = {
-                'competition_goals': {},
+                'competition_goals': {
+                    'amc8_2025': {
+                        'name': 'AMC 8竞赛',
+                        'description': '美国数学竞赛 AMC 8准备',
+                        'target_score': 25,
+                        'is_active': True
+                    },
+                    'amc10_2025': {
+                        'name': 'AMC 10竞赛',
+                        'description': '美国数学竞赛 AMC 10准备',
+                        'target_score': 150,
+                        'is_active': True
+                    }
+                },
                 'classes': {},
                 'students': {},
                 'courses': {}

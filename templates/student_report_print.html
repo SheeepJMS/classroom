@@ -111,6 +111,12 @@
                                     {{ current_date }}
                                 </span>
                             </div>
+                            <div class="mb-2">
+                                <span class="text-light" style="font-size: 1.0em; font-family: 'Microsoft YaHei', '微软雅黑', 'PingFang SC', 'Hiragino Sans GB', 'Helvetica Neue', Arial, sans-serif;">
+                                    <i class="fas fa-book me-1"></i>
+                                    课堂内容：{{ course_data.name if course_data.name else '数学竞赛课堂' }}
+                                </span>
+                            </div>
                             <a href="/generate_student_pdf/{{ student_name }}" class="btn btn-light no-print">
                                 <i class="fas fa-download me-2"></i>
                                 下载报告
