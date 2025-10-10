@@ -88,7 +88,7 @@ def create_class():
 def create_competition_goal():
     """创建竞赛目标API"""
     try:
-        data = request.get_json()
+    data = request.get_json()
         title = data.get('title', data.get('name', '')).strip()
         description = data.get('description', '').strip()
         target_score = data.get('target_score', 100)
@@ -100,8 +100,8 @@ def create_competition_goal():
         db.session.add(new_goal)
         db.session.commit()
         
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '竞赛目标创建成功',
             'goal_id': new_goal.id
         })
@@ -126,8 +126,8 @@ def add_student():
         db.session.add(new_student)
         db.session.commit()
         
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '学生添加成功',
             'student_id': new_student.id
         })
@@ -154,8 +154,8 @@ def start_course():
         db.session.add(new_course)
         db.session.commit()
         
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '课程开始成功',
             'course_id': new_course.id
         })
@@ -186,7 +186,7 @@ def end_class(class_id):
     try:
         class_obj = Class.query.get_or_404(class_id)
         class_obj.ended_date = datetime.utcnow()
-        db.session.commit()
+                db.session.commit()
         
         return jsonify({'success': True, 'message': '班级已结束'})
         
@@ -206,8 +206,8 @@ def delete_student():
             return jsonify({'success': False, 'message': '学生ID不能为空'}), 400
         
         student = Student.query.get_or_404(student_id)
-        db.session.delete(student)
-        db.session.commit()
+                db.session.delete(student)
+                db.session.commit()
         
         return jsonify({'success': True, 'message': '学生删除成功'})
         
@@ -222,7 +222,7 @@ def delete_competition_goal(goal_id):
     try:
         goal = CompetitionGoal.query.get_or_404(goal_id)
         db.session.delete(goal)
-        db.session.commit()
+                db.session.commit()
         
         return jsonify({'success': True, 'message': '竞赛目标删除成功'})
         
@@ -236,7 +236,7 @@ def end_competition_goal(goal_id):
     """结束竞赛目标API"""
     try:
         goal = CompetitionGoal.query.get_or_404(goal_id)
-        db.session.commit()
+                db.session.commit()
         
         return jsonify({'success': True, 'message': '竞赛目标已结束'})
         
@@ -274,7 +274,7 @@ def judge_answers():
         if not correct_answer or not course_id:
             return jsonify({'success': False, 'message': '正确答案和课程ID不能为空'}), 400
         
-        return jsonify({
+            return jsonify({
             'success': True,
             'message': '答案判断完成',
             'results': {}
@@ -330,7 +330,7 @@ def class_detail(class_id):
                 'lessons_left': 22
             }
 
-    return render_template('class_detail.html', class_obj=class_obj, students=students, goal=goal, goal_progress=goal_progress)
+    return render_template('class_detail.html', class_data=class_obj, students=students, goal=goal, goal_progress=goal_progress)
 
 
 @app.route('/classroom/<class_id>')
@@ -342,7 +342,7 @@ def classroom(class_id):
 
 
 # 应用启动时自动创建数据库表
-with app.app_context():
+            with app.app_context():
     try:
         db.create_all()
         print("✅ 数据库表创建成功")
