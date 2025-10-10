@@ -196,8 +196,8 @@ def create_class():
         db.session.add(new_class)
         db.session.commit()
         
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '班级创建成功',
             'class_id': new_class.id
         })
@@ -212,7 +212,7 @@ def create_competition_goal():
     """创建竞赛目标API"""
     try:
         data = request.get_json()
-        title = data.get('title', '').strip()
+        title = data.get('title', data.get('name', '')).strip()  # 兼容name和title字段
         description = data.get('description', '').strip()
         target_score = data.get('target_score', 100)
         
@@ -228,8 +228,8 @@ def create_competition_goal():
         db.session.add(new_goal)
         db.session.commit()
         
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '竞赛目标创建成功',
             'goal_id': new_goal.id
         })
@@ -256,7 +256,7 @@ def add_student():
         )
         
         db.session.add(new_student)
-        db.session.commit()
+                db.session.commit()
         
         return jsonify({
             'success': True,
@@ -291,7 +291,7 @@ def start_course():
         )
         
         db.session.add(new_course)
-        db.session.commit()
+                db.session.commit()
         
         return jsonify({
             'success': True,
@@ -308,9 +308,9 @@ def start_course():
 def submit_student_answer():
     """学生提交答案API"""
     try:
-        data = request.get_json()
-        student_name = data.get('student_name', '').strip()
-        answer = data.get('answer', '').strip()
+    data = request.get_json()
+    student_name = data.get('student_name', '').strip()
+    answer = data.get('answer', '').strip()
         course_id = data.get('course_id', '').strip()
         
         if not student_name or not answer or not course_id:
@@ -318,10 +318,10 @@ def submit_student_answer():
         
         # 这里可以添加答案存储逻辑
         # 暂时返回成功
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '答案提交成功'
-        })
+            })
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
@@ -331,8 +331,8 @@ def submit_student_answer():
 def judge_answers():
     """判断答案对错API"""
     try:
-        data = request.get_json()
-        correct_answer = data.get('correct_answer', '').strip()
+    data = request.get_json()
+    correct_answer = data.get('correct_answer', '').strip()
         course_id = data.get('course_id', '').strip()
         
         if not correct_answer or not course_id:
@@ -340,14 +340,110 @@ def judge_answers():
         
         # 这里可以添加判断逻辑
         # 暂时返回成功
-        return jsonify({
-            'success': True,
+    return jsonify({
+        'success': True, 
             'message': '答案判断完成',
             'results': {}
         })
         
     except Exception as e:
         return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
+
+
+@app.route('/api/delete_class/<class_id>', methods=['DELETE'])
+def delete_class(class_id):
+    """删除班级API"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        db.session.delete(class_obj)
+        db.session.commit()
+        
+    return jsonify({
+        'success': True, 
+            'message': '班级删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除班级失败: {str(e)}'}), 500
+
+
+@app.route('/api/end_class/<class_id>', methods=['POST'])
+def end_class(class_id):
+    """结束班级API"""
+    try:
+        class_obj = Class.query.get_or_404(class_id)
+        class_obj.ended_date = datetime.utcnow()
+        db.session.commit()
+        
+    return jsonify({
+        'success': True, 
+            'message': '班级已结束'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'结束班级失败: {str(e)}'}), 500
+
+
+@app.route('/api/delete_student', methods=['POST'])
+def delete_student():
+    """删除学生API"""
+    try:
+        data = request.get_json()
+        student_id = data.get('student_id', '').strip()
+        
+        if not student_id:
+            return jsonify({'success': False, 'message': '学生ID不能为空'}), 400
+        
+        student = Student.query.get_or_404(student_id)
+                db.session.delete(student)
+                db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '学生删除成功'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除学生失败: {str(e)}'}), 500
+
+
+@app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
+def delete_competition_goal(goal_id):
+    """删除竞赛目标API"""
+    try:
+        goal = CompetitionGoal.query.get_or_404(goal_id)
+        db.session.delete(goal)
+                db.session.commit()
+        
+                return jsonify({
+                    'success': True,
+            'message': '竞赛目标删除成功'
+            })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除竞赛目标失败: {str(e)}'}), 500
+
+
+@app.route('/api/end_competition_goal/<goal_id>', methods=['POST'])
+def end_competition_goal(goal_id):
+    """结束竞赛目标API"""
+    try:
+        goal = CompetitionGoal.query.get_or_404(goal_id)
+        # 这里可以添加结束逻辑，比如设置结束日期
+        db.session.commit()
+        
+            return jsonify({
+            'success': True,
+            'message': '竞赛目标已结束'
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'结束竞赛目标失败: {str(e)}'}), 500
 
 
 @app.route('/reports/<course_id>')
