@@ -728,7 +728,7 @@
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">创建时间:</span>
-                                    <span class="stat-value">{{ class_data.created_date }}</span>
+                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d %H:%M') if class_data.created_date else '未知' }}</span>
                                 </div>
                             </div>
                             
