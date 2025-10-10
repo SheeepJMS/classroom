@@ -190,7 +190,8 @@ if USE_DATABASE:
         
         # 测试数据库连接
         with app.app_context():
-            db.engine.execute('SELECT 1').fetchone()
+            from sqlalchemy import text
+            db.session.execute(text('SELECT 1')).fetchone()
             print("✅ 数据库连接成功")
             print("数据库模式已启用，数据将持久保存")
         
