@@ -803,9 +803,13 @@ function stopTimer() {
                 if (data.success) {
                     console.log('评判成功');
                     console.log('评判前的轮次:', classroomData.current_round);
+                    console.log('后端返回的学生数据:', data.students);
+                    console.log('后端返回的轮次结果:', data.round_result);
+                    
                     classroomData.students = data.students;
                     classroomData.round_active = false;
                     
+                    console.log('更新后的学生数据:', classroomData.students);
                     console.log('评判后的轮次:', classroomData.current_round);
                     
                     // 更新学生显示和状态

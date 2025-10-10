@@ -165,14 +165,37 @@ def init_default_data():
 # 在应用启动时加载数据
 if USE_DATABASE:
     print("使用数据库模式，跳过JSON文件加载")
-    # 数据库迁移暂时禁用，避免启动问题
-    # try:
-    #     from migrate_goal_date import migrate_goal_date
-    #     migrate_goal_date()
-    # except ImportError:
-    #     print("迁移脚本不存在，跳过数据库迁移")
-    # except Exception as e:
-    #     print(f"数据库迁移失败: {e}")
+    # 自动添加goal_date字段（如果不存在）
+    try:
+        with app.app_context():
+            # 检查goal_date字段是否存在
+            result = db.session.execute("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='competition_goals' 
+                AND column_name='goal_date'
+            """).fetchone()
+            
+            if not result:
+                print("检测到goal_date字段不存在，正在添加...")
+                # 添加goal_date字段
+                db.session.execute("ALTER TABLE competition_goals ADD COLUMN goal_date DATE")
+                
+                # 为现有记录设置默认日期
+                goals = CompetitionGoal.query.all()
+                for goal in goals:
+                    if goal.created_date:
+                        from datetime import timedelta
+                        goal.goal_date = goal.created_date.date() + timedelta(days=77)
+                
+                db.session.commit()
+                print("goal_date字段添加成功")
+            else:
+                print("goal_date字段已存在")
+                
+    except Exception as e:
+        print(f"自动迁移失败，使用默认模式: {e}")
+        # 如果迁移失败，继续使用默认模式
 else:
     # 检查数据文件是否存在，如果不存在则创建
     if not os.path.exists(DATA_FILE):
@@ -316,10 +339,13 @@ def class_detail(class_id):
             if class_obj.competition_goal_id:
                 goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
                 if goal_obj:
-                    # 暂时使用created_date后77天作为默认竞赛日期
-                    from datetime import timedelta
-                    default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                    goal_date_str = default_goal_date.strftime('%Y-%m-%d')
+                    # 使用goal_date，如果不存在则使用默认值
+                    if goal_obj.goal_date:
+                        goal_date_str = goal_obj.goal_date.strftime('%Y-%m-%d')
+                    else:
+                        from datetime import timedelta
+                        default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
+                        goal_date_str = default_goal_date.strftime('%Y-%m-%d')
                     
                     goal = {
                         'id': goal_obj.id,
@@ -330,10 +356,16 @@ def class_detail(class_id):
                         'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
                     }
                     
-                    # 计算竞赛目标进度 - 使用默认日期计算
+                    # 计算竞赛目标进度
                     from datetime import datetime, date, timedelta
                     today = datetime.utcnow().date()
-                    days_left = max(0, (default_goal_date - today).days)
+                    
+                    if goal_obj.goal_date:
+                        target_date = goal_obj.goal_date
+                    else:
+                        target_date = goal_obj.created_date.date() + timedelta(days=77)
+                    
+                    days_left = max(0, (target_date - today).days)
                     weeks_left = max(0, days_left // 7)
                     lessons_left = max(0, weeks_left)
                     
@@ -1387,7 +1419,12 @@ def judge_answers_legacy():
     if USE_DATABASE:
         # 在数据库模式下，将更新的学生数据保存回全局数据
         global_data['courses'][current_course_id]['students'] = course_data['students']
+        global_data['courses'][current_course_id]['round_results'] = course_data['round_results']
+        global_data['courses'][current_course_id]['current_answers'] = {}
+        global_data['courses'][current_course_id]['answer_times'] = {}
+        global_data['courses'][current_course_id]['round_active'] = False
         print(f"DEBUG: judge_answers_legacy - 保存学生数据到全局数据: {list(course_data['students'].keys())}")
+        print(f"DEBUG: judge_answers_legacy - 保存轮次结果: {len(course_data['round_results'])} 个轮次")
     
     save_data()
     
@@ -2299,7 +2336,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
-                    # goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,  # 暂时注释
+                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
@@ -2338,7 +2375,7 @@ def get_competition_goals():
                         'id': goal.id,
                         'name': goal.title,
                         'description': goal.description,
-                        'goal_date': goal.created_date.strftime('%Y-%m-%d') if goal.created_date else '',
+                        'goal_date': goal.goal_date.strftime('%Y-%m-%d') if goal.goal_date else '',
                         'is_active': True
                     })
                 return jsonify({
@@ -2461,17 +2498,14 @@ def update_competition_goal(goal_id):
             goal.title = name
             goal.description = description
             
-            # 暂时跳过goal_date的更新，等待数据库迁移
-            # try:
-            #     if goal_date_str:
-            #         goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
-            #     else:
-            #         goal.goal_date = None
-            # except ValueError:
-            #     return jsonify({'error': '日期格式错误'}), 400
-            # except AttributeError:
-            #     # 如果goal_date字段不存在，跳过设置
-            #     pass
+            # 更新goal_date
+            if goal_date_str:
+                try:
+                    goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': '日期格式错误'}), 400
+            else:
+                goal.goal_date = None
             
             db.session.commit()
             

@@ -728,7 +728,7 @@
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">创建时间:</span>
-                                    <span class="stat-value">{{ class_data.created_date if class_data.created_date else '未知' }}</span>
+                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d') if class_data.created_date and class_data.created_date != 'unknown' else '未知' }}</span>
                                 </div>
                             </div>
                             
@@ -789,7 +789,7 @@
                             <div class="goal-timeline">
                                 <div class="timeline-item">
                             <span class="timeline-label">竞赛日期:</span>
-                                    <span class="timeline-value">{{ goal_data.created_date if goal_data.created_date else '未设置' }}</span>
+                                    <span class="timeline-value">{{ goal_data.goal_date if goal_data.goal_date else '未设置' }}</span>
                                 </div>
                             </div>
                         </div>
@@ -877,7 +877,7 @@
                     <span class="goal-status ended">已结束</span>
                 </div>
                 <div class="goal-info">
-                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.created_date if goal_data.created_date else '未知' }}</p>
+                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.created_date.strftime('%Y-%m-%d') if goal_data.created_date and goal_data.created_date != 'unknown' else '未知' }}</p>
                     <p><i class="fas fa-info-circle"></i> {{ goal_data.description or '暂无描述' }}</p>
                 </div>
                 <div class="goal-actions">
