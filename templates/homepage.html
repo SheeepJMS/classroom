@@ -766,7 +766,7 @@
                     {% for goal_data in competition_goals %}
                     <div class="goal-card" data-goal-id="{{ goal_data.id }}">
                         <div class="goal-card-header">
-                            <h3 class="goal-name">{{ goal_data.name }}</h3>
+                            <h3 class="goal-name">{{ goal_data.title }}</h3>
                             <div class="goal-actions">
                         <button class="btn btn-outline-warning" onclick="assignGoal('{{ goal_data.id }}')">
                             <i class="fas fa-link me-1"></i>分配
@@ -786,7 +786,7 @@
                             <div class="goal-timeline">
                                 <div class="timeline-item">
                             <span class="timeline-label">竞赛日期:</span>
-                                    <span class="timeline-value">{{ goal_data.goal_date }}</span>
+                                    <span class="timeline-value">{{ goal_data.goal_date.strftime('%Y-%m-%d') if goal_data.goal_date else '未设置' }}</span>
                                 </div>
                             </div>
                         </div>

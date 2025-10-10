@@ -298,19 +298,20 @@ def class_detail(class_id):
                 if goal_obj:
                     goal = {
                         'id': goal_obj.id,
-                        'name': goal_obj.title,
+                        'title': goal_obj.title,
+                        'name': goal_obj.title,  # 保持向后兼容
                         'description': goal_obj.description,
+                        'goal_date': goal_obj.goal_date,
                         'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
                     }
                     
                     # 计算竞赛目标进度
-                    # 注意：数据库模式下的CompetitionGoal模型没有goal_date字段
-                    # 这里使用created_date作为竞赛日期，实际应用中应该添加goal_date字段
-                    if goal_obj.created_date:
-                        from datetime import datetime, timedelta
-                        # 假设竞赛日期是创建日期后77天
-                        goal_date = goal_obj.created_date + timedelta(days=77)
-                        days_left = max(0, (goal_date - datetime.utcnow()).days)
+                    if goal_obj.goal_date:
+                        from datetime import datetime, date
+                        # 使用真实的竞赛目标日期
+                        goal_date = goal_obj.goal_date
+                        today = datetime.utcnow().date()
+                        days_left = max(0, (goal_date - today).days)
                         weeks_left = max(0, days_left // 7)
                         lessons_left = max(0, weeks_left)  # 每周1节课
                         
@@ -1905,6 +1906,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
+                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date(),
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
