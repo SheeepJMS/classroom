@@ -1246,8 +1246,15 @@ def judge_answers_legacy():
                     'last_answer': ''
                 }
     
+    # 调试信息：打印当前答案和学生数据
+    print(f"DEBUG: judge_answers_legacy - current_answers: {course_data.get('current_answers', {})}")
+    print(f"DEBUG: judge_answers_legacy - students: {list(course_data.get('students', {}).keys())}")
+    
     for student_id, student_data in course_data['students'].items():
-        student_answer = course_data['current_answers'].get(student_id, '')
+        # 获取学生姓名（可能是键本身，也可能是数据中的name字段）
+        student_name = student_data.get('name', student_id) if isinstance(student_data, dict) else student_id
+        student_answer = course_data['current_answers'].get(student_name, '')
+        print(f"DEBUG: 处理学生 {student_id} (姓名: {student_name}), 答案: '{student_answer}'")
         
         # 确保学生数据有必要的字段
         if 'score' not in student_data:
@@ -1304,7 +1311,19 @@ def judge_answers_legacy():
     # 停止当前轮次
     course_data['round_active'] = False
     
+    # 确保全局数据中的学生数据被正确更新
+    if USE_DATABASE:
+        # 在数据库模式下，将更新的学生数据保存回全局数据
+        global_data['courses'][current_course_id]['students'] = course_data['students']
+        print(f"DEBUG: judge_answers_legacy - 保存学生数据到全局数据: {list(course_data['students'].keys())}")
+    
     save_data()
+    
+    # 调试信息：检查返回的学生数据
+    print(f"DEBUG: judge_answers_legacy - 返回的学生数据: {list(course_data['students'].keys())}")
+    for student_id, student_data in course_data['students'].items():
+        print(f"DEBUG: 学生 {student_id}: score={student_data.get('score', 0)}, rounds={student_data.get('total_rounds', 0)}, expression={student_data.get('expression', 'unknown')}")
+    
     return jsonify({
         'success': True, 
         'round_result': round_result,

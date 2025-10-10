@@ -359,6 +359,11 @@ function updateStudentsDisplay(keepStates = false) {
         
         if (classroomData.students && Object.keys(classroomData.students).length > 0) {
             Object.values(classroomData.students).forEach(student => {
+                // 过滤掉无效的学生数据
+                if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+                    console.warn('跳过无效学生数据:', student);
+                    return;
+                }
                 console.log('Creating card for student:', student.name);
                 const studentCard = createStudentCard(student);
                 studentsGrid.appendChild(studentCard);
@@ -378,6 +383,11 @@ function updateStudentsDisplay(keepStates = false) {
         console.log('Updating existing student cards');
         // 如果有现有卡片，只更新统计数据，不重新创建卡片
         Object.values(classroomData.students).forEach(student => {
+            // 过滤掉无效的学生数据
+            if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+                console.warn('跳过无效学生数据:', student);
+                return;
+            }
             const studentCard = document.querySelector(`[data-student="${student.name}"]`);
             if (studentCard) {
                 // 检查并创建stats元素（如果不存在）
@@ -487,7 +497,7 @@ function createStudentCard(student) {
         </div>
         <div class="student-name">${student.name}</div>
         <div class="student-input-group" id="input-group-${student.name}">
-            <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}" style="-webkit-text-security: disc;">
+            <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}">
             <button class="btn btn-sm btn-outline-primary submit-btn" data-student="${student.name}">
                 <i class="fas fa-paper-plane"></i>
             </button>
@@ -922,6 +932,11 @@ function showAnswerResults(correctAnswer) {
     console.log('当前学生数据:', classroomData.students);
     
     Object.values(classroomData.students).forEach(student => {
+        // 过滤掉无效的学生数据
+        if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+            console.warn('跳过无效学生数据:', student);
+            return;
+        }
         console.log(`处理学生 ${student.name}:`, student);
         
         const resultDiv = document.getElementById(`result-${student.name}`);
@@ -1191,6 +1206,11 @@ function nextRound() {
             
             // 重置所有学生的提交状态和表情
             Object.values(classroomData.students).forEach(student => {
+                // 过滤掉无效的学生数据
+                if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+                    console.warn('跳过无效学生数据:', student);
+                    return;
+                }
                 // 重置学生表情为正常状态
                 student.expression = 'neutral';
                 student.animation = 'none';
@@ -1231,6 +1251,10 @@ function nextRound() {
             // 确保所有学生表情都重置为neutral
             setTimeout(() => {
                 Object.values(classroomData.students).forEach(student => {
+                    // 过滤掉无效的学生数据
+                    if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+                        return;
+                    }
                     updateStudentExpression(student.name, 'neutral');
                 });
             }, 100);
