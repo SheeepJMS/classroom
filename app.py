@@ -10,13 +10,9 @@ app.secret_key = 'your-secret-key-here'
 # 数据库配置
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
 if DATABASE_URL.startswith('postgres://'):
-    DATABASE_URL = DATABASE_URL.replace(
-        'postgres://', 'postgresql+psycopg://', 1
-    )
+    DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql+psycopg://', 1)
 elif DATABASE_URL.startswith('postgresql://'):
-    DATABASE_URL = DATABASE_URL.replace(
-        'postgresql://', 'postgresql+psycopg://', 1
-    )
+    DATABASE_URL = DATABASE_URL.replace('postgresql://', 'postgresql+psycopg://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -26,153 +22,39 @@ db = SQLAlchemy(app)
 
 # 数据库模型
 class Class(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     ended_date = db.Column(db.DateTime)
-    competition_goal_id = db.Column(
-        db.String(36),
-        db.ForeignKey('competition_goal.id')
-    )
+    competition_goal_id = db.Column(db.String(36), db.ForeignKey('competition_goal.id'))
 
-    students = db.relationship(
-        'Student',
-        backref='class_ref',
-        lazy=True,
-        cascade='all, delete-orphan'
-    )
-    courses = db.relationship(
-        'Course',
-        backref='class_ref',
-        lazy=True,
-        cascade='all, delete-orphan'
-    )
-    competition_goal = db.relationship(
-        'CompetitionGoal',
-        backref='competition_goal_classes',
-        lazy=True
-    )
+    students = db.relationship('Student', backref='class_ref', lazy=True, cascade='all, delete-orphan')
+    courses = db.relationship('Course', backref='class_ref', lazy=True, cascade='all, delete-orphan')
+    competition_goal = db.relationship('CompetitionGoal', backref='competition_goal_classes', lazy=True)
 
 
 class Student(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(
-        db.String(36),
-        db.ForeignKey('class.id'),
-        nullable=False
-    )
+    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class Course(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(
-        db.String(36),
-        db.ForeignKey('class.id'),
-        nullable=False
-    )
+    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=False)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 class CompetitionGoal(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(uuid.uuid4())
-    )
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     target_score = db.Column(db.Integer, default=100)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
-    # goal_date = db.Column(db.Date, nullable=True)  # 临时注释，数据库中没有此字段
-
-
-# 新增的课堂状态表
-class ClassroomState(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.String(36), nullable=False, unique=True)
-    current_round = db.Column(db.Integer, default=1)
-    round_active = db.Column(db.Boolean, default=False)
-    correct_answer = db.Column(db.String(10))
-    start_time = db.Column(db.DateTime)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-
-class StudentState(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.String(36), nullable=False)
-    student_name = db.Column(db.String(100), nullable=False)
-    score = db.Column(db.Integer, default=0)
-    total_rounds = db.Column(db.Integer, default=0)
-    correct_rounds = db.Column(db.Integer, default=0)
-    expression = db.Column(db.String(20), default='neutral')
-    animation = db.Column(db.String(20), default='none')
-    avatar_color = db.Column(db.String(7), default='#4ecdc4')
-    last_answer_time = db.Column(db.Integer, default=0)
-    last_answer = db.Column(db.String(10))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(
-        db.DateTime,
-        default=datetime.utcnow,
-        onupdate=datetime.utcnow
-    )
-
-    __table_args__ = (
-        db.UniqueConstraint(
-            'course_id',
-            'student_name',
-            name='unique_student_per_course'
-        ),
-    )
-
-
-
-class RoundResult(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.String(36), nullable=False)
-    round_number = db.Column(db.Integer, nullable=False)
-    correct_answer = db.Column(db.String(10), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    __table_args__ = (
-        db.UniqueConstraint(
-            'course_id',
-            'round_number',
-            name='unique_round_per_course'
-        ),
-    )
-
-
-class StudentSubmission(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    course_id = db.Column(db.String(36), nullable=False)
-    round_number = db.Column(db.Integer, nullable=False)
-    student_name = db.Column(db.String(100), nullable=False)
-    answer = db.Column(db.String(10))
-    is_correct = db.Column(db.Boolean, default=False)
-    answer_time = db.Column(db.Integer, default=0)
-    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
 
 
 # API路由
@@ -187,17 +69,12 @@ def create_class():
         if not class_name:
             return jsonify({'success': False, 'message': '班级名称不能为空'}), 400
         
-        # 创建新班级
-        new_class = Class(
-            name=class_name,
-            description=class_description
-        )
-        
+        new_class = Class(name=class_name, description=class_description)
         db.session.add(new_class)
         db.session.commit()
         
-    return jsonify({
-        'success': True, 
+        return jsonify({
+            'success': True,
             'message': '班级创建成功',
             'class_id': new_class.id
         })
@@ -212,24 +89,19 @@ def create_competition_goal():
     """创建竞赛目标API"""
     try:
         data = request.get_json()
-        title = data.get('title', data.get('name', '')).strip()  # 兼容name和title字段
+        title = data.get('title', data.get('name', '')).strip()
         description = data.get('description', '').strip()
         target_score = data.get('target_score', 100)
         
         if not title:
             return jsonify({'success': False, 'message': '竞赛目标名称不能为空'}), 400
         
-        new_goal = CompetitionGoal(
-            title=title,
-            description=description,
-            target_score=target_score
-        )
-        
+        new_goal = CompetitionGoal(title=title, description=description, target_score=target_score)
         db.session.add(new_goal)
         db.session.commit()
         
-    return jsonify({
-        'success': True, 
+        return jsonify({
+            'success': True,
             'message': '竞赛目标创建成功',
             'goal_id': new_goal.id
         })
@@ -250,13 +122,9 @@ def add_student():
         if not name or not class_id:
             return jsonify({'success': False, 'message': '学生姓名和班级ID不能为空'}), 400
         
-        new_student = Student(
-            name=name,
-            class_id=class_id
-        )
-        
+        new_student = Student(name=name, class_id=class_id)
         db.session.add(new_student)
-                db.session.commit()
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -280,18 +148,11 @@ def start_course():
         if not course_name or not class_id:
             return jsonify({'success': False, 'message': '课程名称和班级ID不能为空'}), 400
         
-        # 先停用该班级的其他课程
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
         
-        # 创建新课程
-        new_course = Course(
-            name=course_name,
-            class_id=class_id,
-            is_active=True
-        )
-        
+        new_course = Course(name=course_name, class_id=class_id, is_active=True)
         db.session.add(new_course)
-                db.session.commit()
+        db.session.commit()
         
         return jsonify({
             'success': True,
@@ -304,52 +165,6 @@ def start_course():
         return jsonify({'success': False, 'message': f'开始课程失败: {str(e)}'}), 500
 
 
-@app.route('/submit_student_answer', methods=['POST'])
-def submit_student_answer():
-    """学生提交答案API"""
-    try:
-    data = request.get_json()
-    student_name = data.get('student_name', '').strip()
-    answer = data.get('answer', '').strip()
-        course_id = data.get('course_id', '').strip()
-        
-        if not student_name or not answer or not course_id:
-            return jsonify({'success': False, 'message': '参数不完整'}), 400
-        
-        # 这里可以添加答案存储逻辑
-        # 暂时返回成功
-    return jsonify({
-        'success': True, 
-            'message': '答案提交成功'
-            })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
-
-
-@app.route('/judge_answers', methods=['POST'])
-def judge_answers():
-    """判断答案对错API"""
-    try:
-    data = request.get_json()
-    correct_answer = data.get('correct_answer', '').strip()
-        course_id = data.get('course_id', '').strip()
-        
-        if not correct_answer or not course_id:
-            return jsonify({'success': False, 'message': '正确答案和课程ID不能为空'}), 400
-        
-        # 这里可以添加判断逻辑
-        # 暂时返回成功
-    return jsonify({
-        'success': True, 
-            'message': '答案判断完成',
-            'results': {}
-        })
-        
-    except Exception as e:
-        return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
-
-
 @app.route('/api/delete_class/<class_id>', methods=['DELETE'])
 def delete_class(class_id):
     """删除班级API"""
@@ -358,10 +173,7 @@ def delete_class(class_id):
         db.session.delete(class_obj)
         db.session.commit()
         
-    return jsonify({
-        'success': True, 
-            'message': '班级删除成功'
-        })
+        return jsonify({'success': True, 'message': '班级删除成功'})
         
     except Exception as e:
         db.session.rollback()
@@ -376,10 +188,7 @@ def end_class(class_id):
         class_obj.ended_date = datetime.utcnow()
         db.session.commit()
         
-    return jsonify({
-        'success': True, 
-            'message': '班级已结束'
-        })
+        return jsonify({'success': True, 'message': '班级已结束'})
         
     except Exception as e:
         db.session.rollback()
@@ -397,13 +206,10 @@ def delete_student():
             return jsonify({'success': False, 'message': '学生ID不能为空'}), 400
         
         student = Student.query.get_or_404(student_id)
-                db.session.delete(student)
-                db.session.commit()
+        db.session.delete(student)
+        db.session.commit()
         
-        return jsonify({
-            'success': True,
-            'message': '学生删除成功'
-        })
+        return jsonify({'success': True, 'message': '学生删除成功'})
         
     except Exception as e:
         db.session.rollback()
@@ -416,12 +222,9 @@ def delete_competition_goal(goal_id):
     try:
         goal = CompetitionGoal.query.get_or_404(goal_id)
         db.session.delete(goal)
-                db.session.commit()
+        db.session.commit()
         
-                return jsonify({
-                    'success': True,
-            'message': '竞赛目标删除成功'
-            })
+        return jsonify({'success': True, 'message': '竞赛目标删除成功'})
         
     except Exception as e:
         db.session.rollback()
@@ -433,17 +236,52 @@ def end_competition_goal(goal_id):
     """结束竞赛目标API"""
     try:
         goal = CompetitionGoal.query.get_or_404(goal_id)
-        # 这里可以添加结束逻辑，比如设置结束日期
         db.session.commit()
         
-            return jsonify({
-            'success': True,
-            'message': '竞赛目标已结束'
-        })
+        return jsonify({'success': True, 'message': '竞赛目标已结束'})
         
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束竞赛目标失败: {str(e)}'}), 500
+
+
+@app.route('/submit_student_answer', methods=['POST'])
+def submit_student_answer():
+    """学生提交答案API"""
+    try:
+        data = request.get_json()
+        student_name = data.get('student_name', '').strip()
+        answer = data.get('answer', '').strip()
+        course_id = data.get('course_id', '').strip()
+        
+        if not student_name or not answer or not course_id:
+            return jsonify({'success': False, 'message': '参数不完整'}), 400
+        
+        return jsonify({'success': True, 'message': '答案提交成功'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
+
+
+@app.route('/judge_answers', methods=['POST'])
+def judge_answers():
+    """判断答案对错API"""
+    try:
+        data = request.get_json()
+        correct_answer = data.get('correct_answer', '').strip()
+        course_id = data.get('course_id', '').strip()
+        
+        if not correct_answer or not course_id:
+            return jsonify({'success': False, 'message': '正确答案和课程ID不能为空'}), 400
+        
+        return jsonify({
+            'success': True,
+            'message': '答案判断完成',
+            'results': {}
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
 
 
 @app.route('/reports/<course_id>')
@@ -453,11 +291,7 @@ def generate_report(course_id):
         course = Course.query.get_or_404(course_id)
         class_obj = Class.query.get(course.class_id)
         
-        return render_template(
-            'reports.html',
-            course=course,
-            class_obj=class_obj
-        )
+        return render_template('reports.html', course=course, class_obj=class_obj)
         
     except Exception as e:
         return f'生成报告失败: {str(e)}', 500
@@ -467,19 +301,10 @@ def generate_report(course_id):
 def index():
     """首页"""
     classes = Class.query.order_by(Class.created_date.desc()).all()
-    goals = CompetitionGoal.query.order_by(
-        CompetitionGoal.created_date.desc()
-    ).all()
-
-    # 计算总学生数量
+    goals = CompetitionGoal.query.order_by(CompetitionGoal.created_date.desc()).all()
     total_students = db.session.query(Student).count()
 
-    return render_template(
-        'homepage.html',
-        classes=classes,
-        goals=goals,
-        total_students=total_students
-    )
+    return render_template('homepage.html', classes=classes, goals=goals, total_students=total_students)
 
 
 @app.route('/class/<class_id>')
@@ -488,7 +313,6 @@ def class_detail(class_id):
     class_obj = Class.query.get_or_404(class_id)
     students = Student.query.filter_by(class_id=class_id).all()
 
-    # 获取竞赛目标信息
     goal = None
     goal_progress = None
     if class_obj.competition_goal_id:
@@ -500,21 +324,13 @@ def class_detail(class_id):
                 'name': goal_obj.title,
                 'goal_date': None
             }
-
-            # 暂时使用默认进度
             goal_progress = {
                 'days_left': 77,
                 'weeks_left': 11,
                 'lessons_left': 22
             }
 
-    return render_template(
-        'class_detail.html',
-        class_obj=class_obj,
-        students=students,
-        goal=goal,
-        goal_progress=goal_progress
-    )
+    return render_template('class_detail.html', class_obj=class_obj, students=students, goal=goal, goal_progress=goal_progress)
 
 
 @app.route('/classroom/<class_id>')
@@ -522,11 +338,7 @@ def classroom(class_id):
     """课堂页面"""
     class_obj = Class.query.get_or_404(class_id)
     students = Student.query.filter_by(class_id=class_id).all()
-    return render_template(
-        'classroom.html',
-        class_obj=class_obj,
-        students=students
-    )
+    return render_template('classroom.html', class_obj=class_obj, students=students)
 
 
 # 应用启动时自动创建数据库表
