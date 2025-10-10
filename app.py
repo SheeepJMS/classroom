@@ -182,17 +182,24 @@ else:
     
     load_data()
 
-# 如果启用了数据库模式，创建默认数据
+# 如果启用了数据库模式，只测试连接，不创建默认数据
 if USE_DATABASE:
     try:
-        # 创建默认数据（如果数据库为空）
-        import create_default_data
-        create_default_data.create_default_data()
-        print("数据库初始化完成")
+        print("=== 数据库模式启动 ===")
+        print(f"DATABASE_URL: {os.environ.get('DATABASE_URL', 'Not set')}")
+        
+        # 测试数据库连接
+        with app.app_context():
+            db.engine.execute('SELECT 1').fetchone()
+            print("✅ 数据库连接成功")
+            print("数据库模式已启用，数据将持久保存")
+        
     except Exception as e:
-        print(f"数据库初始化失败: {e}")
+        print(f"❌ 数据库连接失败: {e}")
+        import traceback
+        traceback.print_exc()
         print("继续使用JSON文件模式")
-        # 如果数据库初始化失败，强制使用JSON模式
+        # 如果数据库连接失败，强制使用JSON模式
         USE_DATABASE = False
         load_data()
 
