@@ -223,11 +223,26 @@ def index():
             
             print(f"首页访问 - 活跃班级数量: {len(active_classes)}, 历史班级数量: {len(inactive_classes)}, 活跃竞赛目标数量: {len(active_goals)}, 历史竞赛目标数量: {len(inactive_goals)}, 总学生数量: {total_students}")
             
+            # 将SQLAlchemy模型转换为字典以便模板JSON序列化
+            def model_to_dict(model):
+                if hasattr(model, '__dict__'):
+                    return {c.name: getattr(model, c.name) for c in model.__table__.columns}
+                return model
+            
+            classes_dict = {str(cls.id): model_to_dict(cls) for cls in active_classes}
+            inactive_classes_dict = {str(cls.id): model_to_dict(cls) for cls in inactive_classes}
+            competition_goals_dict = {str(goal.id): model_to_dict(goal) for goal in active_goals}
+            inactive_goals_dict = {str(goal.id): model_to_dict(goal) for goal in inactive_goals}
+            
             return render_template('homepage.html',
-                                 classes=active_classes,
+                                 classes=active_classes,  # 保留原始对象用于模板循环
+                                 classes_json=classes_dict,  # 添加JSON版本
                                  inactive_classes=inactive_classes,
+                                 inactive_classes_json=inactive_classes_dict,
                                  competition_goals=active_goals,
+                                 competition_goals_json=competition_goals_dict,
                                  inactive_competition_goals=inactive_goals,
+                                 inactive_competition_goals_json=inactive_goals_dict,
                                  total_students=total_students)
     else:
         # 使用JSON文件

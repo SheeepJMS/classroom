@@ -1093,7 +1093,7 @@ function deleteClass(classId) {
 // 分配竞赛目标
 function assignGoal(goalId) {
     // 创建班级选择对话框
-    const classOptions = Object.entries({{ classes|tojson }}).map(([id, classData]) => 
+    const classOptions = Object.entries({{ classes_json|tojson }}).map(([id, classData]) => 
         `<option value="${id}">${classData.name}</option>`
     ).join('');
     
@@ -1102,7 +1102,7 @@ function assignGoal(goalId) {
         return;
     }
     
-    const classSelect = prompt(`选择要分配此目标的班级：\n\n${Object.entries({{ classes|tojson }}).map(([id, classData]) => `${id}: ${classData.name}`).join('\n')}\n\n请输入班级ID：`);
+    const classSelect = prompt(`选择要分配此目标的班级：\n\n${Object.entries({{ classes_json|tojson }}).map(([id, classData]) => `${id}: ${classData.name}`).join('\n')}\n\n请输入班级ID：`);
     
     if (classSelect && classSelect.trim()) {
         fetch('/api/assign_goal_to_class', {
