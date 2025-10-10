@@ -700,7 +700,7 @@
                 
                 <div class="classes-grid" id="classesGrid">
                     {% for class_data in classes %}
-                {% if not class_data.get('is_ended', False) %}
+                {% if not class_data.ended_date %}
                     <div class="class-card" data-class-id="{{ class_data.id }}">
                         <div class="class-card-header">
                             <h3 class="class-name">{{ class_data.name }}</h3>
@@ -874,7 +874,7 @@
                     <span class="goal-status ended">已结束</span>
                 </div>
                 <div class="goal-info">
-                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.get('ended_date', '未知') }}</p>
+                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.created_date.strftime('%Y-%m-%d') if goal_data.created_date else '未知' }}</p>
                     <p><i class="fas fa-info-circle"></i> {{ goal_data.description or '暂无描述' }}</p>
                 </div>
                 <div class="goal-actions">

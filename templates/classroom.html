@@ -487,7 +487,7 @@ function createStudentCard(student) {
         </div>
         <div class="student-name">${student.name}</div>
         <div class="student-input-group" id="input-group-${student.name}">
-            <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}">
+            <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}" style="-webkit-text-security: disc;">
             <button class="btn btn-sm btn-outline-primary submit-btn" data-student="${student.name}">
                 <i class="fas fa-paper-plane"></i>
             </button>

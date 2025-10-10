@@ -861,6 +861,23 @@ body.report-page .alert-success div {
     box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
 }
 
+/* 答案输入框加密样式 */
+.student-answer-input {
+    -webkit-text-security: disc; /* WebKit browsers (Chrome, Safari) */
+    -moz-text-security: disc;    /* Firefox */
+    text-security: disc;         /* Standard property */
+    font-family: monospace;      /* 等宽字体确保星号对齐 */
+    letter-spacing: 0.1em;       /* 字符间距 */
+}
+
+/* 兼容性处理：对于不支持text-security的浏览器 */
+@supports not (text-security: disc) {
+    .student-answer-input {
+        color: transparent;
+        text-shadow: 0 0 0 #000;
+    }
+}
+
 .submit-btn {
     border-radius: 8px;
     padding: 0.5rem 0.8rem;
