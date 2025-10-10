@@ -19,7 +19,7 @@ class Class(db.Model):
     # 关系
     students = db.relationship('Student', backref='class_ref', lazy=True)
     courses = db.relationship('Course', backref='class_ref', lazy=True)
-    competition_goal = db.relationship('CompetitionGoal', backref='classes')
+    competition_goal = db.relationship('CompetitionGoal', backref='competition_goal_classes')
 
 class Student(db.Model):
     """学生模型"""
