@@ -786,7 +786,7 @@
                             <div class="goal-timeline">
                                 <div class="timeline-item">
                             <span class="timeline-label">竞赛日期:</span>
-                                    <span class="timeline-value">{{ goal_data.goal_date.strftime('%Y-%m-%d') if goal_data.goal_date else '未设置' }}</span>
+                                    <span class="timeline-value">{{ goal_data.created_date if goal_data.created_date else '未设置' }}</span>
                                 </div>
                             </div>
                         </div>

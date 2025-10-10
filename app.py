@@ -301,15 +301,15 @@ def class_detail(class_id):
                         'title': goal_obj.title,
                         'name': goal_obj.title,  # 保持向后兼容
                         'description': goal_obj.description,
-                        'goal_date': goal_obj.goal_date,
+                        # 'goal_date': goal_obj.goal_date,  # 临时注释
                         'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
                     }
                     
-                    # 计算竞赛目标进度
-                    if goal_obj.goal_date:
-                        from datetime import datetime, date
-                        # 使用真实的竞赛目标日期
-                        goal_date = goal_obj.goal_date
+                    # 计算竞赛目标进度 - 临时使用created_date
+                    if goal_obj.created_date:
+                        from datetime import datetime, date, timedelta
+                        # 临时使用创建日期后77天作为竞赛日期
+                        goal_date = goal_obj.created_date.date() + timedelta(days=77)
                         today = datetime.utcnow().date()
                         days_left = max(0, (goal_date - today).days)
                         weeks_left = max(0, days_left // 7)
@@ -2036,7 +2036,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
-                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date(),
+                    # goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date(),  # 临时注释
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
