@@ -942,27 +942,61 @@ def generate_comment(accuracy, class_avg, focus, reaction, reaction_avg):
 @app.route('/start_class', methods=['POST'])
 def start_class_legacy():
     """开始课堂（兼容旧版本）"""
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
-    
-    course_data = global_data['courses'].get(current_course_id, {})
-    if not course_data:
-        return jsonify({'error': '课程不存在'}), 400
-    
-    # 开始课堂
-    course_data['is_active'] = True
-    course_data['round_active'] = True
-    course_data['start_time'] = time.time()
-    # 不要重置current_round，保持当前轮次
-    if 'current_round' not in course_data:
-        course_data['current_round'] = 1  # 只在第一次时设置为1
-    course_data['current_answers'] = {}
-    course_data['answer_times'] = {}
-    course_data['correct_answer'] = ''
-    
-    save_data()
-    return jsonify({'success': True})
+    if USE_DATABASE:
+        # 数据库模式
+        with app.app_context():
+            # 获取活跃课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            current_course_id = str(current_course.id)
+            
+            # 确保全局数据中有该课程的数据
+            if current_course_id not in global_data['courses']:
+                global_data['courses'][current_course_id] = {}
+            
+            course_data = global_data['courses'][current_course_id]
+            
+            # 开始课堂
+            course_data['is_active'] = True
+            course_data['round_active'] = True
+            course_data['start_time'] = time.time()
+            # 不要重置current_round，保持当前轮次
+            if 'current_round' not in course_data:
+                course_data['current_round'] = 1  # 只在第一次时设置为1
+            course_data['current_answers'] = {}
+            course_data['answer_times'] = {}
+            course_data['correct_answer'] = ''
+            
+            # 设置全局当前课程
+            global_data['current_course'] = current_course_id
+            
+            save_data()
+            return jsonify({'success': True})
+    else:
+        # JSON文件模式
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
+        if not course_data:
+            return jsonify({'error': '课程不存在'}), 400
+        
+        # 开始课堂
+        course_data['is_active'] = True
+        course_data['round_active'] = True
+        course_data['start_time'] = time.time()
+        # 不要重置current_round，保持当前轮次
+        if 'current_round' not in course_data:
+            course_data['current_round'] = 1  # 只在第一次时设置为1
+        course_data['current_answers'] = {}
+        course_data['answer_times'] = {}
+        course_data['correct_answer'] = ''
+        
+        save_data()
+        return jsonify({'success': True})
 
 @app.route('/api/start_class', methods=['POST'])
 def start_class():
@@ -986,37 +1020,85 @@ def submit_student_answer_legacy():
     student_name = data.get('student_name', '').strip()
     answer = data.get('answer', '').strip()
     
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
-    
     if not student_name or not answer:
         return jsonify({'error': '学生姓名和答案不能为空'}), 400
     
-    course_data = global_data['courses'].get(current_course_id, {})
-    if not course_data:
-        return jsonify({'error': '课程不存在'}), 400
-    
-    # 记录答案和答题时间
-    course_data['current_answers'][student_name] = answer
-    
-    # 计算答题时间
-    current_time = time.time()
-    if course_data.get('start_time'):
-        answer_time = current_time - course_data['start_time']
+    if USE_DATABASE:
+        # 数据库模式
+        with app.app_context():
+            # 获取活跃课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            current_course_id = str(current_course.id)
+            
+            # 确保全局数据中有该课程的数据
+            if current_course_id not in global_data['courses']:
+                global_data['courses'][current_course_id] = {}
+            
+            course_data = global_data['courses'][current_course_id]
+            
+            # 确保必要的数据结构存在
+            if 'current_answers' not in course_data:
+                course_data['current_answers'] = {}
+            if 'answer_times' not in course_data:
+                course_data['answer_times'] = {}
+            if 'students' not in course_data:
+                course_data['students'] = {}
+            
+            # 记录答案和答题时间
+            course_data['current_answers'][student_name] = answer
+            
+            # 计算答题时间
+            current_time = time.time()
+            if course_data.get('start_time'):
+                answer_time = current_time - course_data['start_time']
+            else:
+                answer_time = 0
+            
+            course_data['answer_times'][student_name] = answer_time
+            
+            # 更新学生状态
+            if student_name not in course_data['students']:
+                course_data['students'][student_name] = {}
+            
+            course_data['students'][student_name]['expression'] = 'submitted'
+            course_data['students'][student_name]['last_answer'] = answer
+            course_data['students'][student_name]['last_answer_time'] = answer_time
+            
+            save_data()
+            return jsonify({'success': True})
     else:
-        answer_time = 0
-    
-    course_data['answer_times'][student_name] = answer_time
-    
-    # 更新学生状态
-    if student_name in course_data['students']:
-        course_data['students'][student_name]['expression'] = 'submitted'
-        course_data['students'][student_name]['last_answer'] = answer
-        course_data['students'][student_name]['last_answer_time'] = answer_time
-    
-    save_data()
-    return jsonify({'success': True})
+        # JSON文件模式
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
+        if not course_data:
+            return jsonify({'error': '课程不存在'}), 400
+        
+        # 记录答案和答题时间
+        course_data['current_answers'][student_name] = answer
+        
+        # 计算答题时间
+        current_time = time.time()
+        if course_data.get('start_time'):
+            answer_time = current_time - course_data['start_time']
+        else:
+            answer_time = 0
+        
+        course_data['answer_times'][student_name] = answer_time
+        
+        # 更新学生状态
+        if student_name in course_data['students']:
+            course_data['students'][student_name]['expression'] = 'submitted'
+            course_data['students'][student_name]['last_answer'] = answer
+            course_data['students'][student_name]['last_answer_time'] = answer_time
+        
+        save_data()
+        return jsonify({'success': True})
 
 @app.route('/api/submit_student_answer', methods=['POST'])
 def submit_student_answer():
@@ -1069,16 +1151,43 @@ def judge_answers_legacy():
     correct_answer = data.get('correct_answer', '').strip()
     question_score = data.get('question_score', 1)
     
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
-    
     if not correct_answer:
         return jsonify({'error': '正确答案不能为空'}), 400
     
-    course_data = global_data['courses'].get(current_course_id, {})
-    if not course_data:
-        return jsonify({'error': '课程不存在'}), 400
+    if USE_DATABASE:
+        # 数据库模式
+        with app.app_context():
+            # 获取活跃课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            current_course_id = str(current_course.id)
+            
+            # 确保全局数据中有该课程的数据
+            if current_course_id not in global_data['courses']:
+                global_data['courses'][current_course_id] = {}
+            
+            course_data = global_data['courses'][current_course_id]
+            
+            # 确保必要的数据结构存在
+            if 'students' not in course_data:
+                course_data['students'] = {}
+            if 'current_answers' not in course_data:
+                course_data['current_answers'] = {}
+            if 'answer_times' not in course_data:
+                course_data['answer_times'] = {}
+            if 'round_results' not in course_data:
+                course_data['round_results'] = []
+    else:
+        # JSON文件模式
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
+        if not course_data:
+            return jsonify({'error': '课程不存在'}), 400
     
     # 评判答案
     course_data['correct_answer'] = correct_answer
@@ -1243,13 +1352,34 @@ def judge_answers():
 @app.route('/next_round', methods=['POST'])
 def next_round_legacy():
     """下一轮（兼容旧版本）"""
-    current_course_id = global_data.get('current_course')
-    if not current_course_id:
-        return jsonify({'error': '没有当前课程'}), 400
-    
-    course_data = global_data['courses'].get(current_course_id, {})
-    if not course_data:
-        return jsonify({'error': '课程不存在'}), 400
+    if USE_DATABASE:
+        # 数据库模式
+        with app.app_context():
+            # 获取活跃课程
+            current_course = Course.query.filter_by(is_active=True).first()
+            if not current_course:
+                return jsonify({'error': '没有当前课程'}), 400
+            
+            current_course_id = str(current_course.id)
+            
+            # 确保全局数据中有该课程的数据
+            if current_course_id not in global_data['courses']:
+                global_data['courses'][current_course_id] = {}
+            
+            course_data = global_data['courses'][current_course_id]
+            
+            # 确保必要的数据结构存在
+            if 'students' not in course_data:
+                course_data['students'] = {}
+    else:
+        # JSON文件模式
+        current_course_id = global_data.get('current_course')
+        if not current_course_id:
+            return jsonify({'error': '没有当前课程'}), 400
+        
+        course_data = global_data['courses'].get(current_course_id, {})
+        if not course_data:
+            return jsonify({'error': '课程不存在'}), 400
     
     # 进入下一轮
     old_round = course_data.get('current_round', 1)
