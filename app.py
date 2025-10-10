@@ -23,7 +23,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 检查是否使用数据库模式
-USE_DATABASE = os.environ.get('DATABASE_URL') is not None
+USE_DATABASE = os.environ.get('USE_DATABASE', '').lower() == 'true' or os.environ.get('DATABASE_URL') is not None
 
 if USE_DATABASE:
     # 初始化数据库
@@ -182,17 +182,17 @@ else:
     
     load_data()
 
-# 如果启用了数据库模式，同步数据
+# 如果启用了数据库模式，创建默认数据
 if USE_DATABASE:
     try:
-        # 延迟导入避免循环导入
-        import migrate_data
-        migrate_data.migrate_data()
-        print("数据同步到数据库完成")
+        # 创建默认数据（如果数据库为空）
+        import create_default_data
+        create_default_data.create_default_data()
+        print("数据库初始化完成")
     except Exception as e:
-        print(f"数据同步失败: {e}")
+        print(f"数据库初始化失败: {e}")
         print("继续使用JSON文件模式")
-        # 如果数据库同步失败，强制使用JSON模式
+        # 如果数据库初始化失败，强制使用JSON模式
         USE_DATABASE = False
         load_data()
 
