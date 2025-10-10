@@ -150,8 +150,8 @@ def index():
     
     # 计算总学生数量
     total_students = db.session.query(Student).count()
-            
-            return render_template('homepage.html',
+    
+    return render_template('homepage.html', 
                          classes=classes, 
                          goals=goals,
                          total_students=total_students)
@@ -163,15 +163,15 @@ def class_detail(class_id):
     students = Student.query.filter_by(class_id=class_id).all()
     
     # 获取竞赛目标信息
-            goal = None
-            goal_progress = None
-            if class_obj.competition_goal_id:
-                goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
-                if goal_obj:
-                    goal = {
-                        'id': goal_obj.id,
+    goal = None
+    goal_progress = None
+    if class_obj.competition_goal_id:
+        goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
+        if goal_obj:
+            goal = {
+                'id': goal_obj.id,
                 'title': goal_obj.title,
-                        'name': goal_obj.title,
+                'name': goal_obj.title,
                 'goal_date': goal_obj.goal_date.strftime('%Y-%m-%d') if goal_obj.goal_date else None
             }
             
@@ -180,14 +180,14 @@ def class_detail(class_id):
                 days_left = (goal_obj.goal_date - datetime.now().date()).days
                 weeks_left = days_left // 7
                 lessons_left = days_left // 7 * 2  # 假设每周2节课
-                        
-                        goal_progress = {
+                
+                goal_progress = {
                     'days_left': max(0, days_left),
                     'weeks_left': max(0, weeks_left),
                     'lessons_left': max(0, lessons_left)
-                        }
+                }
     
-    return render_template('class_detail.html',
+    return render_template('class_detail.html', 
                          class_obj=class_obj, 
                          students=students,
                          goal=goal,
@@ -338,7 +338,7 @@ def start_class():
         
         db.session.commit()
         
-    return jsonify({'success': True})
+        return jsonify({'success': True})
         
     except Exception as e:
         db.session.rollback()
@@ -359,8 +359,8 @@ def submit_student_answer():
         # 获取课堂状态
         classroom_state = get_or_create_classroom_state(course_id)
         if not classroom_state.round_active or not classroom_state.start_time:
-        return jsonify({'error': '当前没有活跃的答题轮次'}), 400
-    
+            return jsonify({'error': '当前没有活跃的答题轮次'}), 400
+        
         # 计算答题时间
         current_time = datetime.utcnow()
         answer_time = int((current_time - classroom_state.start_time).total_seconds())
@@ -373,8 +373,8 @@ def submit_student_answer():
         
         db.session.commit()
         
-    return jsonify({'success': True, 'answer_time': answer_time})
-
+        return jsonify({'success': True, 'answer_time': answer_time})
+        
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -456,8 +456,8 @@ def judge_answers():
                 'last_answer': state.last_answer
             }
         
-    return jsonify({
-        'success': True, 
+        return jsonify({
+            'success': True,
             'students': students_data,
             'round_result': {
                 'round': current_round,
@@ -473,12 +473,12 @@ def judge_answers():
 @app.route('/api/next_round', methods=['POST'])
 def next_round():
     """下一轮"""
-        data = request.get_json()
-        course_id = data.get('course_id')
-        
-        if not course_id:
-            return jsonify({'error': '课程ID不能为空'}), 400
-        
+    data = request.get_json()
+    course_id = data.get('course_id')
+    
+    if not course_id:
+        return jsonify({'error': '课程ID不能为空'}), 400
+    
     try:
         # 更新课堂状态
         classroom_state = get_or_create_classroom_state(course_id)
@@ -495,7 +495,7 @@ def next_round():
             student_state.animation = 'none'
             student_state.updated_at = datetime.utcnow()
         
-                db.session.commit()
+        db.session.commit()
         
         return jsonify({'success': True, 'current_round': classroom_state.current_round})
         
