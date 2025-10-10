@@ -57,7 +57,7 @@ class CompetitionGoal(db.Model):
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     target_score = db.Column(db.Integer, default=100)
-    goal_date = db.Column(db.Date, nullable=True)
+    # goal_date = db.Column(db.Date, nullable=True)  # 暂时注释，等待数据库迁移
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
 
 # 新增的课堂状态表
@@ -172,19 +172,26 @@ def class_detail(class_id):
                         'id': goal_obj.id,
                 'title': goal_obj.title,
                         'name': goal_obj.title,
-                'goal_date': goal_obj.goal_date.strftime('%Y-%m-%d') if goal_obj.goal_date else None
+                'goal_date': None  # 暂时设为None，等待数据库迁移
             }
             
-            # 计算进度
-            if goal_obj.goal_date:
-                days_left = (goal_obj.goal_date - datetime.now().date()).days
-                weeks_left = days_left // 7
-                lessons_left = days_left // 7 * 2  # 假设每周2节课
-                        
+            # 计算进度（暂时使用默认值）
+            # if goal_obj.goal_date:
+            #     days_left = (goal_obj.goal_date - datetime.now().date()).days
+            #     weeks_left = days_left // 7
+            #     lessons_left = days_left // 7 * 2  # 假设每周2节课
+            #     
+            #     goal_progress = {
+            #         'days_left': max(0, days_left),
+            #         'weeks_left': max(0, weeks_left),
+            #         'lessons_left': max(0, lessons_left)
+            #     }
+            
+            # 暂时使用默认进度
                         goal_progress = {
-                    'days_left': max(0, days_left),
-                    'weeks_left': max(0, weeks_left),
-                    'lessons_left': max(0, lessons_left)
+                            'days_left': 77,
+                            'weeks_left': 11,
+                'lessons_left': 22
                         }
     
     return render_template('class_detail.html',
