@@ -1249,6 +1249,18 @@ def judge_answers_legacy():
     for student_id, student_data in course_data['students'].items():
         student_answer = course_data['current_answers'].get(student_id, '')
         
+        # 确保学生数据有必要的字段
+        if 'score' not in student_data:
+            student_data['score'] = 0
+        if 'total_rounds' not in student_data:
+            student_data['total_rounds'] = 0
+        if 'correct_rounds' not in student_data:
+            student_data['correct_rounds'] = 0
+        if 'expression' not in student_data:
+            student_data['expression'] = 'neutral'
+        if 'animation' not in student_data:
+            student_data['animation'] = 'none'
+        
         # 检查学生是否提交了答案
         if student_answer:  # 学生提交了答案
             is_correct = student_answer.lower() == correct_answer.lower()
@@ -1379,6 +1391,7 @@ def judge_answers():
                 'score': student_data['score']
             }
         else:  # 学生未提交答案
+            is_correct = False  # 未提交答案算作错误
             student_data['expression'] = 'embarrassed'  # 未作答状态
             student_data['animation'] = 'none'
             student_data['last_answer'] = ''  # 清空答案
@@ -2335,6 +2348,54 @@ def end_competition_goal(goal_id):
     except Exception as e:
         print(f"结束竞赛目标时发生错误: {e}")
         return jsonify({'error': '结束竞赛目标时发生错误', 'details': str(e)}), 500
+
+@app.route('/api/update_competition_goal/<goal_id>', methods=['PUT'])
+def update_competition_goal(goal_id):
+    """更新竞赛目标"""
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    description = data.get('description', '').strip()
+    goal_date_str = data.get('goal_date', '').strip()
+    
+    if not name:
+        return jsonify({'error': '竞赛名称不能为空'}), 400
+    
+    if USE_DATABASE:
+        # 数据库模式
+        with app.app_context():
+            goal = CompetitionGoal.query.get(goal_id)
+            if not goal:
+                return jsonify({'error': '竞赛目标不存在'}), 404
+            
+            goal.title = name
+            goal.description = description
+            
+            if goal_date_str:
+                try:
+                    goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': '日期格式错误'}), 400
+            
+            db.session.commit()
+            
+            return jsonify({'success': True, 'message': '竞赛目标更新成功'})
+    else:
+        # JSON文件模式
+        if goal_id in global_data['competition_goals']:
+            goal_data = global_data['competition_goals'][goal_id]
+            goal_data['name'] = name
+            goal_data['description'] = description
+            
+            if goal_date_str:
+                try:
+                    goal_data['goal_date'] = datetime.strptime(goal_date_str, '%Y-%m-%d').strftime('%Y-%m-%d')
+                except ValueError:
+                    return jsonify({'error': '日期格式错误'}), 400
+            
+            save_data()
+            return jsonify({'success': True, 'message': '竞赛目标更新成功'})
+        else:
+            return jsonify({'error': '竞赛目标不存在'}), 404
 
 @app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
 def delete_competition_goal(goal_id):

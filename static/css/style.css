@@ -878,6 +878,106 @@ body.report-page .alert-success div {
     }
 }
 
+/* 编辑竞赛目标对话框样式 */
+.edit-goal-dialog {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.edit-goal-content {
+    background: white;
+    padding: 2rem;
+    border-radius: 10px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    width: 90%;
+    max-width: 500px;
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+.edit-goal-content h3 {
+    margin-top: 0;
+    margin-bottom: 1.5rem;
+    color: #1976d2;
+    text-align: center;
+}
+
+.edit-goal-content .form-group {
+    margin-bottom: 1rem;
+}
+
+.edit-goal-content label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.edit-goal-content input,
+.edit-goal-content textarea {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    box-sizing: border-box;
+}
+
+.edit-goal-content input:focus,
+.edit-goal-content textarea:focus {
+    outline: none;
+    border-color: #1976d2;
+    box-shadow: 0 0 0 0.2rem rgba(25, 118, 210, 0.25);
+}
+
+.edit-goal-content textarea {
+    resize: vertical;
+    min-height: 80px;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.form-actions .btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+
+.form-actions .btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.form-actions .btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.form-actions .btn-primary {
+    background-color: #1976d2;
+    color: white;
+}
+
+.form-actions .btn-primary:hover {
+    background-color: #1565c0;
+}
+
 .submit-btn {
     border-radius: 8px;
     padding: 0.5rem 0.8rem;
