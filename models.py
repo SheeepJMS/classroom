@@ -41,7 +41,7 @@ class CompetitionGoal(db.Model):
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     target_score = db.Column(db.Integer, default=100)
-    goal_date = db.Column(db.Date, nullable=True)  # 竞赛目标日期 - 临时设为可选
+    # goal_date = db.Column(db.Date, nullable=True)  # 竞赛目标日期 - 暂时注释，等待数据库迁移
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系

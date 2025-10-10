@@ -165,14 +165,14 @@ def init_default_data():
 # 在应用启动时加载数据
 if USE_DATABASE:
     print("使用数据库模式，跳过JSON文件加载")
-    # 运行数据库迁移（如果需要）
-    try:
-        from migrate_goal_date import migrate_goal_date
-        migrate_goal_date()
-    except ImportError:
-        print("迁移脚本不存在，跳过数据库迁移")
-    except Exception as e:
-        print(f"数据库迁移失败: {e}")
+    # 数据库迁移暂时禁用，避免启动问题
+    # try:
+    #     from migrate_goal_date import migrate_goal_date
+    #     migrate_goal_date()
+    # except ImportError:
+    #     print("迁移脚本不存在，跳过数据库迁移")
+    # except Exception as e:
+    #     print(f"数据库迁移失败: {e}")
 else:
     # 检查数据文件是否存在，如果不存在则创建
     if not os.path.exists(DATA_FILE):
@@ -316,14 +316,10 @@ def class_detail(class_id):
             if class_obj.competition_goal_id:
                 goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
                 if goal_obj:
-                    # 安全地获取goal_date，如果字段不存在则使用默认值
-                    try:
-                        goal_date_str = goal_obj.goal_date.strftime('%Y-%m-%d') if goal_obj.goal_date else ''
-                    except AttributeError:
-                        # 如果goal_date字段不存在，使用created_date后77天作为默认值
-                        from datetime import timedelta
-                        default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                        goal_date_str = default_goal_date.strftime('%Y-%m-%d')
+                    # 暂时使用created_date后77天作为默认竞赛日期
+                    from datetime import timedelta
+                    default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
+                    goal_date_str = default_goal_date.strftime('%Y-%m-%d')
                     
                     goal = {
                         'id': goal_obj.id,
@@ -334,48 +330,18 @@ def class_detail(class_id):
                         'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
                     }
                     
-                    # 计算竞赛目标进度 - 安全地使用goal_date
-                    try:
-                        if goal_obj.goal_date:
-                            from datetime import datetime, date, timedelta
-                            today = datetime.utcnow().date()
-                            days_left = max(0, (goal_obj.goal_date - today).days)
-                            weeks_left = max(0, days_left // 7)
-                            lessons_left = max(0, weeks_left)  # 每周1节课
-                            
-                            goal_progress = {
-                                'days_left': days_left,
-                                'weeks_left': weeks_left,
-                                'lessons_left': lessons_left
-                            }
-                        else:
-                            # 如果没有goal_date，使用默认计算
-                            from datetime import datetime, date, timedelta
-                            default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                            today = datetime.utcnow().date()
-                            days_left = max(0, (default_goal_date - today).days)
-                            weeks_left = max(0, days_left // 7)
-                            lessons_left = max(0, weeks_left)
-                            
-                            goal_progress = {
-                                'days_left': days_left,
-                                'weeks_left': weeks_left,
-                                'lessons_left': lessons_left
-                            }
-                    except AttributeError:
-                        # 如果goal_date字段不存在，使用默认计算
-                        from datetime import datetime, date, timedelta
-                        default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                        today = datetime.utcnow().date()
-                        days_left = max(0, (default_goal_date - today).days)
-                        weeks_left = max(0, days_left // 7)
-                        lessons_left = max(0, weeks_left)
-                        
-                        goal_progress = {
-                            'days_left': days_left,
-                            'weeks_left': weeks_left,
-                            'lessons_left': lessons_left
-                        }
+                    # 计算竞赛目标进度 - 使用默认日期计算
+                    from datetime import datetime, date, timedelta
+                    today = datetime.utcnow().date()
+                    days_left = max(0, (default_goal_date - today).days)
+                    weeks_left = max(0, days_left // 7)
+                    lessons_left = max(0, weeks_left)
+                    
+                    goal_progress = {
+                        'days_left': days_left,
+                        'weeks_left': weeks_left,
+                        'lessons_left': lessons_left
+                    }
     else:
         # 使用JSON文件
         if class_id not in global_data['classes']:
@@ -2333,7 +2299,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
-                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,
+                    # goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,  # 暂时注释
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
@@ -2495,16 +2461,17 @@ def update_competition_goal(goal_id):
             goal.title = name
             goal.description = description
             
-            try:
-                if goal_date_str:
-                    goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
-                else:
-                    goal.goal_date = None
-            except ValueError:
-                return jsonify({'error': '日期格式错误'}), 400
-            except AttributeError:
-                # 如果goal_date字段不存在，跳过设置
-                pass
+            # 暂时跳过goal_date的更新，等待数据库迁移
+            # try:
+            #     if goal_date_str:
+            #         goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
+            #     else:
+            #         goal.goal_date = None
+            # except ValueError:
+            #     return jsonify({'error': '日期格式错误'}), 400
+            # except AttributeError:
+            #     # 如果goal_date字段不存在，跳过设置
+            #     pass
             
             db.session.commit()
             
