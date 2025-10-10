@@ -340,10 +340,13 @@ def class_detail(class_id):
             if class_obj.competition_goal_id:
                 goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
                 if goal_obj:
-                    # 暂时使用created_date后77天作为默认竞赛日期
-                    from datetime import timedelta
-                    default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                    goal_date_str = default_goal_date.strftime('%Y-%m-%d')
+                    # 使用goal_date，如果不存在则使用默认值
+                    if goal_obj.goal_date:
+                        goal_date_str = goal_obj.goal_date.strftime('%Y-%m-%d')
+                    else:
+                        from datetime import timedelta
+                        default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
+                        goal_date_str = default_goal_date.strftime('%Y-%m-%d')
                     
                     goal = {
                         'id': goal_obj.id,
@@ -1417,8 +1420,16 @@ def judge_answers_legacy():
         global_data['courses'][current_course_id]['current_answers'] = {}
         global_data['courses'][current_course_id]['answer_times'] = {}
         global_data['courses'][current_course_id]['round_active'] = False
+        
+        # 强制保存数据到JSON文件（用于调试）
+        save_data()
+        
         print(f"DEBUG: judge_answers_legacy - 保存学生数据到全局数据: {list(course_data['students'].keys())}")
         print(f"DEBUG: judge_answers_legacy - 保存轮次结果: {len(course_data['round_results'])} 个轮次")
+        
+        # 详细打印每个学生的状态
+        for student_id, student_data in course_data['students'].items():
+            print(f"DEBUG: 学生 {student_id} 最终状态: score={student_data.get('score', 0)}, rounds={student_data.get('total_rounds', 0)}, expression={student_data.get('expression', 'unknown')}")
     
     save_data()
     
@@ -1692,33 +1703,58 @@ def get_classroom_data_legacy():
             
             # 构建课程数据 - 从全局数据中读取轮次信息
             current_course_id = str(current_course.id)
-            global_course_data = global_data['courses'].get(current_course_id, {})
+            
+            # 确保全局数据中有该课程的数据
+            if current_course_id not in global_data['courses']:
+                global_data['courses'][current_course_id] = {
+                    'students': {},
+                    'round_results': [],
+                    'current_round': 1,
+                    'round_active': False,
+                    'current_answers': {},
+                    'answer_times': {}
+                }
+            
+            global_course_data = global_data['courses'][current_course_id]
             
             # 获取班级中的所有学生
             class_students = Student.query.filter_by(class_id=current_course.class_id).all()
             students_data = {}
             
             for student in class_students:
-                # 从全局数据中获取该学生的答题时间
+                # 从全局数据中获取该学生的数据
                 global_student_data = global_course_data.get('students', {}).get(student.name, {})
                 
-                students_data[student.name] = {
-                    'name': student.name,
-                    'score': global_student_data.get('score', 0),
-                    'total_rounds': global_student_data.get('total_rounds', 0),
-                    'correct_rounds': global_student_data.get('correct_rounds', 0),
-                    'last_answer_time': global_student_data.get('last_answer_time', 0),
-                    'expression': global_student_data.get('expression', 'neutral'),
-                    'animation': global_student_data.get('animation', 'none'),
-                    'avatar_color': global_student_data.get('avatar_color', '#4ecdc4'),
-                    'answers': global_student_data.get('answers', []),
-                    'last_answer': global_student_data.get('last_answer', '')
-                }
+                # 如果全局数据中没有该学生，创建默认数据
+                if not global_student_data:
+                    global_student_data = {
+                        'name': student.name,
+                        'score': 0,
+                        'total_rounds': 0,
+                        'correct_rounds': 0,
+                        'last_answer_time': 0,
+                        'expression': 'neutral',
+                        'animation': 'none',
+                        'avatar_color': '#4ecdc4',
+                        'answers': [],
+                        'last_answer': ''
+                    }
+                    # 保存到全局数据
+                    if 'students' not in global_course_data:
+                        global_course_data['students'] = {}
+                    global_course_data['students'][student.name] = global_student_data
+                
+                students_data[student.name] = global_student_data.copy()
             
             # 调试信息
             print(f"DEBUG: get_classroom_data_legacy - 课程ID: {current_course_id}")
             print(f"DEBUG: 全局课程数据: {global_course_data}")
             print(f"DEBUG: 当前轮次: {global_course_data.get('current_round', 1)}")
+            print(f"DEBUG: 学生数量: {len(students_data)}")
+            
+            # 打印每个学生的详细状态
+            for student_name, student_data in students_data.items():
+                print(f"DEBUG: 学生 {student_name}: score={student_data.get('score', 0)}, rounds={student_data.get('total_rounds', 0)}, expression={student_data.get('expression', 'unknown')}")
             
             course_data = {
                 'id': current_course.id,
@@ -1738,6 +1774,10 @@ def get_classroom_data_legacy():
             }
             
             print(f"DEBUG: 返回的课程数据轮次: {course_data.get('current_round')}")
+            
+            # 保存全局数据（确保数据持久化）
+            save_data()
+            
     else:
         # 使用JSON文件
         current_course_id = global_data.get('current_course')
@@ -2330,7 +2370,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
-                    # goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,  # 暂时注释
+                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
@@ -2369,7 +2409,7 @@ def get_competition_goals():
                         'id': goal.id,
                         'name': goal.title,
                         'description': goal.description,
-                        'goal_date': (goal.created_date.date() + timedelta(days=77)).strftime('%Y-%m-%d') if goal.created_date else '',
+                        'goal_date': goal.goal_date.strftime('%Y-%m-%d') if goal.goal_date else '',
                         'is_active': True
                     })
                 return jsonify({
@@ -2492,14 +2532,14 @@ def update_competition_goal(goal_id):
             goal.title = name
             goal.description = description
             
-            # 暂时跳过goal_date的更新
-            # if goal_date_str:
-            #     try:
-            #         goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
-            #     except ValueError:
-            #         return jsonify({'error': '日期格式错误'}), 400
-            # else:
-            #     goal.goal_date = None
+            # 更新goal_date
+            if goal_date_str:
+                try:
+                    goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
+                except ValueError:
+                    return jsonify({'error': '日期格式错误'}), 400
+            else:
+                goal.goal_date = None
             
             db.session.commit()
             
