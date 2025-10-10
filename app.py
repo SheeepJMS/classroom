@@ -149,8 +149,14 @@ def init_default_data():
     save_data()
     print("初始化空数据结构完成 - 不会覆盖现有数据")
 
-# 在应用启动时创建数据备份
+# 在应用启动时初始化数据（如果不存在）
 if not USE_DATABASE:
+    try:
+        import init_data
+        init_data.init_data_if_needed()
+    except Exception as e:
+        print(f"数据初始化失败: {e}")
+    
     try:
         import auto_backup
         auto_backup.create_backup()
