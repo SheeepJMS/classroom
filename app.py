@@ -1198,6 +1198,26 @@ def judge_answers_legacy():
         'results': {}
     }
     
+    # 在数据库模式下，确保有学生数据
+    if USE_DATABASE and 'students' not in course_data:
+        # 从数据库获取学生数据
+        current_course = Course.query.filter_by(is_active=True).first()
+        if current_course:
+            class_students = Student.query.filter_by(class_id=current_course.class_id).all()
+            course_data['students'] = {}
+            for student in class_students:
+                course_data['students'][student.name] = {
+                    'name': student.name,
+                    'score': 0,
+                    'total_rounds': 0,
+                    'correct_rounds': 0,
+                    'expression': 'neutral',
+                    'animation': 'none',
+                    'avatar_color': '#4ecdc4',
+                    'answers': [],
+                    'last_answer': ''
+                }
+    
     for student_id, student_data in course_data['students'].items():
         student_answer = course_data['current_answers'].get(student_id, '')
         
