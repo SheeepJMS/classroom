@@ -1,4 +1,4 @@
-from flask import Flask, render_template
+from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
@@ -100,6 +100,7 @@ class CompetitionGoal(db.Model):
     description = db.Column(db.Text)
     target_score = db.Column(db.Integer, default=100)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
+    # goal_date = db.Column(db.Date, nullable=True)  # 临时注释，数据库中没有此字段
 
 
 # 新增的课堂状态表
@@ -175,6 +176,37 @@ class StudentSubmission(db.Model):
 
 
 # API路由
+@app.route('/api/create_class', methods=['POST'])
+def create_class():
+    """创建班级API"""
+    try:
+        data = request.get_json()
+        class_name = data.get('name', '').strip()
+        class_description = data.get('description', '').strip()
+        
+        if not class_name:
+            return jsonify({'success': False, 'message': '班级名称不能为空'}), 400
+        
+        # 创建新班级
+        new_class = Class(
+            name=class_name,
+            description=class_description
+        )
+        
+        db.session.add(new_class)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': '班级创建成功',
+            'class_id': new_class.id
+        })
+        
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'创建班级失败: {str(e)}'}), 500
+
+
 @app.route('/')
 def index():
     """首页"""
@@ -201,22 +233,22 @@ def class_detail(class_id):
     students = Student.query.filter_by(class_id=class_id).all()
 
     # 获取竞赛目标信息
-    goal = None
-    goal_progress = None
-    if class_obj.competition_goal_id:
-        goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
-        if goal_obj:
-            goal = {
-                'id': goal_obj.id,
+            goal = None
+            goal_progress = None
+            if class_obj.competition_goal_id:
+                goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
+                if goal_obj:
+                    goal = {
+                        'id': goal_obj.id,
                 'title': goal_obj.title,
-                'name': goal_obj.title,
+                        'name': goal_obj.title,
                 'goal_date': None
             }
 
             # 暂时使用默认进度
-            goal_progress = {
-                'days_left': 77,
-                'weeks_left': 11,
+                        goal_progress = {
+                            'days_left': 77,
+                            'weeks_left': 11,
                 'lessons_left': 22
             }
 
@@ -224,7 +256,7 @@ def class_detail(class_id):
         'class_detail.html',
         class_obj=class_obj,
         students=students,
-        goal=goal,
+                         goal=goal,
         goal_progress=goal_progress
     )
 
@@ -242,7 +274,7 @@ def classroom(class_id):
 
 
 # 应用启动时自动创建数据库表
-with app.app_context():
+        with app.app_context():
     try:
         db.create_all()
         print("✅ 数据库表创建成功")
