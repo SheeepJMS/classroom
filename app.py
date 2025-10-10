@@ -241,7 +241,13 @@ def classroom(class_id):
     )
 
 
-if __name__ == '__main__':
-    with app.app_context():
+# 应用启动时自动创建数据库表
+with app.app_context():
+    try:
         db.create_all()
+        print("✅ 数据库表创建成功")
+    except Exception as e:
+        print(f"❌ 数据库表创建失败: {e}")
+
+if __name__ == '__main__':
     app.run(debug=True)
