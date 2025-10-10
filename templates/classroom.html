@@ -297,6 +297,7 @@ function updateStudentExpression(studentName, expression) {
     if (studentCard) {
         console.log(`Found student card for ${studentName}`);
         const emojiElement = studentCard.querySelector('.student-emoji');
+        console.log(`Emoji element for ${studentName}:`, emojiElement);
         if (emojiElement) {
             let emoji = '😐';  // 默认面无表情
             if (expression === 'smile') {
@@ -426,10 +427,31 @@ function updateStudentsDisplay(keepStates = false) {
                 const accElement = statsDiv.querySelector('.stat-item:nth-child(3) .stat-value');
                 const lastElement = statsDiv.querySelector('.stat-item:nth-child(4) .stat-value');
                 
-                if (scoreElement) scoreElement.textContent = student.score;
-                if (roundsElement) roundsElement.textContent = student.total_rounds || 0;
-                if (accElement) accElement.textContent = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
-                if (lastElement) lastElement.textContent = student.last_answer || '-';
+                console.log(`更新学生 ${student.name} 的统计数据:`, {
+                    score: student.score,
+                    total_rounds: student.total_rounds,
+                    correct_rounds: student.correct_rounds,
+                    last_answer: student.last_answer,
+                    expression: student.expression
+                });
+                
+                if (scoreElement) {
+                    scoreElement.textContent = student.score;
+                    console.log(`学生 ${student.name} Score更新为:`, student.score);
+                }
+                if (roundsElement) {
+                    roundsElement.textContent = student.total_rounds || 0;
+                    console.log(`学生 ${student.name} Rounds更新为:`, student.total_rounds || 0);
+                }
+                if (accElement) {
+                    const accValue = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
+                    accElement.textContent = accValue + '%';
+                    console.log(`学生 ${student.name} Acc更新为:`, accValue + '%');
+                }
+                if (lastElement) {
+                    lastElement.textContent = student.last_answer || '-';
+                    console.log(`学生 ${student.name} Answer更新为:`, student.last_answer || '-');
+                }
                 
                 // 更新表情
                 updateStudentExpression(student.name, student.expression);
@@ -786,8 +808,8 @@ function stopTimer() {
                     
                     console.log('评判后的轮次:', classroomData.current_round);
                     
-                    // 只更新统计数据，不重新创建卡片
-                    updateStudentsDisplay(true);
+                    // 更新学生显示和状态
+                    updateStudentsDisplay(false);  // 不使用keepStates，强制更新
                     updateRoundStatus();
                     
                     // 显示答题结果 - 在updateStudentsDisplay之后调用
@@ -938,9 +960,15 @@ function showAnswerResults(correctAnswer) {
             return;
         }
         console.log(`处理学生 ${student.name}:`, student);
+        console.log(`学生 ${student.name} 的expression:`, student.expression);
+        console.log(`学生 ${student.name} 的score:`, student.score);
+        console.log(`学生 ${student.name} 的total_rounds:`, student.total_rounds);
+        console.log(`学生 ${student.name} 的last_answer:`, student.last_answer);
         
         const resultDiv = document.getElementById(`result-${student.name}`);
         const resultText = resultDiv ? resultDiv.querySelector('.result-text') : null;
+        console.log(`学生 ${student.name} 的resultDiv:`, resultDiv);
+        console.log(`学生 ${student.name} 的resultText:`, resultText);
         const inputGroup = document.getElementById(`input-group-${student.name}`);
         const submittedDiv = document.getElementById(`submitted-${student.name}`);
         

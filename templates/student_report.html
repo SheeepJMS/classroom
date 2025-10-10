@@ -284,7 +284,7 @@
                                             <div class="d-flex align-items-center">
                                                 <span class="fw-bold me-1" style="font-size: 0.8rem;">第{{ round_num }}轮</span>
                                                 {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
-                                                {% if round_submission %}
+                                                {% if round_submission and round_submission.answer and round_submission.answer.strip() %}
                                                     <span class="badge bg-primary me-1" style="font-size: 0.7rem;">参与</span>
                                                     <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }} me-1" style="font-size: 0.7rem;">
                                                         {{ '✓' if round_submission.is_correct else '✗' }}

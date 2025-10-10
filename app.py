@@ -226,7 +226,19 @@ def index():
             # 将SQLAlchemy模型转换为字典以便模板JSON序列化
             def model_to_dict(model):
                 if hasattr(model, '__dict__'):
-                    return {c.name: getattr(model, c.name) for c in model.__table__.columns}
+                    result = {}
+                    for c in model.__table__.columns:
+                        value = getattr(model, c.name)
+                        # 确保值是JSON可序列化的
+                        if value is None:
+                            result[c.name] = None
+                        elif hasattr(value, 'isoformat'):  # datetime对象
+                            result[c.name] = value.isoformat()
+                        elif hasattr(value, 'strftime'):  # date对象
+                            result[c.name] = value.strftime('%Y-%m-%d')
+                        else:
+                            result[c.name] = value
+                    return result
                 return model
             
             classes_dict = {str(cls.id): model_to_dict(cls) for cls in active_classes}
@@ -614,27 +626,58 @@ def generate_student_report(student_name, course_id=None):
     # 修复学生查找逻辑：支持两种数据结构
     student = None
     students_data = course_data.get('students', {})
+    actual_student_name = None  # 存储实际的学生姓名
+    
+    print(f"DEBUG: generate_student_report - 查找学生: {student_name}")
+    print(f"DEBUG: 课程数据中的学生: {list(students_data.keys())}")
+    
+    # 打印所有学生的详细信息用于调试
+    for key, data in students_data.items():
+        print(f"DEBUG: 学生键: {key}, 学生数据: {data}")
     
     # 首先尝试直接用学生姓名查找
     if student_name in students_data:
         student = students_data[student_name]
+        actual_student_name = student.get('name', student_name)
+        print(f"DEBUG: 直接找到学生: {student_name}, 实际姓名: {actual_student_name}")
     else:
         # 如果找不到，尝试通过学生姓名在值中查找
         for student_key, student_data in students_data.items():
             if student_data.get('name') == student_name:
                 student = student_data
+                actual_student_name = student_name
+                print(f"DEBUG: 通过name字段找到学生: {student_name}, 键: {student_key}")
                 break
+    
+    if not student:
+        print(f"DEBUG: 未找到学生: {student_name}")
+        return redirect(url_for('reports', course_id=target_course_id))
     
     if not student:
         return redirect(url_for('reports', course_id=target_course_id))
     
-    # 计算统计数据
-    total_rounds = student.get('total_rounds', 0)
-    correct_rounds = student.get('correct_rounds', 0)
-    accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
-    
     # 从round_results中计算统计数据
     round_results = course_data.get('round_results', [])
+    
+    # 计算统计数据 - 使用round_results中的真实数据
+    total_rounds = 0
+    correct_rounds = 0
+    
+    # 从round_results中计算真实的轮次和正确数
+    for round_result in round_results:
+        results = round_result.get('results', {})
+        student_id = student_name  # 使用学生ID进行匹配
+        
+        if student_id in results:
+            student_result = results[student_id]
+            if student_result.get('answer', '').strip():  # 有参与
+                total_rounds += 1
+                if student_result.get('correct', False):  # 答对了
+                    correct_rounds += 1
+    
+    accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
+    
+    print(f"DEBUG: 重新计算统计数据 - 总轮次: {total_rounds}, 正确轮次: {correct_rounds}, 正确率: {accuracy}%")
     total_rounds_available = len(round_results)
     
     # 计算参与率（学生有答案的轮次数）
@@ -694,12 +737,12 @@ def generate_student_report(student_name, course_id=None):
         class_response_time_count = 0
         
         for student in all_students:
-            student_name = student.get('name', '')
+            current_student_name = student.get('name', '')
             student_participated = 0
             
             for round_result in round_results:
-                if student_name in round_result.get('results', {}):
-                    student_result = round_result['results'][student_name]
+                if current_student_name in round_result.get('results', {}):
+                    student_result = round_result['results'][current_student_name]
                     if student_result.get('answer', '').strip():
                         student_participated += 1
                         # 模拟答题时间
@@ -789,19 +832,35 @@ def generate_student_report(student_name, course_id=None):
     
     # 生成学生提交记录（从round_results中提取）
     student_submissions = []
+    print(f"DEBUG: 开始生成学生 {student_name} 的提交记录")
+    print(f"DEBUG: 轮次结果数量: {len(round_results)}")
+    print(f"DEBUG: 当前学生ID: {student_name}, 类型: {type(student_name)}")
+    print(f"DEBUG: 课程数据中学生列表: {list(course_data.get('students', {}).keys())}")
+    print(f"DEBUG: 学生 {student_name} 的基本信息: {course_data.get('students', {}).get(student_name, 'NOT FOUND')}")
+    
     for i, round_result in enumerate(round_results):
         results = round_result.get('results', {})
+        print(f"DEBUG: 第{i+1}轮结果键: {list(results.keys())}")
+        print(f"DEBUG: 第{i+1}轮结果详情: {results}")
+        
         student_result = None
         
-        # 首先尝试直接用学生姓名查找
-        if student_name in results:
-            student_result = results[student_name]
+        # 使用学生ID（数字）进行匹配，因为round_results中存储的是学生ID
+        student_id = student_name  # 传入的student_name实际上是学生ID
+        print(f"DEBUG: 查找学生ID: {student_id}, 类型: {type(student_id)}")
+        
+        # 首先尝试直接用学生ID查找
+        if student_id in results:
+            student_result = results[student_id]
+            print(f"DEBUG: 第{i+1}轮直接找到学生结果: {student_id} -> {student_result}")
         else:
-            # 如果找不到，尝试通过学生姓名在值中查找
+            # 如果找不到，尝试通过学生ID在值中查找
             for result_key, result_data in results.items():
+                print(f"DEBUG: 检查键 {result_key} (类型: {type(result_key)}) 与 {student_id} (类型: {type(student_id)})")
                 # 检查是否有其他方式匹配学生
-                if result_key == student_name or (isinstance(result_data, dict) and result_data.get('student_name') == student_name):
+                if str(result_key) == str(student_id) or (isinstance(result_data, dict) and result_data.get('student_name') == student_id):
                     student_result = result_data
+                    print(f"DEBUG: 第{i+1}轮通过其他方式找到学生结果: {student_id}, 键: {result_key} -> {student_result}")
                     break
         
         if student_result:
@@ -819,6 +878,9 @@ def generate_student_report(student_name, course_id=None):
                 'question_score': round_result.get('question_score', 1)  # 题目分数
             }
             student_submissions.append(submission)
+            print(f"DEBUG: 学生 {student_name} 第{i+1}轮提交记录: {submission}")
+        else:
+            print(f"DEBUG: 学生 {student_name} 第{i+1}轮未找到结果，跳过该轮")
     
     current_time = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     
@@ -853,7 +915,7 @@ def generate_student_report(student_name, course_id=None):
     
     return render_template('student_report.html',
                          student=student,
-                         student_name=student['name'],
+                         student_name=actual_student_name or student.get('name', student_name),
                          total_rounds=total_rounds,
                          correct_rounds=correct_rounds,
                          accuracy=accuracy,

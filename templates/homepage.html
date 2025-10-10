@@ -728,7 +728,7 @@
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">创建时间:</span>
-                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d %H:%M') if class_data.created_date else '未知' }}</span>
+                                    <span class="stat-value">{{ class_data.created_date if class_data.created_date else '未知' }}</span>
                                 </div>
                             </div>
                             
@@ -789,7 +789,7 @@
                             <div class="goal-timeline">
                                 <div class="timeline-item">
                             <span class="timeline-label">竞赛日期:</span>
-                                    <span class="timeline-value">{{ goal_data.created_date.strftime('%Y-%m-%d') if goal_data.created_date else '未设置' }}</span>
+                                    <span class="timeline-value">{{ goal_data.created_date if goal_data.created_date else '未设置' }}</span>
                                 </div>
                             </div>
                         </div>
@@ -877,7 +877,7 @@
                     <span class="goal-status ended">已结束</span>
                 </div>
                 <div class="goal-info">
-                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.created_date.strftime('%Y-%m-%d') if goal_data.created_date else '未知' }}</p>
+                    <p><i class="fas fa-calendar"></i> 结束日期: {{ goal_data.created_date if goal_data.created_date else '未知' }}</p>
                     <p><i class="fas fa-info-circle"></i> {{ goal_data.description or '暂无描述' }}</p>
                 </div>
                 <div class="goal-actions">
@@ -1189,7 +1189,7 @@ function closeEditDialog() {
 // 分配竞赛目标
 function assignGoal(goalId) {
     // 创建班级选择对话框
-    const classOptions = Object.entries({{ classes_json|tojson }}).map(([id, classData]) => 
+    const classOptions = Object.entries({{ classes_json|tojson if classes_json else '{}' }}).map(([id, classData]) => 
         `<option value="${id}">${classData.name}</option>`
     ).join('');
     
@@ -1198,7 +1198,7 @@ function assignGoal(goalId) {
         return;
     }
     
-    const classSelect = prompt(`选择要分配此目标的班级：\n\n${Object.entries({{ classes_json|tojson }}).map(([id, classData]) => `${id}: ${classData.name}`).join('\n')}\n\n请输入班级ID：`);
+    const classSelect = prompt(`选择要分配此目标的班级：\n\n${Object.entries({{ classes_json|tojson if classes_json else '{}' }}).map(([id, classData]) => `${id}: ${classData.name}`).join('\n')}\n\n请输入班级ID：`);
     
     if (classSelect && classSelect.trim()) {
         fetch('/api/assign_goal_to_class', {
