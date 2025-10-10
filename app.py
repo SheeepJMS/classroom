@@ -3,7 +3,7 @@ import json
 import time
 import os
 import uuid
-from datetime import datetime
+from datetime import datetime, timedelta
 import random
 from io import BytesIO
 from models import db, Class, Student, CompetitionGoal, Course, CourseRound, StudentSubmission, init_db
@@ -185,11 +185,12 @@ if USE_DATABASE:
                 goals = CompetitionGoal.query.all()
                 for goal in goals:
                     if goal.created_date:
-                        from datetime import timedelta
-                        goal.goal_date = goal.created_date.date() + timedelta(days=77)
+                        default_goal_date = goal.created_date.date() + timedelta(days=77)
+                        goal.goal_date = default_goal_date
+                        print(f"设置竞赛目标 '{goal.title}' 的日期为 {default_goal_date}")
                 
                 db.session.commit()
-                print("goal_date字段添加成功")
+                print("goal_date字段添加成功！")
             else:
                 print("goal_date字段已存在")
                 
@@ -339,13 +340,10 @@ def class_detail(class_id):
             if class_obj.competition_goal_id:
                 goal_obj = CompetitionGoal.query.get(class_obj.competition_goal_id)
                 if goal_obj:
-                    # 使用goal_date，如果不存在则使用默认值
-                    if goal_obj.goal_date:
-                        goal_date_str = goal_obj.goal_date.strftime('%Y-%m-%d')
-                    else:
-                        from datetime import timedelta
-                        default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
-                        goal_date_str = default_goal_date.strftime('%Y-%m-%d')
+                    # 暂时使用created_date后77天作为默认竞赛日期
+                    from datetime import timedelta
+                    default_goal_date = goal_obj.created_date.date() + timedelta(days=77)
+                    goal_date_str = default_goal_date.strftime('%Y-%m-%d')
                     
                     goal = {
                         'id': goal_obj.id,
@@ -356,14 +354,10 @@ def class_detail(class_id):
                         'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else ''
                     }
                     
-                    # 计算竞赛目标进度
-                    from datetime import datetime, date, timedelta
+                    # 计算竞赛目标进度 - 使用默认日期
+                    from datetime import datetime, timedelta, date, timedelta
                     today = datetime.utcnow().date()
-                    
-                    if goal_obj.goal_date:
-                        target_date = goal_obj.goal_date
-                    else:
-                        target_date = goal_obj.created_date.date() + timedelta(days=77)
+                    target_date = default_goal_date
                     
                     days_left = max(0, (target_date - today).days)
                     weeks_left = max(0, days_left // 7)
@@ -413,7 +407,7 @@ def class_detail(class_id):
                 
                 # 计算竞赛目标进度
                 if goal_data.get('goal_date'):
-                    from datetime import datetime, timedelta
+                    from datetime import datetime, timedelta, timedelta
                     try:
                         goal_date = datetime.strptime(goal_data['goal_date'], '%Y-%m-%d')
                         today = datetime.now()
@@ -2336,7 +2330,7 @@ def create_competition_goal():
                     title=data.get('name', ''),
                     description=data.get('description', ''),
                     target_score=100,
-                    goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,
+                    # goal_date=datetime.strptime(data.get('goal_date', '2025-12-31'), '%Y-%m-%d').date() if data.get('goal_date') else None,  # 暂时注释
                     created_date=datetime.utcnow()
                 )
                 db.session.add(goal_obj)
@@ -2375,7 +2369,7 @@ def get_competition_goals():
                         'id': goal.id,
                         'name': goal.title,
                         'description': goal.description,
-                        'goal_date': goal.goal_date.strftime('%Y-%m-%d') if goal.goal_date else '',
+                        'goal_date': (goal.created_date.date() + timedelta(days=77)).strftime('%Y-%m-%d') if goal.created_date else '',
                         'is_active': True
                     })
                 return jsonify({
@@ -2498,14 +2492,14 @@ def update_competition_goal(goal_id):
             goal.title = name
             goal.description = description
             
-            # 更新goal_date
-            if goal_date_str:
-                try:
-                    goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
-                except ValueError:
-                    return jsonify({'error': '日期格式错误'}), 400
-            else:
-                goal.goal_date = None
+            # 暂时跳过goal_date的更新
+            # if goal_date_str:
+            #     try:
+            #         goal.goal_date = datetime.strptime(goal_date_str, '%Y-%m-%d').date()
+            #     except ValueError:
+            #         return jsonify({'error': '日期格式错误'}), 400
+            # else:
+            #     goal.goal_date = None
             
             db.session.commit()
             
