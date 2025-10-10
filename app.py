@@ -36,7 +36,20 @@ else:
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max file size
 
 # 数据文件路径
-DATA_FILE = 'app_data.json'
+# 数据文件路径配置
+def get_data_file_path():
+    """获取数据文件路径"""
+    # 检查是否在Render部署环境
+    is_render = os.environ.get('RENDER') is not None
+    
+    if is_render:
+        # Render环境使用临时目录
+        return os.environ.get('DATA_FILE_PATH', '/tmp/app_data.json')
+    else:
+        # 本地环境使用当前目录
+        return 'app_data.json'
+
+DATA_FILE = get_data_file_path()
 
 # 全局数据结构
 global_data = {
@@ -149,24 +162,24 @@ def init_default_data():
     save_data()
     print("初始化空数据结构完成 - 不会覆盖现有数据")
 
-# 在应用启动时初始化数据（如果不存在）
-if not USE_DATABASE:
-    try:
-        import init_data
-        init_data.init_data_if_needed()
-    except Exception as e:
-        print(f"数据初始化失败: {e}")
-    
-    try:
-        import auto_backup
-        auto_backup.create_backup()
-    except Exception as e:
-        print(f"自动备份失败: {e}")
-
 # 在应用启动时加载数据
 if USE_DATABASE:
     print("使用数据库模式，跳过JSON文件加载")
 else:
+    # 检查数据文件是否存在，如果不存在则创建
+    if not os.path.exists(DATA_FILE):
+        print(f"数据文件不存在，创建初始数据: {DATA_FILE}")
+        save_data()  # 这会创建初始数据结构
+    
+    # 本地环境使用自动备份
+    is_render = os.environ.get('RENDER') is not None
+    if not is_render:
+        try:
+            import auto_backup
+            auto_backup.create_backup()
+        except Exception as e:
+            print(f"自动备份失败: {e}")
+    
     load_data()
 
 # 如果启用了数据库模式，同步数据
