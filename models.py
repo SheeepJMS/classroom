@@ -98,11 +98,11 @@ def init_db(app):
     database_url = os.environ.get('DATABASE_URL')
     
     if database_url:
-        # 如果是PostgreSQL URL，需要转换格式为psycopg2兼容格式
+        # 如果是PostgreSQL URL，需要转换格式为pg8000兼容格式
         if database_url.startswith('postgres://'):
-            database_url = database_url.replace('postgres://', 'postgresql+psycopg2://', 1)
+            database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
         elif database_url.startswith('postgresql://'):
-            database_url = database_url.replace('postgresql://', 'postgresql+psycopg2://', 1)
+            database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
     else:
         # 默认使用SQLite

@@ -3,8 +3,8 @@ services:
     name: math-classroom-app
     env: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: python app.py
+    buildCommand: python3.11 -m pip install -r requirements.txt
+    startCommand: python3.11 app.py
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
