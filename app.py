@@ -2,7 +2,6 @@ from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 import os
 import uuid
-from models import db, Class, Student, Course, CompetitionGoal, init_db
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -19,7 +18,8 @@ elif DATABASE_URL.startswith('postgresql://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# 初始化数据库
+# 导入并初始化数据库
+from models import db, Class, Student, Course, CompetitionGoal, init_db
 init_db(app)
 
 
