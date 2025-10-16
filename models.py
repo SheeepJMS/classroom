@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import json
+import uuid
 
 db = SQLAlchemy()
 
@@ -8,7 +9,7 @@ class Class(db.Model):
     """班级模型"""
     __tablename__ = 'classes'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
@@ -25,9 +26,9 @@ class Student(db.Model):
     """学生模型"""
     __tablename__ = 'students'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(50), nullable=False)
-    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
+    class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
@@ -37,7 +38,7 @@ class CompetitionGoal(db.Model):
     """竞赛目标模型"""
     __tablename__ = 'competition_goals'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     title = db.Column(db.String(100), nullable=False)
     description = db.Column(db.Text)
     target_score = db.Column(db.Integer, default=100)
@@ -51,9 +52,9 @@ class Course(db.Model):
     """课程模型"""
     __tablename__ = 'courses'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
+    class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -64,7 +65,7 @@ class CourseRound(db.Model):
     """课程轮次模型"""
     __tablename__ = 'course_rounds'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     course_id = db.Column(db.String(36), db.ForeignKey('courses.id'), nullable=False)
     round_number = db.Column(db.Integer, nullable=False)
     question_text = db.Column(db.Text, nullable=False)
@@ -79,7 +80,7 @@ class StudentSubmission(db.Model):
     """学生提交记录模型"""
     __tablename__ = 'student_submissions'
     
-    id = db.Column(db.String(36), primary_key=True)
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     student_id = db.Column(db.String(36), db.ForeignKey('students.id'), nullable=False)
     round_id = db.Column(db.String(36), db.ForeignKey('course_rounds.id'), nullable=False)
     answer = db.Column(db.String(10), nullable=False)
