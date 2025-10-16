@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request, jsonify
-from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
 import os
 import uuid
+from models import db, Class, Student, Course, CompetitionGoal, init_db
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -19,78 +19,8 @@ elif DATABASE_URL.startswith('postgresql://'):
 app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-db = SQLAlchemy(app)
-
-
-# 数据库模型
-class Class(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(
-            uuid.uuid4()))
-    name = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    created_date = db.Column(db.DateTime, default=datetime.utcnow)
-    ended_date = db.Column(db.DateTime)
-    competition_goal_id = db.Column(
-        db.String(36), db.ForeignKey('competition_goal.id'))
-
-    students = db.relationship(
-        'Student',
-        backref='class_ref',
-        lazy=True,
-        cascade='all, delete-orphan')
-    courses = db.relationship(
-        'Course',
-        backref='class_ref',
-        lazy=True,
-        cascade='all, delete-orphan')
-    competition_goal = db.relationship(
-        'CompetitionGoal',
-        backref='competition_goal_classes',
-        lazy=True)
-
-
-class Student(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(
-            uuid.uuid4()))
-    name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(
-        db.String(36),
-        db.ForeignKey('class.id'),
-        nullable=False)
-    created_date = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class Course(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(
-            uuid.uuid4()))
-    name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(
-        db.String(36),
-        db.ForeignKey('class.id'),
-        nullable=False)
-    is_active = db.Column(db.Boolean, default=False)
-    created_date = db.Column(db.DateTime, default=datetime.utcnow)
-
-
-class CompetitionGoal(db.Model):
-    id = db.Column(
-        db.String(36),
-        primary_key=True,
-        default=lambda: str(
-            uuid.uuid4()))
-    title = db.Column(db.String(100), nullable=False)
-    description = db.Column(db.Text)
-    target_score = db.Column(db.Integer, default=100)
-    created_date = db.Column(db.DateTime, default=datetime.utcnow)
+# 初始化数据库
+init_db(app)
 
 
 # API路由
@@ -401,15 +331,6 @@ def classroom(class_id):
         'classroom.html',
         class_obj=class_obj,
         students=students)
-
-
-# 应用启动时自动创建数据库表
-with app.app_context():
-    try:
-        db.create_all()
-        print("✅ 数据库表创建成功")
-    except Exception as e:
-        print(f"❌ 数据库表创建失败: {e}")
 
 
 if __name__ == '__main__':

@@ -27,7 +27,7 @@ class Student(db.Model):
     
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(50), nullable=False)
-    class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
+    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
     # 关系
@@ -53,7 +53,7 @@ class Course(db.Model):
     
     id = db.Column(db.String(36), primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
+    class_id = db.Column(db.String(36), db.ForeignKey('class.id'), nullable=False)
     is_active = db.Column(db.Boolean, default=True)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
