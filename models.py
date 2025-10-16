@@ -116,3 +116,38 @@ def init_db(app):
     # 创建表
     with app.app_context():
         db.create_all()
+        
+        # 检查并添加goal_date字段（如果不存在）
+        try:
+            from sqlalchemy import text
+            # 检查goal_date字段是否存在
+            result = db.session.execute(text("""
+                SELECT column_name 
+                FROM information_schema.columns 
+                WHERE table_name='competition_goals' 
+                AND column_name='goal_date'
+            """))
+            
+            if not result.fetchone():
+                print("检测到goal_date字段不存在，正在添加...")
+                # 添加goal_date字段
+                db.session.execute(text("ALTER TABLE competition_goals ADD COLUMN goal_date DATE"))
+                
+                # 为现有记录设置默认的goal_date（创建日期后77天）
+                db.session.execute(text("""
+                    UPDATE competition_goals 
+                    SET goal_date = created_date::date + INTERVAL '77 days' 
+                    WHERE goal_date IS NULL
+                """))
+                
+                db.session.commit()
+                print("✅ goal_date字段添加成功！")
+            else:
+                print("goal_date字段已存在")
+        except Exception as e:
+            print(f"⚠️ goal_date字段处理失败: {e}")
+            # 如果是SQLite数据库，忽略这个错误
+            if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+                print("SQLite数据库，跳过goal_date字段检查")
+            else:
+                db.session.rollback()
