@@ -628,7 +628,7 @@ function startNewCourse() {
         .then(data => {
             if (data.success) {
                 // 直接跳转到课堂答题页面，不显示成功提示
-                window.location.href = '/class/{{ class_data.id }}/classroom';
+                window.location.href = '/classroom/{{ class_data.id }}';
             } else {
                 alert('创建课程失败：' + (data.message || '未知错误'));
             }

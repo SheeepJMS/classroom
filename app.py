@@ -332,6 +332,19 @@ def classroom(class_id):
         class_obj=class_obj,
         students=students)
 
+@app.route('/get_classroom_data')
+def get_classroom_data():
+    """获取课堂数据API"""
+    try:
+        # 返回基本的课堂数据
+        return jsonify({
+            'success': True,
+            'current_round': 1,
+            'students': [{'id': s.id, 'name': s.name} for s in Student.query.all()]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
