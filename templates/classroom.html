@@ -154,14 +154,14 @@ let startTime = null;
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded event fired');
-    console.log('Class ID:', '{{ class_data.id }}');
+    console.log('Class ID:', '{{ class_obj.id }}');
     console.log('About to start fetch...');
     
     // 强制刷新学生数据
     console.log('About to fetch classroom data...');
     fetch('/get_classroom_data', {
         headers: {
-            'X-Class-ID': '{{ class_data.id }}'
+            'X-Class-ID': '{{ class_obj.id }}'
         }
     })
         .then(response => {
@@ -250,14 +250,14 @@ function addStudent() {
         return;
     }
     
-    fetch('/api/add_student_to_course', {
+    fetch('/api/add_student', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
             name: studentName,
-            course_id: '{{ course_id }}'
+            class_id: '{{ class_obj.id }}'
         })
     })
     .then(response => response.json())
