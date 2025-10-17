@@ -278,15 +278,34 @@ def judge_answers():
     try:
         data = request.get_json()
         correct_answer = data.get('correct_answer', '').strip()
-        course_id = data.get('course_id', '').strip()
+        question_score = data.get('question_score', 1)
+        
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            # 如果没有在header中，尝试从referer URL中提取
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
 
-        if not correct_answer or not course_id:
-            return jsonify({'success': False, 'message': '正确答案和课程ID不能为空'}), 400
+        if not correct_answer:
+            return jsonify({'success': False, 'message': '正确答案不能为空'}), 400
 
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not current_course:
+            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+
+        # 这里可以添加判断答案的逻辑
+        # 目前只是返回成功响应
         return jsonify({
             'success': True,
             'message': '答案判断完成',
-            'results': {}
+            'course_id': current_course.id,
+            'students': {}  # 返回空的学生数据，前端会重新加载
         })
 
     except Exception as e:

@@ -616,7 +616,11 @@ function submitStudentAnswer(studentName, answer) {
             // 显示答题时间 - 使用服务器返回的准确时间
             if (submittedTimeDiv && classroomData.students[studentName]) {
                 // 重新获取最新的课堂数据以确保时间准确
-                fetch('/get_classroom_data')
+                fetch('/get_classroom_data', {
+                    headers: {
+                        'X-Class-ID': '{{ class_obj.id }}'
+                    }
+                })
                     .then(response => response.json())
                     .then(latestData => {
                         classroomData = latestData;
@@ -790,6 +794,7 @@ function stopTimer() {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                'X-Class-ID': '{{ class_obj.id }}'
             },
             body: JSON.stringify({
                 correct_answer: correctAnswer,
