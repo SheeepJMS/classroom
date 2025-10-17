@@ -439,10 +439,15 @@ def get_classroom_data():
         
         print(f"DEBUG: Returning data for {len(students_data)} students")
         
+        # 检查是否有活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        round_active = current_course is not None
+        
         return jsonify({
             'success': True,
             'current_round': 1,
-            'students': students_data
+            'students': students_data,
+            'round_active': round_active
         })
     except Exception as e:
         print(f"DEBUG: Exception in get_classroom_data: {str(e)}")
