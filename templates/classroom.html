@@ -582,6 +582,12 @@ function submitStudentAnswer(studentName, answer) {
         return;
     }
     
+    // 计算答题时间
+    let answerTime = 0;
+    if (startTime) {
+        answerTime = (Date.now() - startTime) / 1000; // 转换为秒
+    }
+    
     fetch('/submit_student_answer', {
         method: 'POST',
         headers: {
@@ -590,7 +596,8 @@ function submitStudentAnswer(studentName, answer) {
         },
         body: JSON.stringify({
             student_name: studentName,
-            answer: answer
+            answer: answer,
+            answer_time: answerTime
         })
     })
     .then(response => response.json())
@@ -613,26 +620,14 @@ function submitStudentAnswer(studentName, answer) {
                 submittedDiv.style.display = 'block';
             }
             
-            // 显示答题时间 - 使用服务器返回的准确时间
-            if (submittedTimeDiv && classroomData.students[studentName]) {
-                // 重新获取最新的课堂数据以确保时间准确
-                fetch('/get_classroom_data', {
-                    headers: {
-                        'X-Class-ID': '{{ class_obj.id }}'
-                    }
-                })
-                    .then(response => response.json())
-                    .then(latestData => {
-                        classroomData = latestData;
-                        const answerTime = classroomData.students[studentName].last_answer_time || 0;
-                        submittedTimeDiv.textContent = ` (${Math.round(answerTime)}s)`;
-                    })
-                    .catch(error => {
-                        console.error('Error fetching latest data:', error);
-                        // 如果获取失败，使用本地数据
-                        const answerTime = classroomData.students[studentName].last_answer_time || 0;
-                        submittedTimeDiv.textContent = ` (${Math.round(answerTime)}s)`;
-                    });
+            // 显示答题时间 - 直接使用前端计算的时间
+            if (submittedTimeDiv) {
+                submittedTimeDiv.textContent = ` (${Math.round(answerTime)}s)`;
+            }
+            
+            // 更新本地学生数据中的答题时间
+            if (classroomData.students[studentName]) {
+                classroomData.students[studentName].last_answer_time = answerTime;
             }
             
             // 只更新表情，不重新创建整个卡片
@@ -1197,6 +1192,7 @@ function nextRound() {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-Class-ID': '{{ class_obj.id }}'
         }
     })
     .then(response => response.json())

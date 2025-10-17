@@ -240,6 +240,7 @@ def submit_student_answer():
         data = request.get_json()
         student_name = data.get('student_name', '').strip()
         answer = data.get('answer', '').strip()
+        answer_time = data.get('answer_time', 0.0)  # 获取答题时间
         
         # 从请求头获取班级ID
         class_id = request.headers.get('X-Class-ID')
@@ -292,8 +293,8 @@ def submit_student_answer():
         if existing_submission:
             return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
 
-        # 计算答题时间（这里暂时使用0，实际应该从前端传递）
-        answer_time = 0.0
+        # 计算答题时间（使用前端传递的时间）
+        answer_time_seconds = float(answer_time)
         
         # 保存学生提交记录
         submission = StudentSubmission(
@@ -301,7 +302,7 @@ def submit_student_answer():
             round_id=current_round.id,
             answer=answer,
             is_correct=False,  # 暂时设为False，等BINGO时判断
-            answer_time=answer_time
+            answer_time=answer_time_seconds
         )
         db.session.add(submission)
         db.session.commit()
@@ -550,12 +551,81 @@ def get_classroom_data():
 def next_round():
     """下一轮API"""
     try:
-        # 简单的下一轮逻辑
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            # 如果没有在header中，尝试从referer URL中提取
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
+
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not current_course:
+            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+
+        # 获取当前轮次号
+        current_round = CourseRound.query.filter_by(
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
+        
+        next_round_number = 1
+        if current_round:
+            next_round_number = current_round.round_number + 1
+
+        # 创建新的轮次记录
+        new_round = CourseRound(
+            course_id=current_course.id,
+            round_number=next_round_number,
+            question_text="数学题目",  # 暂时使用默认值
+            correct_answer="1",  # 暂时使用默认值
+            question_score=1
+        )
+        db.session.add(new_round)
+        db.session.commit()
+
+        # 获取班级学生数据并重置状态
+        students = Student.query.filter_by(class_id=class_id).all()
+        students_data = {}
+        
+        for student in students:
+            # 获取学生的历史提交记录来计算总分数
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            for submission in submissions:
+                total_rounds += 1
+                if submission.is_correct:
+                    total_score += submission.round_ref.question_score
+                    correct_rounds += 1
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'score': total_score,  # 保留历史分数
+                'total_rounds': total_rounds,  # 保留历史轮次
+                'correct_rounds': correct_rounds,  # 保留历史正确次数
+                'last_answer_time': 0,  # 重置当前轮次的答题时间
+                'expression': 'neutral',  # 重置为中性表情
+                'animation': 'none',
+                'avatar_color': '#4ecdc4',
+                'answers': [],
+                'last_answer': ''  # 重置当前轮次的答案
+            }
+
         return jsonify({
             'success': True,
             'message': '下一轮开始',
-            'round': 2,  # 假设下一轮是第2轮
-            'students': {}  # 返回空的学生数据，前端会重新加载
+            'round': next_round_number,
+            'students': students_data
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
