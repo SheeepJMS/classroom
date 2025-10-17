@@ -586,6 +586,7 @@ function submitStudentAnswer(studentName, answer) {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
+            'X-Class-ID': '{{ class_obj.id }}'
         },
         body: JSON.stringify({
             student_name: studentName,

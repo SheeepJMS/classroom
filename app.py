@@ -240,12 +240,33 @@ def submit_student_answer():
         data = request.get_json()
         student_name = data.get('student_name', '').strip()
         answer = data.get('answer', '').strip()
-        course_id = data.get('course_id', '').strip()
+        
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            # 如果没有在header中，尝试从referer URL中提取
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
 
-        if not student_name or not answer or not course_id:
-            return jsonify({'success': False, 'message': '参数不完整'}), 400
+        if not student_name or not answer:
+            return jsonify({'success': False, 'message': '学生姓名和答案不能为空'}), 400
 
-        return jsonify({'success': True, 'message': '答案提交成功'})
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not current_course:
+            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+
+        # 这里可以添加保存答案的逻辑
+        # 目前只是返回成功响应
+        return jsonify({
+            'success': True, 
+            'message': '答案提交成功',
+            'course_id': current_course.id
+        })
 
     except Exception as e:
         return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
