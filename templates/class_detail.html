@@ -493,8 +493,8 @@
                             ABSENCES: 0<br>
                             SCORE: 0
                         </div>
-                        <button class="btn btn-danger btn-sm mt-2" onclick="deleteStudent('{{ student.id }}')">
-                            <i class="fas fa-trash"></i>
+                        <button class="btn btn-warning btn-sm mt-2" onclick="graduateStudent('{{ student.id }}')" title="学业结束">
+                            <i class="fas fa-graduation-cap"></i>
                         </button>
                     </div>
                     {% endfor %}
@@ -507,6 +507,40 @@
                 </div>
                 {% endif %}
             </div>
+
+            <!-- 历史学员 -->
+            {% if graduated_students %}
+            <div class="section-card">
+                <div class="section-header">
+                    <h3>
+                        <i class="fas fa-history"></i>
+                        历史学员
+                    </h3>
+                </div>
+                <div class="students-grid">
+                    {% for student in graduated_students %}
+                    <div class="student-card graduated">
+                        <div class="student-avatar" style="background-color: #6c757d;">
+                            <span class="student-emoji">🎓</span>
+                        </div>
+                        <div class="student-name">{{ student.name }}</div>
+                        <div class="student-stats">
+                            TOTAL 0<br>
+                            COURSES: 0<br>
+                            ATTENDANCE: 100%<br>
+                            ABSENCES: 0<br>
+                            SCORE: 0
+                        </div>
+                        <div class="graduated-info">
+                            <small class="text-muted">
+                                学业结束: {{ student.graduated_date.strftime('%Y-%m-%d') if student.graduated_date else '未知' }}
+                            </small>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
 
             <!-- 课程历史 -->
             <div class="section-card">
@@ -582,15 +616,14 @@ function addStudent() {
     });
 }
 
-function deleteStudent(studentId) {
-    if (confirm('确定要删除这个学生吗？')) {
-        fetch('/api/delete_student', {
+function graduateStudent(studentId) {
+    if (confirm('确定要让这个学生学业结束吗？学生将移到历史学员区域。')) {
+        fetch('/api/graduate_student', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                class_id: '{{ class_data.id }}',
                 student_id: studentId
             })
         })
@@ -599,12 +632,12 @@ function deleteStudent(studentId) {
             if (data.success) {
                 location.reload();
             } else {
-                alert(data.message || '删除学生失败');
+                alert(data.message || '学生学业结束失败');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('删除学生时发生错误');
+            alert('学生学业结束时发生错误');
         });
     }
 }

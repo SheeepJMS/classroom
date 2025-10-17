@@ -228,9 +228,9 @@ def end_class(class_id):
         return jsonify({'success': False, 'message': f'结束班级失败: {str(e)}'}), 500
 
 
-@app.route('/api/delete_student', methods=['POST'])
-def delete_student():
-    """删除学生API"""
+@app.route('/api/graduate_student', methods=['POST'])
+def graduate_student():
+    """学生学业结束API"""
     try:
         data = request.get_json()
         student_id = data.get('student_id', '').strip()
@@ -239,14 +239,18 @@ def delete_student():
             return jsonify({'success': False, 'message': '学生ID不能为空'}), 400
 
         student = Student.query.get_or_404(student_id)
-        db.session.delete(student)
+        
+        # 更新学生状态为已毕业
+        student.status = 'graduated'
+        student.graduated_date = datetime.now()
+        
         db.session.commit()
 
-        return jsonify({'success': True, 'message': '学生删除成功'})
+        return jsonify({'success': True, 'message': '学生学业结束成功'})
 
     except Exception as e:
         db.session.rollback()
-        return jsonify({'success': False, 'message': f'删除学生失败: {str(e)}'}), 500
+        return jsonify({'success': False, 'message': f'学生学业结束失败: {str(e)}'}), 500
 
 
 @app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
@@ -502,7 +506,9 @@ def index():
 def class_detail(class_id):
     """班级详情页"""
     class_obj = Class.query.get_or_404(class_id)
-    students = Student.query.filter_by(class_id=class_id).all()
+    # 分别获取活跃学生和历史学员
+    active_students = Student.query.filter_by(class_id=class_id, status='active').all()
+    graduated_students = Student.query.filter_by(class_id=class_id, status='graduated').all()
 
     goal = None
     goal_progress = None
@@ -524,7 +530,8 @@ def class_detail(class_id):
     return render_template(
         'class_detail.html',
         class_data=class_obj,
-        students=students,
+        students=active_students,  # 活跃学生
+        graduated_students=graduated_students,  # 历史学员
         goal=goal,
         goal_progress=goal_progress)
 
@@ -533,7 +540,8 @@ def class_detail(class_id):
 def classroom(class_id):
     """课堂页面"""
     class_obj = Class.query.get_or_404(class_id)
-    students = Student.query.filter_by(class_id=class_id).all()
+    # 只显示活跃学生
+    students = Student.query.filter_by(class_id=class_id, status='active').all()
     return render_template(
         'classroom.html',
         class_obj=class_obj,
@@ -557,9 +565,9 @@ def get_classroom_data():
         
         print(f"DEBUG: Looking for students with class_id: {class_id}")
         
-        # 获取指定班级的学生
-        students = Student.query.filter_by(class_id=class_id).all()
-        print(f"DEBUG: Found {len(students)} students")
+        # 获取指定班级的活跃学生
+        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        print(f"DEBUG: Found {len(students)} active students")
         
         # 构建学生数据字典
         students_data = {}
