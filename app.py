@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for
 from datetime import datetime
 import os
 import uuid
@@ -642,6 +642,58 @@ def reset_classroom():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/ceremony')
+def ceremony():
+    """颁奖典礼页面"""
+    try:
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(is_active=True).first()
+        if not current_course:
+            return redirect(url_for('index'))
+        
+        # 获取班级学生数据
+        students = Student.query.filter_by(class_id=current_course.class_id).all()
+        students_data = {}
+        
+        for student in students:
+            # 计算学生的总分数
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            for submission in submissions:
+                total_rounds += 1
+                if submission.is_correct:
+                    total_score += submission.round_ref.question_score
+                    correct_rounds += 1
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'score': total_score,
+                'total_rounds': total_rounds,
+                'correct_rounds': correct_rounds,
+                'avatar_color': '#4ecdc4'
+            }
+        
+        # 构建课堂数据
+        classroom_data = {
+            'id': current_course.id,
+            'name': current_course.name,
+            'students': students_data
+        }
+        
+        return render_template('ceremony.html', classroom_data=classroom_data)
+        
+    except Exception as e:
+        print(f"Error in ceremony route: {str(e)}")
+        return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
