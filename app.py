@@ -238,7 +238,27 @@ def graduate_student():
         if not student_id:
             return jsonify({'success': False, 'message': '学生ID不能为空'}), 400
 
-        student = Student.query.get_or_404(student_id)
+        # 使用原生SQL查询避免status字段问题
+        try:
+            result = db.engine.execute(
+                "SELECT id, name, class_id, created_date FROM students WHERE id = %s",
+                (student_id,)
+            )
+            student_data = result.fetchone()
+            if not student_data:
+                return jsonify({'success': False, 'message': '学生不存在'}), 404
+            
+            # 创建临时学生对象
+            class TempStudent:
+                def __init__(self, id, name, class_id, created_date):
+                    self.id = id
+                    self.name = name
+                    self.class_id = class_id
+                    self.created_date = created_date
+            
+            student = TempStudent(*student_data)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
         
         # 临时注释掉状态更新，等数据库迁移后再启用
         # student.status = 'graduated'
@@ -314,10 +334,27 @@ def submit_student_answer():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 获取学生对象
-        student = Student.query.filter_by(name=student_name, class_id=class_id).first()
-        if not student:
-            return jsonify({'success': False, 'message': '学生不存在'}), 404
+        # 使用原生SQL查询避免status字段问题
+        try:
+            result = db.engine.execute(
+                "SELECT id, name, class_id, created_date FROM students WHERE name = %s AND class_id = %s",
+                (student_name, class_id)
+            )
+            student_data = result.fetchone()
+            if not student_data:
+                return jsonify({'success': False, 'message': '学生不存在'}), 404
+            
+            # 创建临时学生对象
+            class TempStudent:
+                def __init__(self, id, name, class_id, created_date):
+                    self.id = id
+                    self.name = name
+                    self.class_id = class_id
+                    self.created_date = created_date
+            
+            student = TempStudent(*student_data)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
 
         # 获取或创建当前轮次
         current_round = CourseRound.query.filter_by(
@@ -421,8 +458,8 @@ def judge_answers():
         
         db.session.commit()
 
-        # 获取班级学生数据并判断答案
-        students = Student.query.filter_by(class_id=class_id).all()
+        # 获取班级学生数据并判断答案（临时移除status过滤）
+        students = get_students_by_class_id(class_id)
         students_data = {}
         
         for student in students:
@@ -493,7 +530,7 @@ def generate_report(course_id):
         class_obj = Class.query.get(course.class_id)
         
         # 获取班级活跃学生数据（临时移除status过滤）
-        students = Student.query.filter_by(class_id=course.class_id).all()
+        students = get_students_by_class_id(course.class_id)
         students_data = {}
         
         for student in students:
@@ -537,13 +574,43 @@ def generate_report(course_id):
         return f'生成报告失败: {str(e)}', 500
 
 
+def get_students_by_class_id(class_id):
+    """获取指定班级的学生列表（避免status字段问题）"""
+    try:
+        result = db.engine.execute(
+            "SELECT id, name, class_id, created_date FROM students WHERE class_id = %s",
+            (class_id,)
+        )
+        students_data = result.fetchall()
+        
+        # 创建临时学生对象列表
+        class TempStudent:
+            def __init__(self, id, name, class_id, created_date):
+                self.id = id
+                self.name = name
+                self.class_id = class_id
+                self.created_date = created_date
+        
+        students = [TempStudent(*row) for row in students_data]
+        return students
+    except Exception as e:
+        print(f"查询学生失败: {e}")
+        return []
+
+
 @app.route('/')
 def index():
     """首页"""
     classes = Class.query.order_by(Class.created_date.desc()).all()
     goals = CompetitionGoal.query.order_by(
         CompetitionGoal.created_date.desc()).all()
-    total_students = db.session.query(Student).count()
+    # 临时使用原生SQL查询避免status字段问题
+    try:
+        result = db.engine.execute("SELECT COUNT(*) FROM students")
+        total_students = result.fetchone()[0]
+    except Exception as e:
+        print(f"查询学生总数失败: {e}")
+        total_students = 0
 
     return render_template(
         'homepage.html',
@@ -557,7 +624,7 @@ def class_detail(class_id):
     """班级详情页"""
     class_obj = Class.query.get_or_404(class_id)
     # 分别获取活跃学生和历史学员（临时移除status过滤）
-    active_students = Student.query.filter_by(class_id=class_id).all()
+    active_students = get_students_by_class_id(class_id)
     graduated_students = []  # 临时设为空
 
     goal = None
@@ -591,7 +658,7 @@ def classroom(class_id):
     """课堂页面"""
     class_obj = Class.query.get_or_404(class_id)
     # 只显示活跃学生（临时移除status过滤）
-    students = Student.query.filter_by(class_id=class_id).all()
+    students = get_students_by_class_id(class_id)
     return render_template(
         'classroom.html',
         class_obj=class_obj,
@@ -616,7 +683,7 @@ def get_classroom_data():
         print(f"DEBUG: Looking for students with class_id: {class_id}")
         
         # 获取指定班级的活跃学生（临时移除status过滤）
-        students = Student.query.filter_by(class_id=class_id).all()
+        students = get_students_by_class_id(class_id)
         print(f"DEBUG: Found {len(students)} active students")
         
         # 构建学生数据字典
@@ -692,8 +759,8 @@ def next_round():
         db.session.add(new_round)
         db.session.commit()
 
-        # 获取班级学生数据并重置状态
-        students = Student.query.filter_by(class_id=class_id).all()
+        # 获取班级学生数据并重置状态（临时移除status过滤）
+        students = get_students_by_class_id(class_id)
         students_data = {}
         
         for student in students:
@@ -759,7 +826,7 @@ def ceremony():
             return redirect(url_for('index'))
         
         # 获取班级活跃学生数据（临时移除status过滤）
-        students = Student.query.filter_by(class_id=current_course.class_id).all()
+        students = get_students_by_class_id(current_course.class_id)
         students_data = {}
         
         for student in students:
