@@ -111,20 +111,32 @@ def add_student():
 def start_course():
     """开始课程API"""
     try:
-        data = request.get_json()
-        course_name = data.get('course_name', '').strip()
-        class_id = data.get('class_id', '').strip()
+        # 从请求头获取班级ID，如果没有则从URL参数获取
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            # 如果没有在header中，尝试从referer URL中提取
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
+        
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
 
-        if not course_name or not class_id:
-            return jsonify({'success': False, 'message': '课程名称和班级ID不能为空'}), 400
+        # 检查班级是否存在
+        class_obj = Class.query.get(class_id)
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
 
-        Course.query.filter_by(class_id=class_id,
-                               is_active=True).update({'is_active': False})
+        # 停用该班级的所有活跃课程
+        Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
 
+        # 创建新课程
+        course_name = f"课堂 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         new_course = Course(
             name=course_name,
             class_id=class_id,
-            is_active=True)
+            is_active=True,
+            created_date=datetime.now())
         db.session.add(new_course)
         db.session.commit()
 
