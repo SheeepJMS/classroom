@@ -93,14 +93,25 @@ def add_student():
         if not name or not class_id:
             return jsonify({'success': False, 'message': '学生姓名和班级ID不能为空'}), 400
 
-        new_student = Student(name=name, class_id=class_id)
-        db.session.add(new_student)
+        # 使用原生SQL插入，避免status字段问题
+        student_id = str(uuid.uuid4())
+        created_date = datetime.now()
+        
+        db.session.execute(text("""
+            INSERT INTO students (id, name, class_id, created_date) 
+            VALUES (:id, :name, :class_id, :created_date)
+        """), {
+            'id': student_id,
+            'name': name,
+            'class_id': class_id,
+            'created_date': created_date
+        })
         db.session.commit()
 
         return jsonify({
             'success': True,
             'message': '学生添加成功',
-            'student_id': new_student.id
+            'student_id': student_id
         })
 
     except Exception as e:
@@ -919,6 +930,86 @@ def ceremony():
     except Exception as e:
         print(f"Error in ceremony route: {str(e)}")
         return redirect(url_for('index'))
+
+
+@app.route('/migrate')
+def migrate_database():
+    """执行数据库迁移"""
+    try:
+        with app.app_context():
+            # 检查并添加 status 字段
+            try:
+                db.session.execute(text("""
+                    DO $$ 
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'public' 
+                            AND table_name = 'students' 
+                            AND column_name = 'status'
+                        ) THEN
+                            ALTER TABLE students ADD COLUMN status VARCHAR(20) DEFAULT 'active';
+                        END IF;
+                    END $$;
+                """))
+                print("status 字段检查/添加完成")
+            except Exception as e:
+                print(f"status 字段处理: {e}")
+            
+            # 检查并添加 graduated_date 字段
+            try:
+                db.session.execute(text("""
+                    DO $$ 
+                    BEGIN
+                        IF NOT EXISTS (
+                            SELECT 1 FROM information_schema.columns 
+                            WHERE table_schema = 'public' 
+                            AND table_name = 'students' 
+                            AND column_name = 'graduated_date'
+                        ) THEN
+                            ALTER TABLE students ADD COLUMN graduated_date TIMESTAMP;
+                        END IF;
+                    END $$;
+                """))
+                print("graduated_date 字段检查/添加完成")
+            except Exception as e:
+                print(f"graduated_date 字段处理: {e}")
+            
+            # 更新现有学生状态
+            try:
+                result = db.session.execute(text("UPDATE students SET status = 'active' WHERE status IS NULL"))
+                print(f"更新了 {result.rowcount} 个学生的状态")
+            except Exception as e:
+                print(f"更新学生状态: {e}")
+            
+            # 检查结果
+            try:
+                result = db.session.execute(text("""
+                    SELECT COUNT(*) as total_students, 
+                           COUNT(CASE WHEN status = 'active' THEN 1 END) as active_students,
+                           COUNT(CASE WHEN status = 'graduated' THEN 1 END) as graduated_students
+                    FROM students
+                """))
+                stats = result.fetchone()
+                print(f"迁移完成 - 总学生: {stats[0]}, 活跃: {stats[1]}, 已毕业: {stats[2]}")
+            except Exception as e:
+                print(f"检查结果: {e}")
+        
+        return jsonify({
+            'success': True,
+            'message': '数据库迁移完成',
+            'stats': {
+                'total_students': stats[0] if 'stats' in locals() else 0,
+                'active_students': stats[1] if 'stats' in locals() else 0,
+                'graduated_students': stats[2] if 'stats' in locals() else 0
+            }
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'迁移失败: {str(e)}'
+        }), 500
 
 
 if __name__ == '__main__':
