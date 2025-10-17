@@ -19,7 +19,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 导入并初始化数据库
-from models import db, Class, Student, Course, CompetitionGoal, init_db
+from models import db, Class, Student, Course, CompetitionGoal, CourseRound, StudentSubmission, init_db
 init_db(app)
 
 
@@ -260,12 +260,57 @@ def submit_student_answer():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 这里可以添加保存答案的逻辑
-        # 目前只是返回成功响应
+        # 获取学生对象
+        student = Student.query.filter_by(name=student_name, class_id=class_id).first()
+        if not student:
+            return jsonify({'success': False, 'message': '学生不存在'}), 404
+
+        # 获取或创建当前轮次
+        current_round = CourseRound.query.filter_by(
+            course_id=current_course.id,
+            round_number=1  # 暂时硬编码为第1轮
+        ).first()
+        
+        if not current_round:
+            # 创建新的轮次记录（暂时使用默认值）
+            current_round = CourseRound(
+                course_id=current_course.id,
+                round_number=1,
+                question_text="数学题目",  # 暂时使用默认值
+                correct_answer="1",  # 暂时使用默认值
+                question_score=1
+            )
+            db.session.add(current_round)
+            db.session.flush()  # 获取ID
+
+        # 检查学生是否已经提交过答案
+        existing_submission = StudentSubmission.query.filter_by(
+            student_id=student.id,
+            round_id=current_round.id
+        ).first()
+        
+        if existing_submission:
+            return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
+
+        # 计算答题时间（这里暂时使用0，实际应该从前端传递）
+        answer_time = 0.0
+        
+        # 保存学生提交记录
+        submission = StudentSubmission(
+            student_id=student.id,
+            round_id=current_round.id,
+            answer=answer,
+            is_correct=False,  # 暂时设为False，等BINGO时判断
+            answer_time=answer_time
+        )
+        db.session.add(submission)
+        db.session.commit()
+
         return jsonify({
             'success': True, 
             'message': '答案提交成功',
-            'course_id': current_course.id
+            'course_id': current_course.id,
+            'submission_id': submission.id
         })
 
     except Exception as e:
@@ -299,22 +344,69 @@ def judge_answers():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 获取班级学生数据
+        # 更新当前轮次的正确答案
+        current_round = CourseRound.query.filter_by(
+            course_id=current_course.id,
+            round_number=1  # 暂时硬编码为第1轮
+        ).first()
+        
+        if current_round:
+            current_round.correct_answer = correct_answer
+            current_round.question_score = question_score
+            db.session.commit()
+
+        # 获取班级学生数据并判断答案
         students = Student.query.filter_by(class_id=class_id).all()
         students_data = {}
+        
         for student in students:
+            # 获取学生的提交记录
+            submission = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                round_id=current_round.id if current_round else None
+            ).first()
+            
+            # 根据提交情况确定学生状态
+            if submission:
+                # 学生已提交，判断答案对错
+                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
+                submission.is_correct = is_correct
+                
+                if is_correct:
+                    expression = 'smile'
+                    score = question_score
+                    correct_rounds = 1
+                else:
+                    expression = 'angry'
+                    score = 0
+                    correct_rounds = 0
+                    
+                last_answer = submission.answer
+                last_answer_time = submission.answer_time
+            else:
+                # 学生未提交
+                expression = 'embarrassed'
+                score = 0
+                correct_rounds = 0
+                last_answer = ''
+                last_answer_time = 0
+            
             students_data[student.name] = {
                 'name': student.name,
-                'score': 0,  # 这里可以根据实际答案判断逻辑更新分数
-                'total_rounds': 1,  # 假设这是第一轮
-                'correct_rounds': 0,  # 这里需要根据答案判断逻辑更新
-                'last_answer_time': 0,
-                'expression': 'neutral',  # 这里需要根据答案对错更新表情
+                'score': score,
+                'total_rounds': 1,
+                'correct_rounds': correct_rounds,
+                'last_answer_time': last_answer_time,
+                'expression': expression,
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'answers': [],
-                'last_answer': ''
+                'last_answer': last_answer
             }
+        
+        # 保存提交记录的更新
+        if current_round:
+            db.session.commit()
         
         return jsonify({
             'success': True,
