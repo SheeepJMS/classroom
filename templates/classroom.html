@@ -684,22 +684,50 @@ function startClass() {
     if (scoreMinusBtn) scoreMinusBtn.disabled = true;
     if (scorePlusBtn) scorePlusBtn.disabled = true;
     
-    // 发送请求
+    // 发送请求 - 先创建课程，然后开始答题
     fetch('/api/start_course', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-Class-ID': '{{ class_obj.id }}'
-        }
+        },
+        body: JSON.stringify({
+            class_id: '{{ class_obj.id }}',
+            course_name: '课堂 ' + new Date().toLocaleString('zh-CN')
+        })
     })
     .then(response => {
-        console.log('收到响应:', response.status);
+        console.log('创建课程响应:', response.status);
         return response.json();
     })
     .then(data => {
-        console.log('解析数据:', data);
+        console.log('创建课程数据:', data);
         if (data.success) {
-            console.log('后端返回成功');
+            console.log('课程创建成功，现在开始答题');
+            
+            // 开始答题
+            return fetch('/api/start_class', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Class-ID': '{{ class_obj.id }}'
+                },
+                body: JSON.stringify({
+                    class_id: '{{ class_obj.id }}'
+                })
+            });
+        } else {
+            throw new Error(data.message || '创建课程失败');
+        }
+    })
+    .then(response => {
+        console.log('开始答题响应:', response.status);
+        return response.json();
+    })
+    .then(data => {
+        console.log('开始答题数据:', data);
+        if (data.success) {
+            console.log('答题开始成功');
             // 简单的状态更新
             classroomData.round_active = true;
             classroomData.start_time = Date.now();
@@ -716,10 +744,13 @@ function startClass() {
                 changeAllStudentsToFocused();
                 console.log('学生表情已更新为专注状态');
             }, 100);
+        } else {
+            throw new Error(data.message || '开始答题失败');
         }
     })
     .catch(error => {
         console.error('请求失败:', error);
+        alert('开始课程失败: ' + error.message);
     });
 }
 
