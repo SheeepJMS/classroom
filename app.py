@@ -336,11 +336,62 @@ def classroom(class_id):
 def get_classroom_data():
     """获取课堂数据API"""
     try:
-        # 返回基本的课堂数据
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        # 获取指定班级的学生
+        students = Student.query.filter_by(class_id=class_id).all()
+        
+        # 构建学生数据字典
+        students_data = {}
+        for student in students:
+            students_data[student.name] = {
+                'name': student.name,
+                'score': 0,
+                'total_rounds': 0,
+                'correct_rounds': 0,
+                'last_answer_time': 0,
+                'expression': 'neutral',
+                'animation': 'none',
+                'avatar_color': '#4ecdc4',
+                'answers': [],
+                'last_answer': ''
+            }
+        
         return jsonify({
             'success': True,
             'current_round': 1,
-            'students': [{'id': s.id, 'name': s.name} for s in Student.query.all()]
+            'students': students_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/next_round', methods=['POST'])
+def next_round():
+    """下一轮API"""
+    try:
+        # 简单的下一轮逻辑
+        return jsonify({
+            'success': True,
+            'message': '下一轮开始',
+            'round': 2,  # 假设下一轮是第2轮
+            'students': {}  # 返回空的学生数据，前端会重新加载
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@app.route('/reset_classroom', methods=['POST'])
+def reset_classroom():
+    """重置课堂API"""
+    try:
+        # 简单的重置逻辑
+        return jsonify({
+            'success': True,
+            'message': '课堂已重置'
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

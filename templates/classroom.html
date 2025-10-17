@@ -685,7 +685,7 @@ function startClass() {
     if (scorePlusBtn) scorePlusBtn.disabled = true;
     
     // 发送请求
-    fetch('/start_class', {
+    fetch('/api/start_course', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
