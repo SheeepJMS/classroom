@@ -711,6 +711,8 @@ function startClass() {
             
             // 改变所有学生表情为专注状态
             setTimeout(() => {
+                console.log('准备调用changeAllStudentsToFocused，当前classroomData:', classroomData);
+                console.log('学生数据:', classroomData.students);
                 changeAllStudentsToFocused();
                 console.log('学生表情已更新为专注状态');
             }, 100);
@@ -1173,6 +1175,12 @@ function updateProgressBars() {
 function changeAllStudentsToFocused() {
     console.log('Changing all students to focused state...');
     console.log('当前学生数据:', classroomData.students);
+    
+    // 检查学生数据是否存在
+    if (!classroomData.students || Object.keys(classroomData.students).length === 0) {
+        console.warn('没有学生数据，无法更新表情');
+        return;
+    }
     
     Object.values(classroomData.students).forEach(student => {
         console.log(`Updating student ${student.name} to focused`);
