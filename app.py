@@ -125,26 +125,38 @@ def start_course():
             if '/classroom/' in referer:
                 class_id = referer.split('/classroom/')[-1]
         
+        print(f"DEBUG: start_course called with class_id: {class_id}")
+        print(f"DEBUG: request data: {data}")
+        
         if not class_id:
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
 
         # 检查班级是否存在
         class_obj = Class.query.get(class_id)
         if not class_obj:
+            print(f"DEBUG: Class not found for class_id: {class_id}")
             return jsonify({'success': False, 'message': '班级不存在'}), 404
+
+        print(f"DEBUG: Found class: {class_obj.name}")
 
         # 停用该班级的所有活跃课程
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
 
         # 创建新课程
         course_name = data.get('course_name') or f"课堂 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        course_id = str(uuid.uuid4())
+        print(f"DEBUG: Creating course with id: {course_id}, name: {course_name}")
+        
         new_course = Course(
+            id=course_id,
             name=course_name,
             class_id=class_id,
             is_active=True,
             created_date=datetime.now())
         db.session.add(new_course)
         db.session.commit()
+
+        print(f"DEBUG: Course created successfully with id: {new_course.id}")
 
         return jsonify({
             'success': True,
@@ -153,8 +165,37 @@ def start_course():
         })
 
     except Exception as e:
+        print(f"DEBUG: Exception in start_course: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'message': f'开始课程失败: {str(e)}'}), 500
+
+
+@app.route('/api/start_class', methods=['POST'])
+def start_class():
+    """开始答题API"""
+    try:
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        # 检查是否有活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not current_course:
+            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+        
+        # 这里可以添加更多逻辑来开始答题状态
+        # 比如设置round_active=True等
+        
+        return jsonify({
+            'success': True,
+            'message': '答题开始成功',
+            'course_id': current_course.id
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'开始答题失败: {str(e)}'}), 500
 
 
 @app.route('/api/delete_class/<class_id>', methods=['DELETE'])
