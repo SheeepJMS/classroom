@@ -240,10 +240,12 @@ def graduate_student():
 
         student = Student.query.get_or_404(student_id)
         
-        # 更新学生状态为已毕业
-        student.status = 'graduated'
-        student.graduated_date = datetime.now()
+        # 临时注释掉状态更新，等数据库迁移后再启用
+        # student.status = 'graduated'
+        # student.graduated_date = datetime.now()
         
+        # 暂时直接删除学生记录（临时方案）
+        db.session.delete(student)
         db.session.commit()
 
         return jsonify({'success': True, 'message': '学生学业结束成功'})
@@ -396,16 +398,28 @@ def judge_answers():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 更新当前轮次的正确答案
+        # 创建或更新当前轮次
         current_round = CourseRound.query.filter_by(
             course_id=current_course.id,
             round_number=1  # 暂时硬编码为第1轮
         ).first()
         
-        if current_round:
+        if not current_round:
+            # 创建新的轮次
+            current_round = CourseRound(
+                id=str(uuid.uuid4()),
+                course_id=current_course.id,
+                round_number=1,
+                correct_answer=correct_answer,
+                question_score=question_score
+            )
+            db.session.add(current_round)
+        else:
+            # 更新现有轮次
             current_round.correct_answer = correct_answer
             current_round.question_score = question_score
-            db.session.commit()
+        
+        db.session.commit()
 
         # 获取班级学生数据并判断答案
         students = Student.query.filter_by(class_id=class_id).all()
@@ -477,11 +491,47 @@ def generate_report(course_id):
     try:
         course = Course.query.get_or_404(course_id)
         class_obj = Class.query.get(course.class_id)
+        
+        # 获取班级活跃学生数据（临时移除status过滤）
+        students = Student.query.filter_by(class_id=course.class_id).all()
+        students_data = {}
+        
+        for student in students:
+            # 计算学生的统计数据
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            # 获取该学生在当前课程中的所有提交记录
+            submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == course_id
+            ).all()
+            
+            for submission in submissions:
+                total_rounds += 1
+                if submission.is_correct:
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(submission.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
+                    correct_rounds += 1
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'score': total_score,
+                'total_rounds': total_rounds,
+                'correct_rounds': correct_rounds,
+                'avatar_color': '#4ecdc4'
+            }
 
         return render_template(
             'reports.html',
             course=course,
-            class_obj=class_obj)
+            class_obj=class_obj,
+            students=students_data)
 
     except Exception as e:
         return f'生成报告失败: {str(e)}', 500
@@ -506,9 +556,9 @@ def index():
 def class_detail(class_id):
     """班级详情页"""
     class_obj = Class.query.get_or_404(class_id)
-    # 分别获取活跃学生和历史学员
-    active_students = Student.query.filter_by(class_id=class_id, status='active').all()
-    graduated_students = Student.query.filter_by(class_id=class_id, status='graduated').all()
+    # 分别获取活跃学生和历史学员（临时移除status过滤）
+    active_students = Student.query.filter_by(class_id=class_id).all()
+    graduated_students = []  # 临时设为空
 
     goal = None
     goal_progress = None
@@ -540,8 +590,8 @@ def class_detail(class_id):
 def classroom(class_id):
     """课堂页面"""
     class_obj = Class.query.get_or_404(class_id)
-    # 只显示活跃学生
-    students = Student.query.filter_by(class_id=class_id, status='active').all()
+    # 只显示活跃学生（临时移除status过滤）
+    students = Student.query.filter_by(class_id=class_id).all()
     return render_template(
         'classroom.html',
         class_obj=class_obj,
@@ -565,8 +615,8 @@ def get_classroom_data():
         
         print(f"DEBUG: Looking for students with class_id: {class_id}")
         
-        # 获取指定班级的活跃学生
-        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        # 获取指定班级的活跃学生（临时移除status过滤）
+        students = Student.query.filter_by(class_id=class_id).all()
         print(f"DEBUG: Found {len(students)} active students")
         
         # 构建学生数据字典
@@ -708,16 +758,17 @@ def ceremony():
         if not current_course:
             return redirect(url_for('index'))
         
-        # 获取班级学生数据
+        # 获取班级活跃学生数据（临时移除status过滤）
         students = Student.query.filter_by(class_id=current_course.class_id).all()
         students_data = {}
         
         for student in students:
-            # 计算学生的总分数
+            # 计算学生的总分数 - 从StudentSubmission表获取真实数据
             total_score = 0
             total_rounds = 0
             correct_rounds = 0
             
+            # 获取该学生在当前课程中的所有提交记录
             submissions = StudentSubmission.query.join(CourseRound).filter(
                 StudentSubmission.student_id == student.id,
                 CourseRound.course_id == current_course.id
@@ -726,7 +777,12 @@ def ceremony():
             for submission in submissions:
                 total_rounds += 1
                 if submission.is_correct:
-                    total_score += submission.round_ref.question_score
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(submission.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
                     correct_rounds += 1
             
             students_data[student.name] = {

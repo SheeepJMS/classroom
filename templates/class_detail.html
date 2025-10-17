@@ -493,8 +493,8 @@
                             ABSENCES: 0<br>
                             SCORE: 0
                         </div>
-                        <button class="btn btn-warning btn-sm mt-2" onclick="graduateStudent('{{ student.id }}')" title="学业结束">
-                            <i class="fas fa-graduation-cap"></i>
+                        <button class="btn btn-danger btn-sm mt-2" onclick="graduateStudent('{{ student.id }}')" title="删除学生">
+                            <i class="fas fa-trash"></i>
                         </button>
                     </div>
                     {% endfor %}
@@ -617,7 +617,7 @@ function addStudent() {
 }
 
 function graduateStudent(studentId) {
-    if (confirm('确定要让这个学生学业结束吗？学生将移到历史学员区域。')) {
+    if (confirm('确定要删除这个学生吗？')) {
         fetch('/api/graduate_student', {
             method: 'POST',
             headers: {
@@ -632,12 +632,12 @@ function graduateStudent(studentId) {
             if (data.success) {
                 location.reload();
             } else {
-                alert(data.message || '学生学业结束失败');
+                alert(data.message || '删除学生失败');
             }
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('学生学业结束时发生错误');
+            alert('删除学生时发生错误');
         });
     }
 }
