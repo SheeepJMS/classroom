@@ -299,13 +299,28 @@ def judge_answers():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 这里可以添加判断答案的逻辑
-        # 目前只是返回成功响应
+        # 获取班级学生数据
+        students = Student.query.filter_by(class_id=class_id).all()
+        students_data = {}
+        for student in students:
+            students_data[student.name] = {
+                'name': student.name,
+                'score': 0,  # 这里可以根据实际答案判断逻辑更新分数
+                'total_rounds': 1,  # 假设这是第一轮
+                'correct_rounds': 0,  # 这里需要根据答案判断逻辑更新
+                'last_answer_time': 0,
+                'expression': 'neutral',  # 这里需要根据答案对错更新表情
+                'animation': 'none',
+                'avatar_color': '#4ecdc4',
+                'answers': [],
+                'last_answer': ''
+            }
+        
         return jsonify({
             'success': True,
             'message': '答案判断完成',
             'course_id': current_course.id,
-            'students': {}  # 返回空的学生数据，前端会重新加载
+            'students': students_data
         })
 
     except Exception as e:
@@ -390,11 +405,21 @@ def get_classroom_data():
     try:
         # 从请求头获取班级ID
         class_id = request.headers.get('X-Class-ID')
+        
+        # 添加调试日志
+        print(f"DEBUG: get_classroom_data called")
+        print(f"DEBUG: X-Class-ID header: {class_id}")
+        print(f"DEBUG: All headers: {dict(request.headers)}")
+        
         if not class_id:
+            print("DEBUG: No class_id found in headers")
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        print(f"DEBUG: Looking for students with class_id: {class_id}")
         
         # 获取指定班级的学生
         students = Student.query.filter_by(class_id=class_id).all()
+        print(f"DEBUG: Found {len(students)} students")
         
         # 构建学生数据字典
         students_data = {}
@@ -412,12 +437,15 @@ def get_classroom_data():
                 'last_answer': ''
             }
         
+        print(f"DEBUG: Returning data for {len(students_data)} students")
+        
         return jsonify({
             'success': True,
             'current_round': 1,
             'students': students_data
         })
     except Exception as e:
+        print(f"DEBUG: Exception in get_classroom_data: {str(e)}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
