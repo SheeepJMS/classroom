@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, redirect, url_for
 from datetime import datetime
 import os
 import uuid
+from sqlalchemy import text
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
@@ -240,9 +241,9 @@ def graduate_student():
 
         # 使用原生SQL查询避免status字段问题
         try:
-            result = db.engine.execute(
-                "SELECT id, name, class_id, created_date FROM students WHERE id = %s",
-                (student_id,)
+            result = db.session.execute(
+                text("SELECT id, name, class_id, created_date FROM students WHERE id = :student_id"),
+                {'student_id': student_id}
             )
             student_data = result.fetchone()
             if not student_data:
@@ -336,9 +337,9 @@ def submit_student_answer():
 
         # 使用原生SQL查询避免status字段问题
         try:
-            result = db.engine.execute(
-                "SELECT id, name, class_id, created_date FROM students WHERE name = %s AND class_id = %s",
-                (student_name, class_id)
+            result = db.session.execute(
+                text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name AND class_id = :class_id"),
+                {'student_name': student_name, 'class_id': class_id}
             )
             student_data = result.fetchone()
             if not student_data:
@@ -577,9 +578,9 @@ def generate_report(course_id):
 def get_students_by_class_id(class_id):
     """获取指定班级的学生列表（避免status字段问题）"""
     try:
-        result = db.engine.execute(
-            "SELECT id, name, class_id, created_date FROM students WHERE class_id = %s",
-            (class_id,)
+        result = db.session.execute(
+            text("SELECT id, name, class_id, created_date FROM students WHERE class_id = :class_id"),
+            {'class_id': class_id}
         )
         students_data = result.fetchall()
         
@@ -601,12 +602,58 @@ def get_students_by_class_id(class_id):
 @app.route('/')
 def index():
     """首页"""
-    classes = Class.query.order_by(Class.created_date.desc()).all()
+    # 使用原生SQL查询避免status字段问题
+    try:
+        # 获取班级数据
+        result = db.session.execute(text("SELECT id, name, created_date, competition_goal_id FROM classes ORDER BY created_date DESC"))
+        raw_classes = result.fetchall()
+        
+        # 创建临时班级对象列表
+        class TempClass:
+            def __init__(self, id, name, created_date, competition_goal_id, student_count, course_count):
+                self.id = id
+                self.name = name
+                self.created_date = created_date
+                self.competition_goal_id = competition_goal_id
+                self.student_count = student_count
+                self.course_count = course_count
+        
+        classes = []
+        for class_row in raw_classes:
+            class_id = class_row[0]
+            # 获取该班级的学生数量
+            student_count_result = db.session.execute(
+                text("SELECT COUNT(*) FROM students WHERE class_id = :class_id"),
+                {'class_id': class_id}
+            )
+            student_count = student_count_result.fetchone()[0]
+            
+            # 获取该班级的课程数量
+            course_count_result = db.session.execute(
+                text("SELECT COUNT(*) FROM courses WHERE class_id = :class_id"),
+                {'class_id': class_id}
+            )
+            course_count = course_count_result.fetchone()[0]
+            
+            temp_class = TempClass(
+                id=class_row[0],
+                name=class_row[1],
+                created_date=class_row[2],
+                competition_goal_id=class_row[3],
+                student_count=student_count,
+                course_count=course_count
+            )
+            classes.append(temp_class)
+    except Exception as e:
+        print(f"查询班级失败: {e}")
+        classes = []
+    
     goals = CompetitionGoal.query.order_by(
         CompetitionGoal.created_date.desc()).all()
+    
     # 临时使用原生SQL查询避免status字段问题
     try:
-        result = db.engine.execute("SELECT COUNT(*) FROM students")
+        result = db.session.execute(text("SELECT COUNT(*) FROM students"))
         total_students = result.fetchone()[0]
     except Exception as e:
         print(f"查询学生总数失败: {e}")
