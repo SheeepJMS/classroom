@@ -111,10 +111,16 @@ def add_student():
 def start_course():
     """开始课程API"""
     try:
-        # 从请求头获取班级ID，如果没有则从URL参数获取
-        class_id = request.headers.get('X-Class-ID')
+        # 优先从请求体获取班级ID
+        data = request.get_json() or {}
+        class_id = data.get('class_id')
+        
+        # 如果请求体中没有，则从请求头获取
         if not class_id:
-            # 如果没有在header中，尝试从referer URL中提取
+            class_id = request.headers.get('X-Class-ID')
+        
+        # 如果还没有，尝试从referer URL中提取
+        if not class_id:
             referer = request.headers.get('Referer', '')
             if '/classroom/' in referer:
                 class_id = referer.split('/classroom/')[-1]
@@ -131,7 +137,7 @@ def start_course():
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
 
         # 创建新课程
-        course_name = f"课堂 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        course_name = data.get('course_name') or f"课堂 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
         new_course = Course(
             name=course_name,
             class_id=class_id,
