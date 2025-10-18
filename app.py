@@ -662,8 +662,123 @@ def generate_student_report(student_identifier):
         else:
             avg_response_time = 0
         
+        # 计算班级平均值
+        all_students = get_students_by_class_id(current_course.class_id)
+        class_avg_accuracy = 0
+        class_avg_participation = 0
+        class_avg_response_time = 0
+        class_avg_score = 0
+        
+        if all_students:
+            total_class_accuracy = 0
+            total_class_participation = 0
+            total_class_response_time = 0
+            total_class_score = 0
+            valid_students = 0
+            
+            for class_student in all_students:
+                # 获取该学生的提交记录
+                class_submissions = StudentSubmission.query.join(CourseRound).filter(
+                    StudentSubmission.student_id == class_student.id,
+                    CourseRound.course_id == current_course.id
+                ).all()
+                
+                if class_submissions:
+                    # 计算该学生的准确率
+                    class_correct_rounds = sum(1 for s in class_submissions if s.is_correct)
+                    class_accuracy = (class_correct_rounds / len(class_submissions) * 100) if class_submissions else 0
+                    total_class_accuracy += class_accuracy
+                    
+                    # 计算该学生的参与率（假设所有轮次都参与了）
+                    total_class_participation += 100  # 简化计算
+                    
+                    # 计算该学生的平均反应时间
+                    class_avg_time = sum(s.answer_time for s in class_submissions) / len(class_submissions)
+                    total_class_response_time += class_avg_time
+                    
+                    # 计算该学生的总分
+                    class_score = 0
+                    for s in class_submissions:
+                        if s.is_correct:
+                            round_obj = CourseRound.query.get(s.round_id)
+                            if round_obj and round_obj.question_score:
+                                class_score += round_obj.question_score
+                            else:
+                                class_score += 1
+                    total_class_score += class_score
+                    
+                    valid_students += 1
+            
+            if valid_students > 0:
+                class_avg_accuracy = total_class_accuracy / valid_students
+                class_avg_participation = total_class_participation / valid_students
+                class_avg_response_time = total_class_response_time / valid_students
+                class_avg_score = total_class_score / valid_students
+        
+        # 计算当前学生的参与率
+        participation_rate = 100 if submissions else 0  # 简化计算
+        
         # 获取班级信息
         class_obj = Class.query.get(student.class_id)
+        
+        # 计算其他需要的变量
+        current_date = datetime.now().strftime('%Y年%m月%d日')
+        
+        # 获取竞赛目标信息
+        competition_goal_name = '暂无竞赛目标'
+        competition_goal_date = '暂无日期'
+        days_to_competition = '暂无'
+        classes_before_competition = '暂无'
+        
+        if class_obj and class_obj.competition_goal_id:
+            try:
+                goal = CompetitionGoal.query.get(class_obj.competition_goal_id)
+                if goal:
+                    competition_goal_name = goal.name
+                    if goal.goal_date:
+                        competition_goal_date = goal.goal_date.strftime('%Y年%m月%d日')
+                        days_diff = (goal.goal_date - datetime.now().date()).days
+                        days_to_competition = max(0, days_diff)
+                        # 假设每周2节课
+                        classes_before_competition = max(0, days_diff // 7 * 2)
+            except:
+                pass
+        
+        # 计算总分和可能的总分
+        total_possible_score = total_rounds  # 假设每题1分
+        if submissions:
+            for s in submissions:
+                round_obj = CourseRound.query.get(s.round_id)
+                if round_obj and round_obj.question_score:
+                    total_possible_score = sum(CourseRound.query.filter_by(course_id=current_course.id).with_entities(CourseRound.question_score).scalar() or 1 for _ in submissions)
+                    break
+        
+        # 个性化反馈
+        personalized_feedback = {
+            'focus_feedback': '继续保持良好的学习状态！' if accuracy >= 80 else '需要加强练习，提高准确率。'
+        }
+        
+        # 班级总体统计
+        class_total_accuracy = round(class_avg_accuracy, 1)
+        class_total_participation = round(class_avg_participation, 1)
+        class_total_rounds = total_rounds  # 简化计算
+        
+        # 班级轮次统计
+        class_round_stats = []
+        for i in range(1, class_total_rounds + 1):
+            round_submissions = StudentSubmission.query.join(CourseRound).filter(
+                CourseRound.course_id == current_course.id,
+                CourseRound.round_number == i
+            ).all()
+            
+            if round_submissions:
+                round_stat = {
+                    'round_num': i,
+                    'question_score': round_submissions[0].round_ref.question_score if hasattr(round_submissions[0], 'round_ref') else 1,
+                    'answer_time': round_submissions[0].answer_time,
+                    'is_correct': round_submissions[0].is_correct
+                }
+                class_round_stats.append(round_stat)
         
         return render_template(
             'student_report.html',
@@ -677,7 +792,25 @@ def generate_student_report(student_identifier):
             avg_response_time=round(avg_response_time, 1),
             class_obj=class_obj,
             course=current_course,
-            course_data=current_course  # 添加course_data变量
+            course_data=current_course,
+            participation_rate=round(participation_rate, 1),
+            class_avg_accuracy=round(class_avg_accuracy, 1),
+            class_avg_participation=round(class_avg_participation, 1),
+            class_avg_response_time=round(class_avg_response_time, 1),
+            class_avg_score=round(class_avg_score, 1),
+            student_total_score=total_score,
+            class_avg_time_per_question=round(class_avg_response_time, 1),
+            current_date=current_date,
+            competition_goal_name=competition_goal_name,
+            competition_goal_date=competition_goal_date,
+            days_to_competition=days_to_competition,
+            classes_before_competition=classes_before_competition,
+            total_possible_score=total_possible_score,
+            personalized_feedback=personalized_feedback,
+            class_total_accuracy=class_total_accuracy,
+            class_total_participation=class_total_participation,
+            class_total_rounds=class_total_rounds,
+            class_round_stats=class_round_stats
         )
         
     except Exception as e:
