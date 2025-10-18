@@ -487,6 +487,9 @@ def judge_answers():
                 is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
                 submission.is_correct = is_correct
                 
+                # 保存提交记录的更新
+                db.session.add(submission)
+                
                 if is_correct:
                     expression = 'smile'
                     score = question_score
@@ -523,6 +526,9 @@ def judge_answers():
         if current_round:
             db.session.commit()
         
+        # 提交所有更改到数据库
+        db.session.commit()
+        
         return jsonify({
             'success': True,
             'message': '答案判断完成',
@@ -531,6 +537,7 @@ def judge_answers():
         })
 
     except Exception as e:
+        db.session.rollback()
         return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
 
 
@@ -584,6 +591,87 @@ def generate_report(course_id):
 
     except Exception as e:
         return f'生成报告失败: {str(e)}', 500
+
+
+@app.route('/generate_student_report/<student_id>')
+def generate_student_report(student_id):
+    """生成学生个人报告"""
+    try:
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(is_active=True).first()
+        if not current_course:
+            return redirect(url_for('index'))
+        
+        # 使用原生SQL查询学生信息
+        result = db.session.execute(
+            text("SELECT id, name, class_id, created_date FROM students WHERE id = :student_id"),
+            {'student_id': student_id}
+        )
+        student_data = result.fetchone()
+        
+        if not student_data:
+            return f'学生不存在: {student_id}', 404
+        
+        # 创建临时学生对象
+        class TempStudent:
+            def __init__(self, id, name, class_id, created_date):
+                self.id = id
+                self.name = name
+                self.class_id = class_id
+                self.created_date = created_date
+        
+        student = TempStudent(*student_data)
+        
+        # 计算学生的统计数据
+        total_score = 0
+        total_rounds = 0
+        correct_rounds = 0
+        
+        # 获取该学生在当前课程中的所有提交记录
+        submissions = StudentSubmission.query.join(CourseRound).filter(
+            StudentSubmission.student_id == student.id,
+            CourseRound.course_id == current_course.id
+        ).all()
+        
+        for submission in submissions:
+            total_rounds += 1
+            if submission.is_correct:
+                # 从CourseRound获取题目分数
+                round_obj = CourseRound.query.get(submission.round_id)
+                if round_obj and round_obj.question_score:
+                    total_score += round_obj.question_score
+                else:
+                    total_score += 1  # 默认分数
+                correct_rounds += 1
+        
+        # 计算准确率
+        accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
+        
+        # 计算平均反应时间
+        if submissions:
+            avg_response_time = sum(s.answer_time for s in submissions) / len(submissions)
+        else:
+            avg_response_time = 0
+        
+        # 获取班级信息
+        class_obj = Class.query.get(student.class_id)
+        
+        return render_template(
+            'student_report.html',
+            student=student,
+            student_name=student.name,
+            total_rounds=total_rounds,
+            correct_rounds=correct_rounds,
+            accuracy=round(accuracy, 1),
+            total_score=total_score,
+            submissions=submissions,
+            avg_response_time=round(avg_response_time, 1),
+            class_obj=class_obj,
+            course=current_course
+        )
+        
+    except Exception as e:
+        return f'生成学生报告失败: {str(e)}', 500
 
 
 def get_students_by_class_id(class_id):
