@@ -971,27 +971,6 @@ def student_report_center(student_id):
                     'total_students': len(all_students)
                 })
         
-        # 获取竞赛目标信息
-        competition_goal_name = '暂无竞赛目标'
-        competition_goal_date = '暂无日期'
-        days_to_competition = '暂无'
-        classes_before_competition = '暂无'
-        
-        if class_obj and class_obj.competition_goal_id:
-            try:
-                goal = CompetitionGoal.query.get(class_obj.competition_goal_id)
-                if goal:
-                    competition_goal_name = goal.name
-                    if goal.goal_date:
-                        competition_goal_date = goal.goal_date.strftime('%Y年%m月%d日')
-                        days_diff = (goal.goal_date - datetime.now().date()).days
-                        days_to_competition = max(0, days_diff)
-                        # 假设每周2节课
-                        classes_before_competition = max(0, days_diff // 7 * 2)
-            except Exception as e:
-                print(f"获取竞赛目标失败: {e}")
-                pass
-        
         return render_template(
             'student_report_center.html',
             student=student,

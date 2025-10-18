@@ -396,18 +396,23 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // 准备课程数据
-        const coursesData = {{ courses_data|tojson|safe }};
-        
-        // 参与率趋势图
+        // 参与率趋势图 - 使用Jinja2模板数据
         const participationCtx = document.getElementById('participationChart').getContext('2d');
         const participationChart = new Chart(participationCtx, {
             type: 'line',
             data: {
-                labels: coursesData.map(course => course.course_name.split(' ')[1] || course.course_name),
+                labels: [
+                    {% for course_data in courses_data %}
+                    '{{ course_data.course_name.split(" ")[1] if course_data.course_name.split(" ")|length > 1 else course_data.course_name }}'{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
                 datasets: [{
                     label: '参与率 (%)',
-                    data: coursesData.map(course => course.participation_rate),
+                    data: [
+                        {% for course_data in courses_data %}
+                        {{ course_data.participation_rate }}{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
                     borderColor: 'rgba(102, 126, 234, 1)',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
                     borderWidth: 3,
@@ -444,15 +449,23 @@
             }
         });
         
-        // 正确率趋势图
+        // 正确率趋势图 - 使用Jinja2模板数据
         const accuracyCtx = document.getElementById('accuracyChart').getContext('2d');
         const accuracyChart = new Chart(accuracyCtx, {
             type: 'line',
             data: {
-                labels: coursesData.map(course => course.course_name.split(' ')[1] || course.course_name),
+                labels: [
+                    {% for course_data in courses_data %}
+                    '{{ course_data.course_name.split(" ")[1] if course_data.course_name.split(" ")|length > 1 else course_data.course_name }}'{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
                 datasets: [{
                     label: '正确率 (%)',
-                    data: coursesData.map(course => course.accuracy),
+                    data: [
+                        {% for course_data in courses_data %}
+                        {{ course_data.accuracy }}{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
                     borderColor: 'rgba(118, 75, 162, 1)',
                     backgroundColor: 'rgba(118, 75, 162, 0.1)',
                     borderWidth: 3,
