@@ -676,7 +676,8 @@ def generate_student_report(student_identifier):
             submissions=submissions,
             avg_response_time=round(avg_response_time, 1),
             class_obj=class_obj,
-            course=current_course
+            course=current_course,
+            course_data=current_course  # 添加course_data变量
         )
         
     except Exception as e:
@@ -932,7 +933,12 @@ def next_round():
             for submission in submissions:
                 total_rounds += 1
                 if submission.is_correct:
-                    total_score += submission.round_ref.question_score
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(submission.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
                     correct_rounds += 1
             
             students_data[student.name] = {
