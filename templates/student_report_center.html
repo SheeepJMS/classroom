@@ -68,14 +68,14 @@
         }
         
         .course-title {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
         
         .course-date {
-            font-size: 12px;
+            font-size: 16px;
             color: #6c757d;
         }
         
@@ -90,10 +90,10 @@
         }
         
         .chart-title {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             text-align: center;
         }
         
@@ -113,10 +113,10 @@
         }
         
         .section-title {
-            font-size: 18px;
+            font-size: 22px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             text-align: center;
         }
         
@@ -147,16 +147,16 @@
         }
         
         .course-name {
-            font-size: 16px;
+            font-size: 20px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 4px;
+            margin-bottom: 8px;
         }
         
         .course-date {
-            font-size: 12px;
+            font-size: 16px;
             color: #6c757d;
-            margin-bottom: 12px;
+            margin-bottom: 15px;
         }
         
         /* 指标行 - 一行显示所有指标 */
@@ -178,7 +178,7 @@
         }
         
         .metric-icon {
-            font-size: 14px;
+            font-size: 18px;
             color: #667eea;
         }
         
@@ -189,24 +189,24 @@
         }
         
         .metric-value {
-            font-size: 14px;
+            font-size: 18px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 2px;
+            margin-bottom: 4px;
         }
         
         .metric-label {
-            font-size: 10px;
+            font-size: 14px;
             color: #6c757d;
         }
         
         .rank-badge {
             display: inline-block;
-            padding: 2px 6px;
+            padding: 4px 8px;
             border-radius: 8px;
-            font-size: 10px;
+            font-size: 14px;
             font-weight: 600;
-            margin-top: 2px;
+            margin-top: 4px;
         }
         
         .rank-1 { background: linear-gradient(45deg, #ffd700, #ffed4e); color: #8b6914; }
@@ -227,27 +227,37 @@
         }
         
         .empty-state h4 {
-            margin-bottom: 10px;
+            margin-bottom: 15px;
             font-weight: 600;
+            font-size: 20px;
         }
         
         .empty-state p {
             margin: 0;
             opacity: 0.8;
+            font-size: 16px;
         }
         
         /* 响应式设计 */
         @media (max-width: 480px) {
             .course-header {
                 margin: 10px 15px;
-                padding: 12px 15px;
-                gap: 12px;
+                padding: 15px;
+                gap: 15px;
+            }
+            
+            .course-title {
+                font-size: 18px;
+            }
+            
+            .course-date {
+                font-size: 14px;
             }
             
             .student-avatar {
-                width: 40px;
-                height: 40px;
-                font-size: 16px;
+                width: 45px;
+                height: 45px;
+                font-size: 18px;
             }
             
             .chart-section, .courses-section {
@@ -255,24 +265,45 @@
                 padding: 15px;
             }
             
+            .chart-title, .section-title {
+                font-size: 18px;
+            }
+            
             .chart-container {
-                height: 160px;
+                height: 180px;
+            }
+            
+            .course-name {
+                font-size: 18px;
+            }
+            
+            .course-date {
+                font-size: 14px;
             }
             
             .metrics-row {
-                gap: 8px;
+                gap: 10px;
             }
             
             .metric-item {
-                padding: 4px 6px;
+                padding: 6px 8px;
+            }
+            
+            .metric-icon {
+                font-size: 16px;
             }
             
             .metric-value {
-                font-size: 12px;
+                font-size: 16px;
             }
             
             .metric-label {
-                font-size: 9px;
+                font-size: 12px;
+            }
+            
+            .rank-badge {
+                font-size: 12px;
+                padding: 3px 6px;
             }
         }
     </style>
@@ -410,9 +441,9 @@
                         display: true,
                         position: 'top',
                         labels: {
-                            padding: 20,
+                            padding: 25,
                             font: {
-                                size: 12
+                                size: 16
                             }
                         }
                     }
