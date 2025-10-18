@@ -576,6 +576,7 @@ def generate_report(course_id):
                     correct_rounds += 1
             
             students_data[student.name] = {
+                'id': student.id,  # 添加学生ID
                 'name': student.name,
                 'score': total_score,
                 'total_rounds': total_rounds,
@@ -593,24 +594,32 @@ def generate_report(course_id):
         return f'生成报告失败: {str(e)}', 500
 
 
-@app.route('/generate_student_report/<student_id>')
-def generate_student_report(student_id):
-    """生成学生个人报告"""
+@app.route('/generate_student_report/<student_identifier>')
+def generate_student_report(student_identifier):
+    """生成学生个人报告 - 支持通过ID或姓名查找学生"""
     try:
         # 获取当前活跃的课程
         current_course = Course.query.filter_by(is_active=True).first()
         if not current_course:
             return redirect(url_for('index'))
         
-        # 使用原生SQL查询学生信息
+        # 尝试通过ID查找学生
         result = db.session.execute(
             text("SELECT id, name, class_id, created_date FROM students WHERE id = :student_id"),
-            {'student_id': student_id}
+            {'student_id': student_identifier}
         )
         student_data = result.fetchone()
         
+        # 如果通过ID找不到，尝试通过姓名查找
         if not student_data:
-            return f'学生不存在: {student_id}', 404
+            result = db.session.execute(
+                text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name AND class_id = :class_id"),
+                {'student_name': student_identifier, 'class_id': current_course.class_id}
+            )
+            student_data = result.fetchone()
+        
+        if not student_data:
+            return f'学生不存在: {student_identifier}', 404
         
         # 创建临时学生对象
         class TempStudent:
