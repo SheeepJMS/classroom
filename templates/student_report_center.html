@@ -113,9 +113,6 @@
         }
         
         .course-item {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
             padding: 25px 20px;
             margin-bottom: 20px;
             background: rgba(255, 255, 255, 0.5);
@@ -134,9 +131,15 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
         }
         
+        .course-header-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        
         .course-info {
             flex: 1;
-            margin-right: 15px;
         }
         
         .course-name {
@@ -202,15 +205,16 @@
         }
         
         .metric-item:nth-child(3) .metric-value {
-            background: linear-gradient(45deg, #ee0979, #ff6a00);
-            box-shadow: 0 2px 10px rgba(238, 9, 121, 0.3);
+            /* 排名用黄色 */
+            background: linear-gradient(45deg, #ffd700, #ffed4e);
+            color: #8b6914;
+            box-shadow: 0 2px 10px rgba(255, 215, 0, 0.3);
         }
         
         .metric-item:nth-child(4) .metric-value {
-            /* 排名保持原样 */
-            background: transparent;
-            color: #2c3e50;
-            padding: 0;
+            /* 得分用红色 */
+            background: linear-gradient(45deg, #ee0979, #ff6a00);
+            box-shadow: 0 2px 10px rgba(238, 9, 121, 0.3);
         }
         
         .metric-label {
@@ -372,7 +376,6 @@
         
         <!-- 合并的学习趋势图表 -->
         <div class="chart-section">
-            <div class="chart-title">学习表现趋势</div>
             <div class="chart-container">
                 <canvas id="combinedChart"></canvas>
             </div>
@@ -384,47 +387,45 @@
             {% if courses_data %}
                 {% for course_data in courses_data %}
                 <div class="course-item">
-                    <div class="course-info">
-                        <div class="course-name">{{ course_data.course_name }}</div>
-                        <div class="course-date">{{ course_data.date }}</div>
-                        <div class="metrics-row">
-                            <div class="metric-item">
-                                <i class="fas fa-users metric-icon"></i>
-                                <div class="metric-content">
-                                    <div class="metric-value">{{ course_data.participation_rate }}%</div>
-                                    <div class="metric-label">参与率</div>
-                                </div>
+                    <div class="course-header-row">
+                        <div class="course-info">
+                            <div class="course-name">{{ course_data.course_name }}</div>
+                            <div class="course-date">{{ course_data.date }}</div>
+                        </div>
+                        <button class="detail-button" onclick="window.location.href='/generate_student_report/{{ student.id }}?course_id={{ course_data.course.id }}'">
+                            <i class="fas fa-arrow-right"></i> 课堂详情
+                        </button>
+                    </div>
+                    <div class="metrics-row">
+                        <div class="metric-item">
+                            <i class="fas fa-users metric-icon"></i>
+                            <div class="metric-content">
+                                <div class="metric-value">{{ course_data.participation_rate }}%</div>
+                                <div class="metric-label">参与率</div>
                             </div>
-                            <div class="metric-item">
-                                <i class="fas fa-check-circle metric-icon"></i>
-                                <div class="metric-content">
-                                    <div class="metric-value">{{ course_data.accuracy }}%</div>
-                                    <div class="metric-label">正确率</div>
-                                </div>
+                        </div>
+                        <div class="metric-item">
+                            <i class="fas fa-check-circle metric-icon"></i>
+                            <div class="metric-content">
+                                <div class="metric-value">{{ course_data.accuracy }}%</div>
+                                <div class="metric-label">正确率</div>
                             </div>
-                            <div class="metric-item">
-                                <i class="fas fa-trophy metric-icon"></i>
-                                <div class="metric-content">
-                                    <div class="metric-value">
-                                        <span class="rank-badge {% if course_data.rank == 1 %}rank-1{% elif course_data.rank == 2 %}rank-2{% elif course_data.rank == 3 %}rank-3{% else %}rank-other{% endif %}">
-                                            第{{ course_data.rank }}名
-                                        </span>
-                                    </div>
-                                    <div class="metric-label">排名</div>
-                                </div>
+                        </div>
+                        <div class="metric-item">
+                            <i class="fas fa-trophy metric-icon"></i>
+                            <div class="metric-content">
+                                <div class="metric-value">第{{ course_data.rank }}名</div>
+                                <div class="metric-label">排名</div>
                             </div>
-                            <div class="metric-item">
-                                <i class="fas fa-star metric-icon"></i>
-                                <div class="metric-content">
-                                    <div class="metric-value">{{ course_data.score }}分</div>
-                                    <div class="metric-label">得分</div>
-                                </div>
+                        </div>
+                        <div class="metric-item">
+                            <i class="fas fa-star metric-icon"></i>
+                            <div class="metric-content">
+                                <div class="metric-value">{{ course_data.score }}分</div>
+                                <div class="metric-label">得分</div>
                             </div>
                         </div>
                     </div>
-                    <button class="detail-button" onclick="window.location.href='/generate_student_report/{{ student.id }}?course_id={{ course_data.course.id }}'">
-                        <i class="fas fa-arrow-right"></i> 课堂详情
-                    </button>
                 </div>
                 {% endfor %}
             {% else %}
@@ -473,12 +474,12 @@
                         {{ course_data.accuracy }}{% if not loop.last %},{% endif %}
                         {% endfor %}
                     ],
-                    borderColor: 'rgba(118, 75, 162, 1)',
-                    backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                    borderColor: 'rgba(17, 153, 142, 1)',
+                    backgroundColor: 'rgba(17, 153, 142, 0.1)',
                     borderWidth: 3,
                     fill: false,
                     tension: 0.4,
-                    pointBackgroundColor: 'rgba(118, 75, 162, 1)',
+                    pointBackgroundColor: 'rgba(17, 153, 142, 1)',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointRadius: 5
@@ -492,9 +493,9 @@
                         display: true,
                         position: 'top',
                         labels: {
-                            padding: 25,
+                            padding: 30,
                             font: {
-                                size: 16
+                                size: 24
                             }
                         }
                     }
@@ -503,11 +504,21 @@
                     y: {
                         beginAtZero: true,
                         max: 100,
+                        ticks: {
+                            font: {
+                                size: 20
+                            }
+                        },
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)'
                         }
                     },
                     x: {
+                        ticks: {
+                            font: {
+                                size: 20
+                            }
+                        },
                         grid: {
                             display: false
                         }
