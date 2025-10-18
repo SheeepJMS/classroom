@@ -663,6 +663,34 @@ def generate_student_report(student_identifier):
         # 计算准确率
         accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
         
+        # 计算排名
+        all_students = get_students_by_class_id(current_course.class_id)
+        student_scores = []
+        for class_student in all_students:
+            class_submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == class_student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            class_score = 0
+            for s in class_submissions:
+                if s.is_correct:
+                    round_obj = CourseRound.query.get(s.round_id)
+                    if round_obj and round_obj.question_score:
+                        class_score += round_obj.question_score
+                    else:
+                        class_score += 1
+            student_scores.append(class_score)
+        
+        student_scores.sort(reverse=True)
+        try:
+            rank = student_scores.index(total_score) + 1
+        except ValueError:
+            rank = len(student_scores)
+        
+        # 计算参与率
+        participation_rate = 100 if submissions else 0
+        
         # 计算平均反应时间
         if submissions:
             avg_response_time = sum(s.answer_time for s in submissions) / len(submissions)
@@ -814,7 +842,7 @@ def generate_student_report(student_identifier):
                 class_round_stats.append(round_stat)
         
         return render_template(
-            'student_report.html',
+            'course_detail_report.html',
             student=student,
             student_name=student.name,
             total_rounds=total_rounds,
@@ -843,7 +871,8 @@ def generate_student_report(student_identifier):
             class_total_accuracy=class_total_accuracy,
             class_total_participation=class_total_participation,
             class_total_rounds=class_total_rounds,
-            class_round_stats=class_round_stats
+            class_round_stats=class_round_stats,
+            rank=rank
         )
         
     except Exception as e:
@@ -946,7 +975,15 @@ def student_report_center(student_id):
             'student_report_center.html',
             student=student,
             class_obj=class_obj,
-            courses_data=courses_data
+            courses_data=courses_data,
+            # 添加单课程报告所需的数据
+            course_data=courses_data[0] if courses_data else None,
+            current_date=datetime.now().strftime('%Y年%m月%d日'),
+            participation_rate=round(courses_data[0]['participation_rate'], 1) if courses_data else 0,
+            accuracy=round(courses_data[0]['accuracy'], 1) if courses_data else 0,
+            total_score=courses_data[0]['score'] if courses_data else 0,
+            rank=courses_data[0]['rank'] if courses_data else 0,
+            submissions=[]  # 这里需要根据具体课程获取提交记录
         )
         
     except Exception as e:
