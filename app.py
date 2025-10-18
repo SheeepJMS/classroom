@@ -596,10 +596,17 @@ def generate_report(course_id):
 
 @app.route('/generate_student_report/<student_identifier>')
 def generate_student_report(student_identifier):
-    """生成学生个人报告 - 支持通过ID或姓名查找学生"""
+    """生成学生个人报告 - 支持通过ID或姓名查找学生，支持特定课程"""
     try:
-        # 获取当前活跃的课程
-        current_course = Course.query.filter_by(is_active=True).first()
+        # 获取课程ID参数
+        course_id = request.args.get('course_id')
+        
+        # 获取当前活跃的课程或指定课程
+        if course_id:
+            current_course = Course.query.get(course_id)
+        else:
+            current_course = Course.query.filter_by(is_active=True).first()
+            
         if not current_course:
             return redirect(url_for('index'))
         
@@ -724,6 +731,15 @@ def generate_student_report(student_identifier):
         # 计算其他需要的变量
         current_date = datetime.now().strftime('%Y年%m月%d日')
         
+        # 调试信息
+        print(f"DEBUG: 学生ID: {student.id}, 班级ID: {student.class_id}")
+        print(f"DEBUG: 课程ID: {current_course.id}, 课程名称: {current_course.name}")
+        print(f"DEBUG: 班级对象: {class_obj}")
+        if class_obj:
+            print(f"DEBUG: 竞赛目标ID: {class_obj.competition_goal_id}")
+        print(f"DEBUG: 学生提交记录数: {len(submissions)}")
+        print(f"DEBUG: 课程轮次数: {len(course_rounds) if 'course_rounds' in locals() else '未计算'}")
+        
         # 获取竞赛目标信息
         competition_goal_name = '暂无竞赛目标'
         competition_goal_date = '暂无日期'
@@ -741,8 +757,11 @@ def generate_student_report(student_identifier):
                         days_to_competition = max(0, days_diff)
                         # 假设每周2节课
                         classes_before_competition = max(0, days_diff // 7 * 2)
-            except:
+            except Exception as e:
+                print(f"获取竞赛目标失败: {e}")
                 pass
+        else:
+            print(f"班级对象: {class_obj}, 竞赛目标ID: {class_obj.competition_goal_id if class_obj else 'None'}")
         
         # 计算总分和可能的总分
         total_possible_score = total_rounds  # 假设每题1分
@@ -758,25 +777,39 @@ def generate_student_report(student_identifier):
             'focus_feedback': '继续保持良好的学习状态！' if accuracy >= 80 else '需要加强练习，提高准确率。'
         }
         
+        # 获取该课程的所有轮次
+        course_rounds = CourseRound.query.filter_by(course_id=current_course.id).order_by(CourseRound.round_number).all()
+        
         # 班级总体统计
         class_total_accuracy = round(class_avg_accuracy, 1)
         class_total_participation = round(class_avg_participation, 1)
-        class_total_rounds = total_rounds  # 简化计算
+        class_total_rounds = len(course_rounds) if course_rounds else total_rounds
         
         # 班级轮次统计
         class_round_stats = []
-        for i in range(1, class_total_rounds + 1):
-            round_submissions = StudentSubmission.query.join(CourseRound).filter(
-                CourseRound.course_id == current_course.id,
-                CourseRound.round_number == i
-            ).all()
+        
+        for round_obj in course_rounds:
+            # 获取该轮次中当前学生的提交记录
+            student_submission = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                round_id=round_obj.id
+            ).first()
             
-            if round_submissions:
+            if student_submission:
                 round_stat = {
-                    'round_num': i,
-                    'question_score': round_submissions[0].round_ref.question_score if hasattr(round_submissions[0], 'round_ref') else 1,
-                    'answer_time': round_submissions[0].answer_time,
-                    'is_correct': round_submissions[0].is_correct
+                    'round_num': round_obj.round_number,
+                    'question_score': round_obj.question_score or 1,
+                    'answer_time': student_submission.answer_time,
+                    'is_correct': student_submission.is_correct
+                }
+                class_round_stats.append(round_stat)
+            else:
+                # 学生未参与该轮次
+                round_stat = {
+                    'round_num': round_obj.round_number,
+                    'question_score': round_obj.question_score or 1,
+                    'answer_time': 0,
+                    'is_correct': False
                 }
                 class_round_stats.append(round_stat)
         
@@ -815,6 +848,109 @@ def generate_student_report(student_identifier):
         
     except Exception as e:
         return f'生成学生报告失败: {str(e)}', 500
+
+
+@app.route('/student_report_center/<student_id>')
+def student_report_center(student_id):
+    """学生报告中心页面 - 移动端优化"""
+    try:
+        # 使用原生SQL查询学生信息
+        result = db.session.execute(
+            text("SELECT id, name, class_id, created_date FROM students WHERE id = :student_id"),
+            {'student_id': student_id}
+        )
+        student_data = result.fetchone()
+        
+        if not student_data:
+            return f'学生不存在: {student_id}', 404
+        
+        # 创建临时学生对象
+        class TempStudent:
+            def __init__(self, id, name, class_id, created_date):
+                self.id = id
+                self.name = name
+                self.class_id = class_id
+                self.created_date = created_date
+        
+        student = TempStudent(*student_data)
+        
+        # 获取班级信息
+        class_obj = Class.query.get(student.class_id)
+        
+        # 获取该学生参与的所有课程
+        courses_data = []
+        courses = Course.query.filter_by(class_id=student.class_id).order_by(Course.created_date.desc()).all()
+        
+        for course in courses:
+            # 计算该学生在当前课程中的表现
+            submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == course.id
+            ).all()
+            
+            if submissions:
+                total_rounds = len(submissions)
+                correct_rounds = sum(1 for s in submissions if s.is_correct)
+                accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
+                
+                # 计算总分
+                total_score = 0
+                for s in submissions:
+                    if s.is_correct:
+                        round_obj = CourseRound.query.get(s.round_id)
+                        if round_obj and round_obj.question_score:
+                            total_score += round_obj.question_score
+                        else:
+                            total_score += 1
+                
+                # 计算参与率（简化计算）
+                participation_rate = 100
+                
+                # 计算排名（简化计算）
+                all_students = get_students_by_class_id(student.class_id)
+                student_scores = []
+                for class_student in all_students:
+                    class_submissions = StudentSubmission.query.join(CourseRound).filter(
+                        StudentSubmission.student_id == class_student.id,
+                        CourseRound.course_id == course.id
+                    ).all()
+                    
+                    class_score = 0
+                    for s in class_submissions:
+                        if s.is_correct:
+                            round_obj = CourseRound.query.get(s.round_id)
+                            if round_obj and round_obj.question_score:
+                                class_score += round_obj.question_score
+                            else:
+                                class_score += 1
+                    student_scores.append(class_score)
+                
+                student_scores.sort(reverse=True)
+                try:
+                    rank = student_scores.index(total_score) + 1
+                except ValueError:
+                    rank = len(student_scores)
+                
+                courses_data.append({
+                    'course': course,
+                    'date': course.created_date.strftime('%Y年%m月%d日'),
+                    'course_name': course.name,
+                    'participation_rate': round(participation_rate, 1),
+                    'accuracy': round(accuracy, 1),
+                    'score': total_score,
+                    'rank': rank,
+                    'total_students': len(all_students)
+                })
+        
+        return render_template(
+            'student_report_center.html',
+            student=student,
+            class_obj=class_obj,
+            courses_data=courses_data
+        )
+        
+    except Exception as e:
+        return f'生成报告中心失败: {str(e)}', 500
 
 
 def get_students_by_class_id(class_id):

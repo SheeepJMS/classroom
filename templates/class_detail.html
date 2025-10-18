@@ -216,6 +216,19 @@
     background: #e9ecef;
 }
 
+.student-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    margin-top: 10px;
+}
+
+.student-actions .btn {
+    width: 100%;
+    font-size: 12px;
+    padding: 6px 8px;
+}
+
 .student-name {
     font-weight: 600;
     color: #2c3e50;
@@ -493,9 +506,14 @@
                             ABSENCES: 0<br>
                             SCORE: 0
                         </div>
-                        <button class="btn btn-danger btn-sm mt-2" onclick="graduateStudent('{{ student.id }}')" title="删除学生">
-                            <i class="fas fa-trash"></i>
-                        </button>
+                        <div class="student-actions">
+                            <a href="/student_report_center/{{ student.id }}" class="btn btn-primary btn-sm mb-2" title="报告中心">
+                                <i class="fas fa-chart-line"></i> 报告中心
+                            </a>
+                            <button class="btn btn-danger btn-sm" onclick="graduateStudent('{{ student.id }}')" title="删除学生">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
                     </div>
                     {% endfor %}
                 </div>
