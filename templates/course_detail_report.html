@@ -183,7 +183,7 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 12px 0;
+            padding: 15px 0;
             border-bottom: 1px solid #f0f0f0;
         }
         
@@ -195,11 +195,12 @@
             display: flex;
             align-items: center;
             gap: 12px;
+            flex: 1;
         }
         
         .question-number {
-            width: 32px;
-            height: 32px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
             background: linear-gradient(45deg, #667eea, #764ba2);
             color: white;
@@ -208,6 +209,7 @@
             justify-content: center;
             font-size: 14px;
             font-weight: 600;
+            flex-shrink: 0;
         }
         
         .question-details {
@@ -218,18 +220,58 @@
             font-size: 14px;
             font-weight: 600;
             color: #2c3e50;
-            margin-bottom: 4px;
+            margin-bottom: 6px;
         }
         
         .question-meta {
             font-size: 12px;
             color: #6c757d;
+            margin-bottom: 4px;
+        }
+        
+        .question-stats {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+        }
+        
+        .stat-icon {
+            font-size: 12px;
+        }
+        
+        .participation-status {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: 600;
+        }
+        
+        .participated {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .not-participated {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .difficulty-stars {
+            color: #ffc107;
         }
         
         .question-status {
             display: flex;
-            align-items: center;
-            gap: 8px;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
         }
         
         .status-icon {
@@ -349,39 +391,56 @@
             </div>
         </div>
         
-        <!-- 学习趋势图 -->
+        <!-- 课堂平均表现趋势图 -->
         <div class="chart-section">
-            <div class="chart-title">学习表现趋势</div>
+            <div class="chart-title">课堂平均表现趋势</div>
             <div class="chart-container">
-                <canvas id="performanceChart"></canvas>
+                <canvas id="classAverageChart"></canvas>
             </div>
         </div>
         
         <!-- 题目参与记录 -->
         <div class="questions-section">
             <div class="chart-title">题目参与记录</div>
-            {% if submissions %}
-                {% for submission in submissions %}
+            {% if class_round_stats %}
+                {% for round_stat in class_round_stats %}
                 <div class="question-item">
                     <div class="question-info">
-                        <div class="question-number">{{ loop.index }}</div>
+                        <div class="question-number">{{ round_stat.round_num }}</div>
                         <div class="question-details">
-                            <div class="question-title">第{{ loop.index }}题</div>
+                            <div class="question-title">第{{ round_stat.round_num }}题</div>
                             <div class="question-meta">
-                                答案: {{ submission.answer if submission.answer else '未作答' }}
-                                {% if submission.answer_time %}
-                                | 用时: {{ "%.1f"|format(submission.answer_time) }}秒
-                                {% endif %}
+                                答案: {{ round_stat.answer if round_stat.answer else '未作答' }}
+                            </div>
+                            <div class="question-stats">
+                                <div class="stat-item">
+                                    <i class="fas fa-users stat-icon"></i>
+                                    <span class="participation-status {% if round_stat.participated %}participated{% else %}not-participated{% endif %}">
+                                        {% if round_stat.participated %}参与{% else %}未参与{% endif %}
+                                    </span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-star stat-icon difficulty-stars"></i>
+                                    <span>{{ round_stat.difficulty_stars or '★★★' }}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas {% if round_stat.is_correct %}fa-check-circle{% else %}fa-times-circle{% endif %} stat-icon"></i>
+                                    <span>{% if round_stat.is_correct %}正确{% else %}错误{% endif %}</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="fas fa-clock stat-icon"></i>
+                                    <span>{{ "%.1f"|format(round_stat.answer_time) }}秒</span>
+                                </div>
                             </div>
                         </div>
                     </div>
                     <div class="question-status">
-                        <div class="status-icon {% if submission.is_correct %}status-correct{% else %}status-incorrect{% endif %}">
-                            <i class="fas {% if submission.is_correct %}fa-check{% else %}fa-times{% endif %}"></i>
+                        <div class="status-icon {% if round_stat.is_correct %}status-correct{% else %}status-incorrect{% endif %}">
+                            <i class="fas {% if round_stat.is_correct %}fa-check{% else %}fa-times{% endif %}"></i>
                         </div>
                         <div class="status-time">
-                            {% if submission.is_correct %}
-                                +{{ submission.round_ref.question_score if submission.round_ref and submission.round_ref.question_score else 1 }}分
+                            {% if round_stat.is_correct %}
+                                +{{ round_stat.question_score }}分
                             {% else %}
                                 0分
                             {% endif %}
@@ -402,21 +461,45 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
-        // 创建学习表现趋势图
-        const ctx = document.getElementById('performanceChart').getContext('2d');
-        const performanceChart = new Chart(ctx, {
+        // 创建课堂平均表现趋势图 - 每一题的课堂平均参与率和正确率
+        const ctx = document.getElementById('classAverageChart').getContext('2d');
+        const classAverageChart = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: ['参与率', '正确率', '得分', '排名'],
+                labels: [
+                    {% for round_stat in class_round_stats %}
+                    '第{{ round_stat.round_num }}题'{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ],
                 datasets: [{
-                    label: '表现指标',
-                    data: [{{ participation_rate }}, {{ accuracy }}, {{ total_score }}, {{ rank }}],
+                    label: '课堂平均参与率 (%)',
+                    data: [
+                        {% for round_stat in class_round_stats %}
+                        {{ round_stat.class_avg_participation or 100 }}{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
                     borderColor: 'rgba(102, 126, 234, 1)',
                     backgroundColor: 'rgba(102, 126, 234, 0.1)',
                     borderWidth: 3,
                     fill: true,
                     tension: 0.4,
                     pointBackgroundColor: 'rgba(102, 126, 234, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2,
+                    pointRadius: 6
+                }, {
+                    label: '课堂平均正确率 (%)',
+                    data: [
+                        {% for round_stat in class_round_stats %}
+                        {{ round_stat.class_avg_accuracy or 0 }}{% if not loop.last %},{% endif %}
+                        {% endfor %}
+                    ],
+                    borderColor: 'rgba(118, 75, 162, 1)',
+                    backgroundColor: 'rgba(118, 75, 162, 0.1)',
+                    borderWidth: 3,
+                    fill: true,
+                    tension: 0.4,
+                    pointBackgroundColor: 'rgba(118, 75, 162, 1)',
                     pointBorderColor: '#fff',
                     pointBorderWidth: 2,
                     pointRadius: 6
@@ -427,12 +510,20 @@
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        display: false
+                        display: true,
+                        position: 'top',
+                        labels: {
+                            padding: 20,
+                            font: {
+                                size: 12
+                            }
+                        }
                     }
                 },
                 scales: {
                     y: {
                         beginAtZero: true,
+                        max: 100,
                         grid: {
                             color: 'rgba(0, 0, 0, 0.1)'
                         }

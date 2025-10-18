@@ -823,12 +823,37 @@ def generate_student_report(student_identifier):
                 round_id=round_obj.id
             ).first()
             
+            # 计算该轮次的课堂平均参与率和正确率
+            all_students = get_students_by_class_id(current_course.class_id)
+            total_students = len(all_students)
+            participated_students = 0
+            correct_students = 0
+            
+            for class_student in all_students:
+                class_submission = StudentSubmission.query.filter_by(
+                    student_id=class_student.id,
+                    round_id=round_obj.id
+                ).first()
+                
+                if class_submission:
+                    participated_students += 1
+                    if class_submission.is_correct:
+                        correct_students += 1
+            
+            class_avg_participation = (participated_students / total_students * 100) if total_students > 0 else 0
+            class_avg_accuracy = (correct_students / participated_students * 100) if participated_students > 0 else 0
+            
             if student_submission:
                 round_stat = {
                     'round_num': round_obj.round_number,
                     'question_score': round_obj.question_score or 1,
                     'answer_time': student_submission.answer_time,
-                    'is_correct': student_submission.is_correct
+                    'is_correct': student_submission.is_correct,
+                    'answer': student_submission.answer,
+                    'participated': True,
+                    'difficulty_stars': '★★★',  # 默认难度
+                    'class_avg_participation': round(class_avg_participation, 1),
+                    'class_avg_accuracy': round(class_avg_accuracy, 1)
                 }
                 class_round_stats.append(round_stat)
             else:
@@ -837,7 +862,12 @@ def generate_student_report(student_identifier):
                     'round_num': round_obj.round_number,
                     'question_score': round_obj.question_score or 1,
                     'answer_time': 0,
-                    'is_correct': False
+                    'is_correct': False,
+                    'answer': None,
+                    'participated': False,
+                    'difficulty_stars': '★★★',  # 默认难度
+                    'class_avg_participation': round(class_avg_participation, 1),
+                    'class_avg_accuracy': round(class_avg_accuracy, 1)
                 }
                 class_round_stats.append(round_stat)
         
