@@ -133,6 +133,32 @@ def assign_goal_to_class():
         return jsonify({'success': False, 'message': f'分配竞赛目标失败: {str(e)}'}), 500
 
 
+@app.route('/api/get_competition_goals')
+def get_competition_goals():
+    """获取所有竞赛目标"""
+    try:
+        goals = CompetitionGoal.query.order_by(CompetitionGoal.created_date.desc()).all()
+        goals_data = []
+        for goal in goals:
+            goals_data.append({
+                'id': goal.id,
+                'title': goal.title,
+                'description': goal.description,
+                'target_score': goal.target_score,
+                'goal_date': goal.goal_date.strftime('%Y-%m-%d') if goal.goal_date else None,
+                'created_date': goal.created_date.strftime('%Y-%m-%d') if goal.created_date else None
+            })
+        
+        return jsonify({
+            'success': True,
+            'goals': goals_data
+        })
+        
+    except Exception as e:
+        print(f"获取竞赛目标时发生错误: {e}")
+        return jsonify({'success': False, 'message': f'获取竞赛目标失败: {str(e)}'}), 500
+
+
 @app.route('/api/add_student', methods=['POST'])
 def add_student():
     """添加学生API"""
