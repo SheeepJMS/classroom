@@ -228,7 +228,19 @@ def start_course():
 
         print(f"DEBUG: Found class: {class_obj.name}")
 
-        # 停用该班级的所有活跃课程
+        # 检查是否已有活跃课程
+        existing_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        
+        if existing_course:
+            # 如果已有活跃课程，直接返回现有课程
+            print(f"DEBUG: Found existing active course: {existing_course.id}")
+            return jsonify({
+                'success': True,
+                'message': '课程已存在',
+                'course_id': existing_course.id
+            })
+        
+        # 停用该班级的所有活跃课程（理论上不应该有，但为了安全）
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
 
         # 创建新课程
