@@ -1257,12 +1257,24 @@ def class_detail(class_id):
                 'id': goal_obj.id,
                 'title': goal_obj.title,
                 'name': goal_obj.title,
-                'goal_date': None
+                'description': goal_obj.description,
+                'goal_date': goal_obj.goal_date,
+                'created_date': goal_obj.created_date
             }
+            
+            # 计算真实的日期进度
+            days_left = 0
+            weeks_left = 0
+            if goal_obj.goal_date:
+                from datetime import date
+                today = date.today()
+                days_left = (goal_obj.goal_date - today).days
+                weeks_left = days_left // 7 if days_left > 0 else 0
+            
             goal_progress = {
-                'days_left': 77,
-                'weeks_left': 11,
-                'lessons_left': 22
+                'days_left': days_left,
+                'weeks_left': weeks_left,
+                'lessons_left': 22  # 暂时保持硬编码，可以后续优化
             }
 
     return render_template(

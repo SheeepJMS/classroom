@@ -773,9 +773,9 @@ function loadCompetitionGoals() {
                 goalItem.onclick = () => selectCompetitionGoal(goal.id);
                 
                 goalItem.innerHTML = `
-                    <div class="goal-name">${goal.name}</div>
-                    <div class="goal-description">${goal.description}</div>
-                    <div class="goal-date">目标日期: ${goal.goal_date}</div>
+                    <div class="goal-name">${goal.title}</div>
+                    <div class="goal-description">${goal.description || '暂无描述'}</div>
+                    <div class="goal-date">目标日期: ${goal.goal_date || '未设置'}</div>
                 `;
                 
                 goalsList.appendChild(goalItem);
