@@ -605,9 +605,8 @@ def judge_answers():
                 CourseRound.course_id == current_course.id
             ).all()
             
-            # 获取课程中的所有轮次（学生应该参与的轮次总数）
-            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-            total_rounds = len(all_course_rounds)
+            # 学生实际参与的轮次数（每个submission代表参与了一个轮次）
+            total_rounds = len(all_submissions)
             
             for sub in all_submissions:
                 if sub.is_correct:
@@ -651,10 +650,18 @@ def judge_answers():
         # 提交所有更改到数据库
         db.session.commit()
         
+        # 获取当前轮次号
+        current_round_obj = CourseRound.query.filter_by(
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
+        
+        current_round_number = current_round_obj.round_number if current_round_obj else 1
+        
         return jsonify({
             'success': True,
             'message': '答案判断完成',
             'course_id': current_course.id,
+            'current_round': current_round_number,
             'students': students_data
         })
 
@@ -1378,9 +1385,8 @@ def get_classroom_data():
                     CourseRound.course_id == current_course.id
                 ).all()
                 
-                # 获取课程中的所有轮次（学生应该参与的轮次总数）
-                all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-                total_rounds = len(all_course_rounds)
+                # 学生实际参与的轮次数（每个submission代表参与了一个轮次）
+                total_rounds = len(submissions)
                 
                 for submission in submissions:
                     if submission.is_correct:
@@ -1478,9 +1484,8 @@ def next_round():
                 CourseRound.course_id == current_course.id
             ).all()
             
-            # 获取课程中的所有轮次（学生应该参与的轮次总数）
-            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-            total_rounds = len(all_course_rounds)
+            # 学生实际参与的轮次数（每个submission代表参与了一个轮次）
+            total_rounds = len(submissions)
             
             for submission in submissions:
                 if submission.is_correct:
