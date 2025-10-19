@@ -599,15 +599,14 @@ def judge_answers():
             last_answer_time = 0
             expression = 'neutral'
             
-            # 获取课程中的所有轮次（学生应该参与的轮次总数）
-            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-            total_rounds = len(all_course_rounds)
-            
             # 获取该学生在当前课程中的所有提交记录（包括刚刚更新的）
             all_submissions = StudentSubmission.query.join(CourseRound).filter(
                 StudentSubmission.student_id == student.id,
                 CourseRound.course_id == current_course.id
             ).all()
+            
+            # 计算学生实际参与的轮次数（累计）
+            total_rounds = len(all_submissions)
             
             for sub in all_submissions:
                 if sub.is_correct:
@@ -1372,15 +1371,14 @@ def get_classroom_data():
             last_answer = ''
             
             if current_course:
-                # 获取课程中的所有轮次（学生应该参与的轮次总数）
-                all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-                total_rounds = len(all_course_rounds)
-                
                 # 获取该学生在当前课程中的所有提交记录
                 submissions = StudentSubmission.query.join(CourseRound).filter(
                     StudentSubmission.student_id == student.id,
                     CourseRound.course_id == current_course.id
                 ).all()
+                
+                # 计算学生实际参与的轮次数（累计）
+                total_rounds = len(submissions)
                 
                 for submission in submissions:
                     if submission.is_correct:
@@ -1473,14 +1471,13 @@ def next_round():
             total_rounds = 0
             correct_rounds = 0
             
-            # 获取课程中的所有轮次（学生应该参与的轮次总数）
-            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
-            total_rounds = len(all_course_rounds)
-            
             submissions = StudentSubmission.query.join(CourseRound).filter(
                 StudentSubmission.student_id == student.id,
                 CourseRound.course_id == current_course.id
             ).all()
+            
+            # 计算学生实际参与的轮次数（累计）
+            total_rounds = len(submissions)
             
             for submission in submissions:
                 if submission.is_correct:
