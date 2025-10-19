@@ -652,7 +652,6 @@ def judge_answers():
             'success': True,
             'message': '答案判断完成',
             'course_id': current_course.id,
-            'current_round': current_round_number,
             'students': students_data
         })
 

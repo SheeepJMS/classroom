@@ -844,10 +844,8 @@ function stopTimer() {
                     classroomData.students = data.students;
                     classroomData.round_active = false;
                     
-                    // 更新当前轮次（如果后端返回了）
-                    if (data.current_round !== undefined) {
-                        classroomData.current_round = data.current_round;
-                    }
+                    // 不要更新当前轮次，评判完成后应该保持当前轮次不变
+                    // 轮次只有在点击"Next Challenge"时才会改变
                     
                     console.log('更新后的学生数据:', classroomData.students);
                     console.log('评判后的轮次:', classroomData.current_round);
