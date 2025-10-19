@@ -172,11 +172,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Loaded classroom data:', data);
             classroomData = data;
             
-            // 重置当前轮次的答题状态（保留数据和回合数）
-            classroomData.round_active = false;
-            classroomData.current_answers = {};
-            classroomData.answer_times = {};
-            classroomData.start_time = null;
+            // 不要强制重置轮次状态，保持服务器返回的状态
+            // classroomData.round_active = false;  // 移除这行
+            // classroomData.current_answers = {};   // 移除这行
+            // classroomData.answer_times = {};      // 移除这行
+            // classroomData.start_time = null;      // 移除这行
             
             console.log('About to call updateStudentsDisplay');
             updateStudentsDisplay();
