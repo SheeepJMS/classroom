@@ -1244,6 +1244,9 @@ function nextRound() {
             classroomData.current_round = data.round;
             classroomData.round_active = false;
             
+            // 更新轮次显示
+            updateRoundStatus();
+            
             // 重置UI - 添加安全检查
             const nextRoundBtn = document.getElementById('nextRoundBtn');
             const startBtn = document.getElementById('startBtn');
