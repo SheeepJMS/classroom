@@ -576,6 +576,18 @@ def judge_answers():
                 round_id=current_round.id if current_round else None
             ).first()
             
+            # 先更新当前轮次的提交记录状态
+            if submission:
+                # 学生已提交，判断答案对错
+                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
+                submission.is_correct = is_correct
+                
+                # 保存提交记录的更新
+                db.session.add(submission)
+            
+            # 提交当前轮次的更新
+            db.session.flush()
+            
             # 计算学生的累计统计数据
             total_score = 0
             total_rounds = 0
@@ -588,7 +600,7 @@ def judge_answers():
             all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
             total_rounds = len(all_course_rounds)
             
-            # 获取该学生在当前课程中的所有提交记录
+            # 获取该学生在当前课程中的所有提交记录（包括刚刚更新的）
             all_submissions = StudentSubmission.query.join(CourseRound).filter(
                 StudentSubmission.student_id == student.id,
                 CourseRound.course_id == current_course.id
@@ -612,14 +624,7 @@ def judge_answers():
             
             # 根据当前轮次提交情况确定学生状态
             if submission:
-                # 学生已提交，判断答案对错
-                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
-                submission.is_correct = is_correct
-                
-                # 保存提交记录的更新
-                db.session.add(submission)
-                
-                if is_correct:
+                if submission.is_correct:
                     expression = 'smile'
                 else:
                     expression = 'angry'
@@ -639,10 +644,6 @@ def judge_answers():
                 'answers': [],
                 'last_answer': last_answer
             }
-        
-        # 保存提交记录的更新
-        if current_round:
-            db.session.commit()
         
         # 提交所有更改到数据库
         db.session.commit()
