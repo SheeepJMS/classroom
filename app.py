@@ -82,6 +82,39 @@ def create_competition_goal():
             {'success': False, 'message': f'创建竞赛目标失败: {str(e)}'}), 500
 
 
+@app.route('/api/assign_goal_to_class', methods=['POST'])
+def assign_goal_to_class():
+    """分配竞赛目标到班级"""
+    try:
+        data = request.get_json()
+        goal_id = data.get('goal_id')
+        class_id = data.get('class_id')
+        
+        if not goal_id or not class_id:
+            return jsonify({'success': False, 'message': '竞赛目标ID和班级ID不能为空'}), 400
+        
+        # 验证竞赛目标是否存在
+        goal = CompetitionGoal.query.get(goal_id)
+        if not goal:
+            return jsonify({'success': False, 'message': '竞赛目标不存在'}), 404
+        
+        # 获取班级对象
+        class_obj = Class.query.get(class_id)
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+        
+        # 分配竞赛目标到班级（持久化到数据库）
+        class_obj.competition_goal_id = goal_id
+        db.session.commit()
+        
+        return jsonify({'success': True, 'message': '竞赛目标分配成功'})
+        
+    except Exception as e:
+        db.session.rollback()
+        print(f"分配竞赛目标时发生错误: {e}")
+        return jsonify({'success': False, 'message': f'分配竞赛目标失败: {str(e)}'}), 500
+
+
 @app.route('/api/add_student', methods=['POST'])
 def add_student():
     """添加学生API"""
@@ -1096,8 +1129,8 @@ def index():
     """首页"""
     # 使用原生SQL查询避免status字段问题
     try:
-        # 获取班级数据
-        result = db.session.execute(text("SELECT id, name, created_date, competition_goal_id FROM classes ORDER BY created_date DESC"))
+        # 获取班级数据（只显示未结束的班级）
+        result = db.session.execute(text("SELECT id, name, created_date, competition_goal_id FROM classes WHERE ended_date IS NULL ORDER BY created_date DESC"))
         raw_classes = result.fetchall()
         
         # 创建临时班级对象列表
