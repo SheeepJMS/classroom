@@ -607,6 +607,7 @@ def judge_answers():
             
             # 学生实际参与的轮次数（每个submission代表参与了一个轮次）
             total_rounds = len(all_submissions)
+            print(f"DEBUG: 学生 {student.name} 的提交记录数: {total_rounds}")
             
             for sub in all_submissions:
                 if sub.is_correct:
@@ -614,8 +615,10 @@ def judge_answers():
                     round_obj = CourseRound.query.get(sub.round_id)
                     if round_obj and round_obj.question_score:
                         total_score += round_obj.question_score
+                        print(f"DEBUG: 学生 {student.name} 轮次 {round_obj.round_number} 答对，得分: {round_obj.question_score}")
                     else:
                         total_score += 1  # 默认分数
+                        print(f"DEBUG: 学生 {student.name} 轮次答对，默认得分: 1")
                     correct_rounds += 1
             
             # 获取最新答案
@@ -649,6 +652,7 @@ def judge_answers():
         
         # 提交所有更改到数据库
         db.session.commit()
+        print(f"DEBUG: judge_answers - 已提交数据库更改，当前轮次: {current_round_number}")
         
         # 获取当前轮次号
         current_round_obj = CourseRound.query.filter_by(
@@ -1468,6 +1472,7 @@ def next_round():
         )
         db.session.add(new_round)
         db.session.commit()
+        print(f"DEBUG: next_round - 已创建新轮次 {next_round_number}，课程ID: {current_course.id}")
 
         # 获取班级学生数据并重置状态（临时移除status过滤）
         students = get_students_by_class_id(class_id)
