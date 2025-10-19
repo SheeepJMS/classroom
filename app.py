@@ -80,6 +80,13 @@ def create_competition_goal():
             goal_date=goal_date_obj)
         db.session.add(new_goal)
         db.session.commit()
+        
+        # 调试信息
+        print(f"DEBUG: 竞赛目标创建成功 - ID: {new_goal.id}, 标题: {new_goal.title}")
+        
+        # 验证数据是否真的保存了
+        saved_goal = CompetitionGoal.query.get(new_goal.id)
+        print(f"DEBUG: 验证保存 - 查询到的目标: {saved_goal.title if saved_goal else 'None'}")
 
         return jsonify({
             'success': True,
@@ -1187,6 +1194,11 @@ def index():
     goals = CompetitionGoal.query.order_by(
         CompetitionGoal.created_date.desc()).all()
     
+    # 调试信息
+    print(f"DEBUG: 查询到 {len(goals)} 个竞赛目标")
+    for goal in goals:
+        print(f"DEBUG: 竞赛目标 - ID: {goal.id}, 标题: {goal.title}, 创建时间: {goal.created_date}")
+    
     # 临时使用原生SQL查询避免status字段问题
     try:
         result = db.session.execute(text("SELECT COUNT(*) FROM students"))
@@ -1198,7 +1210,7 @@ def index():
     return render_template(
         'homepage.html',
         classes=classes,
-        goals=goals,
+        competition_goals=goals,
         total_students=total_students)
 
 
