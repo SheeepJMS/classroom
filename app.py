@@ -1258,23 +1258,26 @@ def class_detail(class_id):
                 'title': goal_obj.title,
                 'name': goal_obj.title,
                 'description': goal_obj.description,
-                'goal_date': goal_obj.goal_date,
-                'created_date': goal_obj.created_date
+                'goal_date': goal_obj.goal_date.strftime('%Y-%m-%d') if goal_obj.goal_date else None,
+                'created_date': goal_obj.created_date.strftime('%Y-%m-%d') if goal_obj.created_date else None
             }
             
             # 计算真实的日期进度
             days_left = 0
             weeks_left = 0
+            lessons_left = 0
             if goal_obj.goal_date:
                 from datetime import date
                 today = date.today()
-                days_left = (goal_obj.goal_date - today).days
-                weeks_left = days_left // 7 if days_left > 0 else 0
+                days_left = max(0, (goal_obj.goal_date - today).days)
+                weeks_left = max(0, days_left // 7)
+                # 假设每周2节课，剩余上课数 = 剩余周数 * 2
+                lessons_left = max(0, weeks_left * 2)
             
             goal_progress = {
                 'days_left': days_left,
                 'weeks_left': weeks_left,
-                'lessons_left': 22  # 暂时保持硬编码，可以后续优化
+                'lessons_left': lessons_left
             }
 
     return render_template(
