@@ -605,8 +605,9 @@ def judge_answers():
                 CourseRound.course_id == current_course.id
             ).all()
             
-            # 计算学生实际参与的轮次数（累计）
-            total_rounds = len(all_submissions)
+            # 获取课程中的所有轮次（学生应该参与的轮次总数）
+            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+            total_rounds = len(all_course_rounds)
             
             for sub in all_submissions:
                 if sub.is_correct:
@@ -1377,8 +1378,9 @@ def get_classroom_data():
                     CourseRound.course_id == current_course.id
                 ).all()
                 
-                # 计算学生实际参与的轮次数（累计）
-                total_rounds = len(submissions)
+                # 获取课程中的所有轮次（学生应该参与的轮次总数）
+                all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+                total_rounds = len(all_course_rounds)
                 
                 for submission in submissions:
                     if submission.is_correct:
@@ -1476,8 +1478,9 @@ def next_round():
                 CourseRound.course_id == current_course.id
             ).all()
             
-            # 计算学生实际参与的轮次数（累计）
-            total_rounds = len(submissions)
+            # 获取课程中的所有轮次（学生应该参与的轮次总数）
+            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+            total_rounds = len(all_course_rounds)
             
             for submission in submissions:
                 if submission.is_correct:
