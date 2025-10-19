@@ -228,43 +228,11 @@ def start_course():
 
         print(f"DEBUG: Found class: {class_obj.name}")
 
-        # 检查是否已有活跃课程
-        existing_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        # 强制停用该班级的所有课程，确保创建全新的课程
+        Course.query.filter_by(class_id=class_id).update({'is_active': False})
+        db.session.commit()
         
-        if existing_course:
-            # 如果已有活跃课程，创建新的轮次并返回现有课程
-            print(f"DEBUG: Found existing active course: {existing_course.id}")
-            
-            # 获取下一个轮次号
-            latest_round = CourseRound.query.filter_by(
-                course_id=existing_course.id
-            ).order_by(CourseRound.round_number.desc()).first()
-            
-            next_round_number = 1
-            if latest_round:
-                next_round_number = latest_round.round_number + 1
-            
-            # 创建新的轮次记录
-            new_round = CourseRound(
-                course_id=existing_course.id,
-                round_number=next_round_number,
-                question_text="数学题目",  # 暂时使用默认值
-                correct_answer="1",  # 暂时使用默认值
-                question_score=1
-            )
-            db.session.add(new_round)
-            db.session.commit()
-            
-            print(f"DEBUG: Created new round {next_round_number} for existing course")
-            
-            return jsonify({
-                'success': True,
-                'message': '课程已存在，新轮次已创建',
-                'course_id': existing_course.id
-            })
-        
-        # 停用该班级的所有活跃课程（理论上不应该有，但为了安全）
-        Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False})
+        print(f"DEBUG: All courses for class {class_id} have been deactivated")
 
         # 创建新课程
         course_name = data.get('course_name') or f"课堂 {datetime.now().strftime('%Y-%m-%d %H:%M')}"
