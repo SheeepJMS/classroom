@@ -59,14 +59,25 @@ def create_competition_goal():
         title = data.get('title', data.get('name', '')).strip()
         description = data.get('description', '').strip()
         target_score = data.get('target_score', 100)
+        goal_date = data.get('goal_date')
 
         if not title:
             return jsonify({'success': False, 'message': '竞赛目标名称不能为空'}), 400
 
+        # 处理日期格式
+        goal_date_obj = None
+        if goal_date:
+            try:
+                from datetime import datetime
+                goal_date_obj = datetime.strptime(goal_date, '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'message': '日期格式错误，请使用YYYY-MM-DD格式'}), 400
+
         new_goal = CompetitionGoal(
             title=title,
             description=description,
-            target_score=target_score)
+            target_score=target_score,
+            goal_date=goal_date_obj)
         db.session.add(new_goal)
         db.session.commit()
 
