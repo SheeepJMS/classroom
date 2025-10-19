@@ -1403,7 +1403,7 @@ function changeScore(delta) {
 function endClass() {
     if (confirm('确定要结束课堂吗？将进入颁奖典礼！')) {
         // 跳转到颁奖典礼页面
-        window.location.href = '/ceremony';
+        window.location.href = '/ceremony/{{ class_obj.id }}';
     }
 }
 </script>

@@ -368,17 +368,26 @@ def submit_student_answer():
         except Exception as e:
             return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
 
+        # 获取当前轮次号
+        latest_round = CourseRound.query.filter_by(
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
+        
+        current_round_number = 1
+        if latest_round:
+            current_round_number = latest_round.round_number
+            
         # 获取或创建当前轮次
         current_round = CourseRound.query.filter_by(
             course_id=current_course.id,
-            round_number=1  # 暂时硬编码为第1轮
+            round_number=current_round_number
         ).first()
         
         if not current_round:
             # 创建新的轮次记录（暂时使用默认值）
             current_round = CourseRound(
                 course_id=current_course.id,
-                round_number=1,
+                round_number=current_round_number,
                 question_text="数学题目",  # 暂时使用默认值
                 correct_answer="1",  # 暂时使用默认值
                 question_score=1
@@ -447,10 +456,19 @@ def judge_answers():
         if not current_course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
+        # 获取当前轮次号
+        latest_round = CourseRound.query.filter_by(
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
+        
+        current_round_number = 1
+        if latest_round:
+            current_round_number = latest_round.round_number
+            
         # 创建或更新当前轮次
         current_round = CourseRound.query.filter_by(
             course_id=current_course.id,
-            round_number=1  # 暂时硬编码为第1轮
+            round_number=current_round_number
         ).first()
         
         if not current_round:
@@ -458,7 +476,7 @@ def judge_answers():
             current_round = CourseRound(
                 id=str(uuid.uuid4()),
                 course_id=current_course.id,
-                round_number=1,
+                round_number=current_round_number,
                 correct_answer=correct_answer,
                 question_score=question_score
             )
@@ -598,32 +616,68 @@ def generate_report(course_id):
 def generate_student_report(student_identifier):
     """生成学生个人报告 - 支持通过ID或姓名查找学生，支持特定课程"""
     try:
-        # 获取课程ID参数
-        course_id = request.args.get('course_id')
-        
-        # 获取当前活跃的课程或指定课程
-        if course_id:
-            current_course = Course.query.get(course_id)
-        else:
-            current_course = Course.query.filter_by(is_active=True).first()
-            
-        if not current_course:
-            return redirect(url_for('index'))
-        
-        # 尝试通过ID查找学生
+        # 先尝试通过ID查找学生
         result = db.session.execute(
             text("SELECT id, name, class_id, created_date FROM students WHERE id = :student_id"),
             {'student_id': student_identifier}
         )
         student_data = result.fetchone()
         
-        # 如果通过ID找不到，尝试通过姓名查找
+        # 如果通过ID找不到，尝试通过姓名查找（需要先确定班级）
         if not student_data:
-            result = db.session.execute(
-                text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name AND class_id = :class_id"),
-                {'student_name': student_identifier, 'class_id': current_course.class_id}
-            )
-            student_data = result.fetchone()
+            # 获取课程ID参数
+            course_id = request.args.get('course_id')
+            
+            # 如果有课程ID，先获取课程信息来确定班级
+            if course_id:
+                current_course = Course.query.get(course_id)
+                if current_course:
+                    result = db.session.execute(
+                        text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name AND class_id = :class_id"),
+                        {'student_name': student_identifier, 'class_id': current_course.class_id}
+                    )
+                    fallback_student_data = result.fetchone()
+                    if fallback_student_data:
+                        student_data = fallback_student_data
+                        # 使用指定的课程
+                        pass  # current_course已经设置
+                    else:
+                        # 尝试在所有班级中查找同名学生
+                        result = db.session.execute(
+                            text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name"),
+                            {'student_name': student_identifier}
+                        )
+                        student_data = result.fetchone()
+                        if student_data:
+                            current_course = Course.query.filter_by(class_id=student_data.class_id, is_active=True).first()
+                else:
+                    return redirect(url_for('index'))
+            else:
+                # 没有课程ID，尝试在所有班级中查找同名学生
+                result = db.session.execute(
+                    text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name"),
+                    {'student_name': student_identifier}
+                )
+                student_data = result.fetchone()
+                if student_data:
+                    current_course = Course.query.filter_by(class_id=student_data.class_id, is_active=True).first()
+                else:
+                    return redirect(url_for('index'))
+        else:
+            # 通过ID找到了学生，获取课程信息
+            course_id = request.args.get('course_id')
+            if course_id:
+                current_course = Course.query.get(course_id)
+                # 确保课程属于该学生班级
+                if current_course and current_course.class_id != student_data.class_id:
+                    # 如果指定的课程不属于学生班级，使用学生班级的活跃课程
+                    current_course = Course.query.filter_by(class_id=student_data.class_id, is_active=True).first()
+            else:
+                # 使用学生班级的活跃课程
+                current_course = Course.query.filter_by(class_id=student_data.class_id, is_active=True).first()
+            
+        if not current_course:
+            return redirect(url_for('index'))
         
         if not student_data:
             return f'学生不存在: {student_identifier}', 404
@@ -936,7 +990,7 @@ def student_report_center(student_id):
         # 获取班级信息
         class_obj = Class.query.get(student.class_id)
         
-        # 获取该学生参与的所有课程
+        # 获取该学生参与的所有课程（确保是当前学生班级的课程）
         courses_data = []
         courses = Course.query.filter_by(class_id=student.class_id).order_by(Course.created_date.desc()).all()
         
@@ -1171,31 +1225,69 @@ def get_classroom_data():
         students = get_students_by_class_id(class_id)
         print(f"DEBUG: Found {len(students)} active students")
         
+        # 检查是否有活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        round_active = current_course is not None
+        
+        # 获取当前轮次号
+        current_round = 1
+        if current_course:
+            latest_round = CourseRound.query.filter_by(
+                course_id=current_course.id
+            ).order_by(CourseRound.round_number.desc()).first()
+            if latest_round:
+                current_round = latest_round.round_number
+        
         # 构建学生数据字典
         students_data = {}
         for student in students:
+            # 计算学生的实际统计数据
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            last_answer = ''
+            
+            if current_course:
+                # 获取该学生在当前课程中的所有提交记录
+                submissions = StudentSubmission.query.join(CourseRound).filter(
+                    StudentSubmission.student_id == student.id,
+                    CourseRound.course_id == current_course.id
+                ).all()
+                
+                for submission in submissions:
+                    total_rounds += 1
+                    if submission.is_correct:
+                        # 从CourseRound获取题目分数
+                        round_obj = CourseRound.query.get(submission.round_id)
+                        if round_obj and round_obj.question_score:
+                            total_score += round_obj.question_score
+                        else:
+                            total_score += 1  # 默认分数
+                        correct_rounds += 1
+                
+                # 获取最新答案
+                if submissions:
+                    last_submission = max(submissions, key=lambda x: x.submitted_at)
+                    last_answer = last_submission.answer
+            
             students_data[student.name] = {
                 'name': student.name,
-                'score': 0,
-                'total_rounds': 0,
-                'correct_rounds': 0,
+                'score': total_score,
+                'total_rounds': total_rounds,
+                'correct_rounds': correct_rounds,
                 'last_answer_time': 0,
                 'expression': 'neutral',
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'answers': [],
-                'last_answer': ''
+                'last_answer': last_answer
             }
         
-        print(f"DEBUG: Returning data for {len(students_data)} students")
-        
-        # 检查是否有活跃的课程
-        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
-        round_active = current_course is not None
+        print(f"DEBUG: Returning data for {len(students_data)} students, current_round: {current_round}")
         
         return jsonify({
             'success': True,
-            'current_round': 1,
+            'current_round': current_round,
             'students': students_data,
             'round_active': round_active
         })
@@ -1306,12 +1398,12 @@ def reset_classroom():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 
-@app.route('/ceremony')
-def ceremony():
+@app.route('/ceremony/<class_id>')
+def ceremony(class_id):
     """颁奖典礼页面"""
     try:
-        # 获取当前活跃的课程
-        current_course = Course.query.filter_by(is_active=True).first()
+        # 获取指定班级的当前活跃课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         if not current_course:
             return redirect(url_for('index'))
         
