@@ -576,7 +576,41 @@ def judge_answers():
                 round_id=current_round.id if current_round else None
             ).first()
             
-            # 根据提交情况确定学生状态
+            # 计算学生的累计统计数据
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            last_answer = ''
+            last_answer_time = 0
+            expression = 'neutral'
+            
+            # 获取课程中的所有轮次（学生应该参与的轮次总数）
+            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+            total_rounds = len(all_course_rounds)
+            
+            # 获取该学生在当前课程中的所有提交记录
+            all_submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            for sub in all_submissions:
+                if sub.is_correct:
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(sub.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
+                    correct_rounds += 1
+            
+            # 获取最新答案
+            if all_submissions:
+                last_submission = max(all_submissions, key=lambda x: x.submitted_at)
+                last_answer = last_submission.answer
+                last_answer_time = last_submission.answer_time
+            
+            # 根据当前轮次提交情况确定学生状态
             if submission:
                 # 学生已提交，判断答案对错
                 is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
@@ -587,28 +621,17 @@ def judge_answers():
                 
                 if is_correct:
                     expression = 'smile'
-                    score = question_score
-                    correct_rounds = 1
                 else:
                     expression = 'angry'
-                    score = 0
-                    correct_rounds = 0
-                    
-                last_answer = submission.answer
-                last_answer_time = submission.answer_time
             else:
                 # 学生未提交
                 expression = 'embarrassed'
-                score = 0
-                correct_rounds = 0
-                last_answer = ''
-                last_answer_time = 0
             
             students_data[student.name] = {
                 'name': student.name,
-                'score': score,
-                'total_rounds': 1,
-                'correct_rounds': correct_rounds,
+                'score': total_score,  # 累计分数
+                'total_rounds': total_rounds,  # 累计轮次
+                'correct_rounds': correct_rounds,  # 累计正确次数
                 'last_answer_time': last_answer_time,
                 'expression': expression,
                 'animation': 'none',
@@ -628,6 +651,7 @@ def judge_answers():
             'success': True,
             'message': '答案判断完成',
             'course_id': current_course.id,
+            'current_round': current_round_number,
             'students': students_data
         })
 
@@ -1345,27 +1369,25 @@ def get_classroom_data():
             last_answer = ''
             
             if current_course:
+                # 获取课程中的所有轮次（学生应该参与的轮次总数）
+                all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+                total_rounds = len(all_course_rounds)
+                
                 # 获取该学生在当前课程中的所有提交记录
                 submissions = StudentSubmission.query.join(CourseRound).filter(
                     StudentSubmission.student_id == student.id,
                     CourseRound.course_id == current_course.id
                 ).all()
                 
-                # 计算参与的轮次数（去重）
-                participated_rounds = set()
                 for submission in submissions:
-                    round_obj = CourseRound.query.get(submission.round_id)
-                    if round_obj:
-                        participated_rounds.add(round_obj.round_number)
-                        if submission.is_correct:
-                            # 从CourseRound获取题目分数
-                            if round_obj.question_score:
-                                total_score += round_obj.question_score
-                            else:
-                                total_score += 1  # 默认分数
-                            correct_rounds += 1
-                
-                total_rounds = len(participated_rounds)
+                    if submission.is_correct:
+                        # 从CourseRound获取题目分数
+                        round_obj = CourseRound.query.get(submission.round_id)
+                        if round_obj and round_obj.question_score:
+                            total_score += round_obj.question_score
+                        else:
+                            total_score += 1  # 默认分数
+                        correct_rounds += 1
                 
                 # 获取最新答案
                 if submissions:
@@ -1448,13 +1470,16 @@ def next_round():
             total_rounds = 0
             correct_rounds = 0
             
+            # 获取课程中的所有轮次（学生应该参与的轮次总数）
+            all_course_rounds = CourseRound.query.filter_by(course_id=current_course.id).all()
+            total_rounds = len(all_course_rounds)
+            
             submissions = StudentSubmission.query.join(CourseRound).filter(
                 StudentSubmission.student_id == student.id,
                 CourseRound.course_id == current_course.id
             ).all()
             
             for submission in submissions:
-                total_rounds += 1
                 if submission.is_correct:
                     # 从CourseRound获取题目分数
                     round_obj = CourseRound.query.get(submission.round_id)

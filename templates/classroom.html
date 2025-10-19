@@ -844,6 +844,11 @@ function stopTimer() {
                     classroomData.students = data.students;
                     classroomData.round_active = false;
                     
+                    // 更新当前轮次（如果后端返回了）
+                    if (data.current_round !== undefined) {
+                        classroomData.current_round = data.current_round;
+                    }
+                    
                     console.log('更新后的学生数据:', classroomData.students);
                     console.log('评判后的轮次:', classroomData.current_round);
                     
