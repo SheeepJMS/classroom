@@ -232,11 +232,34 @@ def start_course():
         existing_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         
         if existing_course:
-            # 如果已有活跃课程，直接返回现有课程
+            # 如果已有活跃课程，创建新的轮次并返回现有课程
             print(f"DEBUG: Found existing active course: {existing_course.id}")
+            
+            # 获取下一个轮次号
+            latest_round = CourseRound.query.filter_by(
+                course_id=existing_course.id
+            ).order_by(CourseRound.round_number.desc()).first()
+            
+            next_round_number = 1
+            if latest_round:
+                next_round_number = latest_round.round_number + 1
+            
+            # 创建新的轮次记录
+            new_round = CourseRound(
+                course_id=existing_course.id,
+                round_number=next_round_number,
+                question_text="数学题目",  # 暂时使用默认值
+                correct_answer="1",  # 暂时使用默认值
+                question_score=1
+            )
+            db.session.add(new_round)
+            db.session.commit()
+            
+            print(f"DEBUG: Created new round {next_round_number} for existing course")
+            
             return jsonify({
                 'success': True,
-                'message': '课程已存在',
+                'message': '课程已存在，新轮次已创建',
                 'course_id': existing_course.id
             })
         
