@@ -172,11 +172,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Loaded classroom data:', data);
             classroomData = data;
             
-            // 重置当前轮次的答题状态（保留数据和回合数）
-            classroomData.round_active = false;
-            classroomData.current_answers = {};
-            classroomData.answer_times = {};
-            classroomData.start_time = null;
+            // 不要强制重置轮次状态，保持服务器返回的状态
+            // classroomData.round_active = false;  // 移除这行
+            // classroomData.current_answers = {};   // 移除这行
+            // classroomData.answer_times = {};      // 移除这行
+            // classroomData.start_time = null;      // 移除这行
             
             console.log('About to call updateStudentsDisplay');
             updateStudentsDisplay();
@@ -844,6 +844,9 @@ function stopTimer() {
                     classroomData.students = data.students;
                     classroomData.round_active = false;
                     
+                    // 不要更新当前轮次，评判完成后应该保持当前轮次不变
+                    // 轮次只有在点击"Next Challenge"时才会改变
+                    
                     console.log('更新后的学生数据:', classroomData.students);
                     console.log('评判后的轮次:', classroomData.current_round);
                     
@@ -1241,6 +1244,9 @@ function nextRound() {
             classroomData.current_round = data.round;
             classroomData.round_active = false;
             
+            // 更新轮次显示
+            updateRoundStatus();
+            
             // 重置UI - 添加安全检查
             const nextRoundBtn = document.getElementById('nextRoundBtn');
             const startBtn = document.getElementById('startBtn');
@@ -1403,7 +1409,7 @@ function changeScore(delta) {
 function endClass() {
     if (confirm('确定要结束课堂吗？将进入颁奖典礼！')) {
         // 跳转到颁奖典礼页面
-        window.location.href = '/ceremony';
+        window.location.href = '/ceremony/{{ class_obj.id }}';
     }
 }
 </script>

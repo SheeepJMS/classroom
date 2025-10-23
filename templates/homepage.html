@@ -1016,14 +1016,19 @@ function createGoal() {
             'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-            name: name,
+            title: name,
             description: description,
             goal_date: goalDate
         })
     })
-    .then(response => response.json())
+    .then(response => {
+        console.log('Create goal response status:', response.status);
+        return response.json();
+    })
     .then(data => {
+        console.log('Create goal response data:', data);
         if (data.success) {
+            alert('竞赛目标创建成功！');
             location.reload();
         } else {
             alert(data.message || '创建目标失败');
@@ -1031,7 +1036,7 @@ function createGoal() {
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('创建目标时发生错误');
+        alert('创建目标时发生错误，请刷新页面重试');
     });
 }
 
@@ -1046,9 +1051,14 @@ function endClass(classId) {
         fetch(`/api/end_class/${classId}`, {
             method: 'POST'
         })
-        .then(response => response.json())
+        .then(response => {
+            console.log('End class response status:', response.status);
+            return response.json();
+        })
         .then(data => {
+            console.log('End class response data:', data);
             if (data.success) {
+                alert('班级已成功结束！');
                 location.reload();
             } else {
                 alert(data.message || '结束班级失败');
@@ -1056,7 +1066,7 @@ function endClass(classId) {
         })
         .catch(error => {
             console.error('Error:', error);
-            alert('结束班级时发生错误');
+            alert('结束班级时发生错误，请刷新页面重试');
         });
     }
 }

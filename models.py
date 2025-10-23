@@ -21,7 +21,7 @@ class Class(db.Model):
     # 关系
     students = db.relationship('Student', backref='class_ref', lazy=True)
     courses = db.relationship('Course', backref='class_ref', lazy=True)
-    competition_goal = db.relationship('CompetitionGoal', backref='competition_goal_classes')
+    competition_goal = db.relationship('CompetitionGoal', backref='competition_goal_classes', foreign_keys=[competition_goal_id])
 
 class Student(db.Model):
     """学生模型"""
@@ -48,8 +48,7 @@ class CompetitionGoal(db.Model):
     goal_date = db.Column(db.Date, nullable=True)  # 竞赛目标日期
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # 关系
-    classes = db.relationship('Class', backref='competition_goal_ref', lazy=True)
+    # 关系 - 移除backref以避免冲突，使用Class.competition_goal访问
 
 class Course(db.Model):
     """课程模型"""
