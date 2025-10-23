@@ -554,6 +554,25 @@ def submit_student_answer():
             if submission:
                 if submission.is_correct:
                     expression = 'smile'
+                else:
+                    expression = 'angry'
+                last_answer = submission.answer
+                last_answer_time = submission.answer_time
+                
+                debug_logger.logger.info(f"学生 {student.name}: 答案={submission.answer}, 正确={submission.is_correct}, 总分数={total_score}")
+            else:
+                # 学生未提交
+                expression = 'embarrassed'
+                last_answer = ''
+                last_answer_time = 0
+                
+                debug_logger.logger.info(f"学生 {student.name}: 未提交答案")
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'score': total_score,  # 使用累计总分数
+                'total_rounds': total_rounds,  # 使用累计总轮次
+                'correct_rounds': correct_rounds,  # 使用累计正确次数
                 'last_answer_time': last_answer_time,
                 'expression': expression,
                 'animation': 'none',
