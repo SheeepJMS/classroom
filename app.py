@@ -469,28 +469,37 @@ def submit_student_answer():
             return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
 
         # 获取当前轮次 - 修复轮次管理问题
-        # 查找该课程中最大的轮次号
-        max_round_result = db.session.execute(
-            text("SELECT MAX(round_number) FROM course_rounds WHERE course_id = :course_id"),
-            {'course_id': current_course.id}
-        )
-        max_round = max_round_result.fetchone()[0] or 0
-        current_round_number = max_round + 1
-        
-        debug_logger.logger.info(f"课程 {current_course.id} 当前最大轮次: {max_round}, 新轮次: {current_round_number}")
-        
-        # 创建新的轮次记录
-        current_round = CourseRound(
+        # 查找该课程中是否有未完成的轮次（correct_answer="待定"）
+        current_round = CourseRound.query.filter_by(
             course_id=current_course.id,
-            round_number=current_round_number,
-            question_text="数学题目",  # 暂时使用默认值
-            correct_answer="待定",  # 暂时使用默认值，等BINGO时更新
-            question_score=1
-        )
-        db.session.add(current_round)
-        db.session.flush()  # 获取ID
+            correct_answer="待定"  # 寻找未完成的轮次
+        ).first()
         
-        debug_logger.logger.info(f"创建新轮次: {current_round_number} (ID: {current_round.id})")
+        if not current_round:
+            # 如果没有未完成的轮次，创建新轮次
+            max_round_result = db.session.execute(
+                text("SELECT MAX(round_number) FROM course_rounds WHERE course_id = :course_id"),
+                {'course_id': current_course.id}
+            )
+            max_round = max_round_result.fetchone()[0] or 0
+            current_round_number = max_round + 1
+            
+            debug_logger.logger.info(f"课程 {current_course.id} 当前最大轮次: {max_round}, 新轮次: {current_round_number}")
+            
+            # 创建新的轮次记录
+            current_round = CourseRound(
+                course_id=current_course.id,
+                round_number=current_round_number,
+                question_text="数学题目",  # 暂时使用默认值
+                correct_answer="待定",  # 暂时使用默认值，等BINGO时更新
+                question_score=1
+            )
+            db.session.add(current_round)
+            db.session.flush()  # 获取ID
+            
+            debug_logger.logger.info(f"创建新轮次: {current_round_number} (ID: {current_round.id})")
+        else:
+            debug_logger.logger.info(f"使用现有轮次: {current_round.round_number} (ID: {current_round.id})")
         
         # 记录数据库操作
         log_database_query("INSERT", "course_rounds", {
@@ -590,14 +599,15 @@ def judge_answers():
 
         debug_logger.logger.info(f"找到活跃课程: {current_course.name} (ID: {current_course.id})")
 
-        # 获取最新的轮次（刚刚学生提交答案时创建的）
+        # 获取当前轮次（未完成的轮次）
         current_round = CourseRound.query.filter_by(
-            course_id=current_course.id
-        ).order_by(CourseRound.round_number.desc()).first()
+            course_id=current_course.id,
+            correct_answer="待定"  # 寻找未完成的轮次
+        ).first()
         
         if not current_round:
-            debug_logger.logger.warning(f"课程 {current_course.id} 没有轮次记录")
-            return jsonify({'success': False, 'message': '没有找到轮次记录'}), 400
+            debug_logger.logger.warning(f"课程 {current_course.id} 没有未完成的轮次")
+            return jsonify({'success': False, 'message': '没有找到未完成的轮次'}), 400
 
         debug_logger.logger.info(f"找到轮次: {current_round.round_number} (ID: {current_round.id})")
 
@@ -672,7 +682,7 @@ def judge_answers():
                 
                 if is_correct:
                     expression = 'smile'
-                    # 更新总分数
+                    # 更新总分数（包括当前轮次）
                     total_score += question_score
                     correct_rounds += 1
                 else:
@@ -689,6 +699,9 @@ def judge_answers():
                 last_answer_time = 0
                 
                 debug_logger.logger.info(f"学生 {student.name}: 未提交答案")
+            
+            # 更新total_rounds计数（包括当前轮次）
+            total_rounds += 1
             
             students_data[student.name] = {
                 'name': student.name,
