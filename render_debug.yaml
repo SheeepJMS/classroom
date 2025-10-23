@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: math-classroom-app
+    env: python
+    plan: free
+    buildCommand: python3.11 -m pip install -r requirements.txt
+    startCommand: python3.11 app.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: USE_DATABASE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: math-classroom-db
+          property: connectionString
+      - key: DEBUG_MODE
+        value: "true"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+
+  - type: web
+    name: render-database-debugger
+    env: python
+    plan: free
+    buildCommand: python3.11 -m pip install -r requirements.txt
+    startCommand: python3.11 render_database_debugger.py
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: math-classroom-db
+          property: connectionString
+      - key: DEBUG_MODE
+        value: "true"
+      - key: LOG_LEVEL
+        value: "DEBUG"
+
+  - type: pserv
+    name: math-classroom-db
+    env: postgresql
+    plan: free
+    envVars:
+      - key: POSTGRES_VERSION
+        value: "15"

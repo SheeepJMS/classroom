@@ -3,9 +3,16 @@ from datetime import datetime
 import os
 import uuid
 from sqlalchemy import text
+import logging
+
+# 导入调试系统
+from debug_logging_system import debug_log, log_scoring_flow, log_database_query, debug_logger, ScoreValidator, realtime_monitor
 
 app = Flask(__name__)
 app.secret_key = 'your-secret-key-here'
+
+# 设置应用日志
+app.logger.setLevel(logging.DEBUG)
 
 # 数据库配置
 DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///math_homework.db')
@@ -319,34 +326,45 @@ def end_competition_goal(goal_id):
 
 
 @app.route('/submit_student_answer', methods=['POST'])
+@debug_log('submit_student_answer')
 def submit_student_answer():
-    """学生提交答案API"""
+    """学生提交答案API - 增强版"""
     try:
         data = request.get_json()
         student_name = data.get('student_name', '').strip()
         answer = data.get('answer', '').strip()
-        answer_time = data.get('answer_time', 0.0)  # 获取答题时间
+        answer_time = data.get('answer_time', 0.0)
+        
+        # 记录分数流程
+        log_scoring_flow(student_name, "未知轮次", "答案提交开始", {
+            'answer': answer,
+            'answer_time': answer_time
+        })
         
         # 从请求头获取班级ID
         class_id = request.headers.get('X-Class-ID')
         if not class_id:
-            # 如果没有在header中，尝试从referer URL中提取
             referer = request.headers.get('Referer', '')
             if '/classroom/' in referer:
                 class_id = referer.split('/classroom/')[-1]
 
         if not student_name or not answer:
+            debug_logger.logger.warning(f"提交答案失败: 学生姓名或答案为空")
             return jsonify({'success': False, 'message': '学生姓名和答案不能为空'}), 400
 
         if not class_id:
+            debug_logger.logger.warning(f"提交答案失败: 班级ID为空")
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
 
         # 获取当前活跃的课程
         current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         if not current_course:
+            debug_logger.logger.warning(f"提交答案失败: 班级 {class_id} 没有活跃课程")
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 使用原生SQL查询避免status字段问题
+        debug_logger.logger.info(f"找到活跃课程: {current_course.name} (ID: {current_course.id})")
+
+        # 查询学生
         try:
             result = db.session.execute(
                 text("SELECT id, name, class_id, created_date FROM students WHERE name = :student_name AND class_id = :class_id"),
@@ -354,9 +372,9 @@ def submit_student_answer():
             )
             student_data = result.fetchone()
             if not student_data:
+                debug_logger.logger.warning(f"学生不存在: {student_name} 在班级 {class_id}")
                 return jsonify({'success': False, 'message': '学生不存在'}), 404
             
-            # 创建临时学生对象
             class TempStudent:
                 def __init__(self, id, name, class_id, created_date):
                     self.id = id
@@ -365,37 +383,53 @@ def submit_student_answer():
                     self.created_date = created_date
             
             student = TempStudent(*student_data)
+            debug_logger.logger.info(f"找到学生: {student.name} (ID: {student.id})")
         except Exception as e:
+            debug_logger.log_error(e, f"查询学生 {student_name} 失败")
             return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
 
-        # 获取或创建当前轮次
-        current_round = CourseRound.query.filter_by(
-            course_id=current_course.id,
-            round_number=1  # 暂时硬编码为第1轮
-        ).first()
+        # 获取当前轮次 - 修复轮次管理问题
+        # 查找该课程中最大的轮次号
+        max_round_result = db.session.execute(
+            text("SELECT MAX(round_number) FROM course_rounds WHERE course_id = :course_id"),
+            {'course_id': current_course.id}
+        )
+        max_round = max_round_result.fetchone()[0] or 0
+        current_round_number = max_round + 1
         
-        if not current_round:
-            # 创建新的轮次记录（暂时使用默认值）
-            current_round = CourseRound(
-                course_id=current_course.id,
-                round_number=1,
-                question_text="数学题目",  # 暂时使用默认值
-                correct_answer="1",  # 暂时使用默认值
-                question_score=1
-            )
-            db.session.add(current_round)
-            db.session.flush()  # 获取ID
+        debug_logger.logger.info(f"课程 {current_course.id} 当前最大轮次: {max_round}, 新轮次: {current_round_number}")
+        
+        # 创建新的轮次记录
+        current_round = CourseRound(
+            course_id=current_course.id,
+            round_number=current_round_number,
+            question_text="数学题目",  # 暂时使用默认值
+            correct_answer="待定",  # 暂时使用默认值，等BINGO时更新
+            question_score=1
+        )
+        db.session.add(current_round)
+        db.session.flush()  # 获取ID
+        
+        debug_logger.logger.info(f"创建新轮次: {current_round_number} (ID: {current_round.id})")
+        
+        # 记录数据库操作
+        log_database_query("INSERT", "course_rounds", {
+            'id': current_round.id,
+            'course_id': current_course.id,
+            'round_number': current_round_number
+        })
 
-        # 检查学生是否已经提交过答案
+        # 检查学生是否已经提交过答案（在同一轮次中）
         existing_submission = StudentSubmission.query.filter_by(
             student_id=student.id,
             round_id=current_round.id
         ).first()
         
         if existing_submission:
+            debug_logger.logger.warning(f"学生 {student_name} 已在轮次 {current_round_number} 提交过答案")
             return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
 
-        # 计算答题时间（使用前端传递的时间）
+        # 计算答题时间
         answer_time_seconds = float(answer_time)
         
         # 保存学生提交记录
@@ -407,113 +441,174 @@ def submit_student_answer():
             answer_time=answer_time_seconds
         )
         db.session.add(submission)
+        
+        # 记录数据库操作
+        log_database_query("INSERT", "student_submissions", {
+            'student_id': student.id,
+            'round_id': current_round.id,
+            'answer': answer,
+            'answer_time': answer_time_seconds
+        })
+        
         db.session.commit()
+        
+        # 记录分数流程
+        log_scoring_flow(student_name, current_round_number, "答案提交成功", {
+            'submission_id': submission.id,
+            'round_id': current_round.id,
+            'answer': answer,
+            'answer_time': answer_time_seconds
+        })
+        
+        debug_logger.logger.info(f"学生 {student_name} 答案提交成功: 轮次 {current_round_number}")
 
         return jsonify({
             'success': True, 
             'message': '答案提交成功',
             'course_id': current_course.id,
-            'submission_id': submission.id
+            'submission_id': submission.id,
+            'round_number': current_round_number
         })
 
     except Exception as e:
+        debug_logger.log_error(e, "提交学生答案时")
+        db.session.rollback()
         return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
 
 
 @app.route('/judge_answers', methods=['POST'])
+@debug_log('judge_answers')
 def judge_answers():
-    """判断答案对错API"""
+    """判断答案对错API - 增强版"""
     try:
         data = request.get_json()
         correct_answer = data.get('correct_answer', '').strip()
         question_score = data.get('question_score', 1)
         
+        debug_logger.logger.info(f"开始评判答案: {correct_answer}, 分数: {question_score}")
+        
         # 从请求头获取班级ID
         class_id = request.headers.get('X-Class-ID')
         if not class_id:
-            # 如果没有在header中，尝试从referer URL中提取
             referer = request.headers.get('Referer', '')
             if '/classroom/' in referer:
                 class_id = referer.split('/classroom/')[-1]
 
         if not correct_answer:
+            debug_logger.logger.warning("评判失败: 正确答案为空")
             return jsonify({'success': False, 'message': '正确答案不能为空'}), 400
 
         if not class_id:
+            debug_logger.logger.warning("评判失败: 班级ID为空")
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
 
         # 获取当前活跃的课程
         current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         if not current_course:
+            debug_logger.logger.warning(f"评判失败: 班级 {class_id} 没有活跃课程")
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
 
-        # 创建或更新当前轮次
+        debug_logger.logger.info(f"找到活跃课程: {current_course.name} (ID: {current_course.id})")
+
+        # 获取最新的轮次（刚刚学生提交答案时创建的）
         current_round = CourseRound.query.filter_by(
-            course_id=current_course.id,
-            round_number=1  # 暂时硬编码为第1轮
-        ).first()
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
         
         if not current_round:
-            # 创建新的轮次
-            current_round = CourseRound(
-                id=str(uuid.uuid4()),
-                course_id=current_course.id,
-                round_number=1,
-                correct_answer=correct_answer,
-                question_score=question_score
-            )
-            db.session.add(current_round)
-        else:
-            # 更新现有轮次
-            current_round.correct_answer = correct_answer
-            current_round.question_score = question_score
-        
-        db.session.commit()
+            debug_logger.logger.warning(f"课程 {current_course.id} 没有轮次记录")
+            return jsonify({'success': False, 'message': '没有找到轮次记录'}), 400
 
-        # 获取班级学生数据并判断答案（临时移除status过滤）
+        debug_logger.logger.info(f"找到轮次: {current_round.round_number} (ID: {current_round.id})")
+
+        # 更新轮次的正确答案和分数
+        current_round.correct_answer = correct_answer
+        current_round.question_score = question_score
+        
+        log_database_query("UPDATE", "course_rounds", {
+            'id': current_round.id,
+            'correct_answer': correct_answer,
+            'question_score': question_score
+        })
+
+        # 获取班级学生数据并判断答案
         students = get_students_by_class_id(class_id)
         students_data = {}
         
+        debug_logger.logger.info(f"开始处理 {len(students)} 个学生的答案")
+        
         for student in students:
-            # 获取学生的提交记录
+            # 获取学生在该轮次的提交记录
             submission = StudentSubmission.query.filter_by(
                 student_id=student.id,
-                round_id=current_round.id if current_round else None
+                round_id=current_round.id
             ).first()
             
-            # 根据提交情况确定学生状态
+            # 计算学生的历史总分数
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            # 获取该学生在当前课程中的所有提交记录
+            all_submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            for sub in all_submissions:
+                total_rounds += 1
+                if sub.is_correct:
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(sub.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
+                    correct_rounds += 1
+            
+            # 根据当前轮次提交情况确定学生状态
             if submission:
                 # 学生已提交，判断答案对错
                 is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
                 submission.is_correct = is_correct
+                
+                # 记录分数流程
+                log_scoring_flow(student.name, current_round.round_number, "答案评判", {
+                    'submission_id': submission.id,
+                    'answer': submission.answer,
+                    'correct_answer': correct_answer,
+                    'is_correct': is_correct,
+                    'question_score': question_score
+                })
                 
                 # 保存提交记录的更新
                 db.session.add(submission)
                 
                 if is_correct:
                     expression = 'smile'
-                    score = question_score
-                    correct_rounds = 1
+                    # 更新总分数
+                    total_score += question_score
+                    correct_rounds += 1
                 else:
                     expression = 'angry'
-                    score = 0
-                    correct_rounds = 0
                     
                 last_answer = submission.answer
                 last_answer_time = submission.answer_time
+                
+                debug_logger.logger.info(f"学生 {student.name}: 答案={submission.answer}, 正确={is_correct}, 总分数={total_score}")
             else:
                 # 学生未提交
                 expression = 'embarrassed'
-                score = 0
-                correct_rounds = 0
                 last_answer = ''
                 last_answer_time = 0
+                
+                debug_logger.logger.info(f"学生 {student.name}: 未提交答案")
             
             students_data[student.name] = {
                 'name': student.name,
-                'score': score,
-                'total_rounds': 1,
-                'correct_rounds': correct_rounds,
+                'score': total_score,  # 使用累计总分数
+                'total_rounds': total_rounds,  # 使用累计总轮次
+                'correct_rounds': correct_rounds,  # 使用累计正确次数
                 'last_answer_time': last_answer_time,
                 'expression': expression,
                 'animation': 'none',
@@ -522,21 +617,21 @@ def judge_answers():
                 'last_answer': last_answer
             }
         
-        # 保存提交记录的更新
-        if current_round:
-            db.session.commit()
-        
         # 提交所有更改到数据库
         db.session.commit()
+        
+        debug_logger.logger.info(f"评判完成，处理了 {len(students_data)} 个学生")
         
         return jsonify({
             'success': True,
             'message': '答案判断完成',
             'course_id': current_course.id,
-            'students': students_data
+            'students': students_data,
+            'round_number': current_round.round_number
         })
 
     except Exception as e:
+        debug_logger.log_error(e, "评判答案时")
         db.session.rollback()
         return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
 
@@ -1363,6 +1458,166 @@ def ceremony():
         print(f"Error in ceremony route: {str(e)}")
         return redirect(url_for('index'))
 
+
+@app.route('/debug/scoring_status')
+def debug_scoring_status():
+    """调试API - 获取分数系统状态"""
+    try:
+        from debug_logging_system import debug_scoring_system, ScoreValidator
+        
+        debug_logger.logger.info("=== 调试API调用: 获取分数系统状态 ===")
+        
+        # 获取所有活跃课程
+        active_courses = Course.query.filter_by(is_active=True).all()
+        
+        status = {
+            'timestamp': datetime.now().isoformat(),
+            'active_courses': [],
+            'total_classes': Class.query.count(),
+            'total_students': db.session.execute(text("SELECT COUNT(*) FROM students")).fetchone()[0],
+            'total_courses': Course.query.count(),
+            'total_rounds': CourseRound.query.count(),
+            'total_submissions': StudentSubmission.query.count()
+        }
+        
+        for course in active_courses:
+            course_status = {
+                'course_id': course.id,
+                'course_name': course.name,
+                'class_id': course.class_id,
+                'created_date': course.created_date.isoformat() if course.created_date else None,
+                'rounds': [],
+                'students': []
+            }
+            
+            # 获取轮次信息
+            rounds = CourseRound.query.filter_by(course_id=course.id).order_by(CourseRound.round_number).all()
+            for round_obj in rounds:
+                round_status = {
+                    'round_number': round_obj.round_number,
+                    'question_text': round_obj.question_text,
+                    'correct_answer': round_obj.correct_answer,
+                    'question_score': round_obj.question_score,
+                    'submissions_count': StudentSubmission.query.filter_by(round_id=round_obj.id).count()
+                }
+                course_status['rounds'].append(round_status)
+            
+            # 获取学生信息
+            students = get_students_by_class_id(course.class_id)
+            for student in students:
+                # 计算学生在该课程中的表现
+                student_score = ScoreValidator.calculate_student_total_score(student.id, course.id)
+                
+                student_status = {
+                    'student_id': student.id,
+                    'student_name': student.name,
+                    'total_score': student_score['total_score'],
+                    'total_rounds': student_score['total_rounds'],
+                    'correct_rounds': student_score['correct_count'],
+                    'accuracy': student_score['accuracy']
+                }
+                course_status['students'].append(student_status)
+            
+            status['active_courses'].append(course_status)
+        
+        debug_logger.logger.info(f"调试状态获取完成: {len(active_courses)} 个活跃课程")
+        
+        return jsonify({
+            'success': True,
+            'status': status
+        })
+        
+    except Exception as e:
+        debug_logger.log_error(e, "获取调试状态时")
+        return jsonify({
+            'success': False,
+            'message': f'获取调试状态失败: {str(e)}'
+        }), 500
+
+@app.route('/debug/export_data')
+def debug_export_data():
+    """调试API - 导出调试数据"""
+    try:
+        from debug_logging_system import export_debug_data
+        
+        debug_logger.logger.info("=== 调试API调用: 导出调试数据 ===")
+        
+        filename = export_debug_data()
+        
+        return jsonify({
+            'success': True,
+            'message': '调试数据导出成功',
+            'filename': filename
+        })
+        
+    except Exception as e:
+        debug_logger.log_error(e, "导出调试数据时")
+        return jsonify({
+            'success': False,
+            'message': f'导出调试数据失败: {str(e)}'
+        }), 500
+
+@app.route('/debug/validate_scoring')
+def debug_validate_scoring():
+    """调试API - 验证分数计算"""
+    try:
+        from debug_logging_system import ScoreValidator
+        
+        debug_logger.logger.info("=== 调试API调用: 验证分数计算 ===")
+        
+        # 获取所有活跃课程
+        active_courses = Course.query.filter_by(is_active=True).all()
+        
+        validation_results = {
+            'timestamp': datetime.now().isoformat(),
+            'courses_validated': [],
+            'issues_found': []
+        }
+        
+        for course in active_courses:
+            course_validation = {
+                'course_id': course.id,
+                'course_name': course.name,
+                'rounds_valid': ScoreValidator.validate_course_rounds(course.id),
+                'students_validated': []
+            }
+            
+            # 验证每个学生的分数计算
+            students = get_students_by_class_id(course.class_id)
+            for student in students:
+                student_score = ScoreValidator.calculate_student_total_score(student.id, course.id)
+                
+                student_validation = {
+                    'student_id': student.id,
+                    'student_name': student.name,
+                    'calculated_score': student_score['total_score'],
+                    'calculated_rounds': student_score['total_rounds'],
+                    'calculated_correct': student_score['correct_count'],
+                    'accuracy': student_score['accuracy']
+                }
+                
+                course_validation['students_validated'].append(student_validation)
+            
+            validation_results['courses_validated'].append(course_validation)
+        
+        debug_logger.logger.info(f"分数验证完成: {len(active_courses)} 个课程")
+        
+        return jsonify({
+            'success': True,
+            'validation_results': validation_results
+        })
+        
+    except Exception as e:
+        debug_logger.log_error(e, "验证分数计算时")
+        return jsonify({
+            'success': False,
+            'message': f'验证分数计算失败: {str(e)}'
+        }), 500
+
+@app.route('/debug')
+def debug_page():
+    """调试页面"""
+    return render_template('debug_scoring.html')
 
 @app.route('/migrate')
 def migrate_database():

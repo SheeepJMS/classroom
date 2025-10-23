@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分数系统调试工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .debug-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .debug-card {
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .debug-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .debug-body {
+            padding: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #28a745; }
+        .status-warning { background-color: #ffc107; }
+        .status-danger { background-color: #dc3545; }
+        .status-info { background-color: #17a2b8; }
+        .json-viewer {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .btn-debug {
+            margin: 5px;
+        }
+        .log-entry {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-info { background-color: #d1ecf1; border-left: 4px solid #17a2b8; }
+        .log-warning { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .log-error { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .log-success { background-color: #d4edda; border-left: 4px solid #28a745; }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <div class="debug-card">
+            <div class="debug-header">
+                <h2><i class="fas fa-bug me-2"></i>分数系统调试工具</h2>
+                <p class="mb-0">实时监控学生答题数据流和分数累计情况</p>
+            </div>
+            <div class="debug-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>调试操作</h5>
+                        <button class="btn btn-primary btn-debug" onclick="getScoringStatus()">
+                            <i class="fas fa-chart-line me-1"></i>获取系统状态
+                        </button>
+                        <button class="btn btn-success btn-debug" onclick="validateScoring()">
+                            <i class="fas fa-check-circle me-1"></i>验证分数计算
+                        </button>
+                        <button class="btn btn-info btn-debug" onclick="exportData()">
+                            <i class="fas fa-download me-1"></i>导出调试数据
+                        </button>
+                        <button class="btn btn-warning btn-debug" onclick="clearLogs()">
+                            <i class="fas fa-trash me-1"></i>清除日志
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>系统信息</h5>
+                        <p><span class="status-indicator status-info"></span>调试模式: 已启用</p>
+                        <p><span class="status-indicator status-success"></span>数据库连接: 正常</p>
+                        <p><span class="status-indicator status-info"></span>日志记录: 活跃</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-chart-bar me-2"></i>系统状态</h4>
+            </div>
+            <div class="debug-body">
+                <div id="systemStatus">
+                    <p class="text-muted">点击"获取系统状态"按钮查看详细信息</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-list me-2"></i>调试日志</h4>
+            </div>
+            <div class="debug-body">
+                <div id="debugLogs" style="max-height: 300px; overflow-y: auto;">
+                    <p class="text-muted">调试日志将在这里显示...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-code me-2"></i>原始数据</h4>
+            </div>
+            <div class="debug-body">
+                <div id="rawData" class="json-viewer">
+                    <p class="text-muted">原始数据将在这里显示...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 调试日志数组
+        let debugLogs = [];
+
+        // 添加日志条目
+        function addLogEntry(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp: timestamp,
+                message: message,
+                type: type
+            };
+            debugLogs.push(logEntry);
+            updateLogDisplay();
+        }
+
+        // 更新日志显示
+        function updateLogDisplay() {
+            const logsContainer = document.getElementById('debugLogs');
+            logsContainer.innerHTML = '';
+            
+            debugLogs.slice(-50).reverse().forEach(log => {
+                const logDiv = document.createElement('div');
+                logDiv.className = `log-entry log-${log.type}`;
+                logDiv.innerHTML = `<strong>${log.timestamp}</strong> ${log.message}`;
+                logsContainer.appendChild(logDiv);
+            });
+        }
+
+        // 获取系统状态
+        async function getScoringStatus() {
+            addLogEntry('正在获取系统状态...', 'info');
+            
+            try {
+                const response = await fetch('/debug/scoring_status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('系统状态获取成功', 'success');
+                    displaySystemStatus(data.status);
+                    displayRawData(data);
+                } else {
+                    addLogEntry(`获取系统状态失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 验证分数计算
+        async function validateScoring() {
+            addLogEntry('正在验证分数计算...', 'info');
+            
+            try {
+                const response = await fetch('/debug/validate_scoring');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('分数验证完成', 'success');
+                    displayValidationResults(data.validation_results);
+                    displayRawData(data);
+                } else {
+                    addLogEntry(`分数验证失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 导出数据
+        async function exportData() {
+            addLogEntry('正在导出调试数据...', 'info');
+            
+            try {
+                const response = await fetch('/debug/export_data');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry(`数据导出成功: ${data.filename}`, 'success');
+                } else {
+                    addLogEntry(`数据导出失败: ${data.message}`, 'error');
+                }
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示系统状态
+        function displaySystemStatus(status) {
+            const statusContainer = document.getElementById('systemStatus');
+            
+            let html = `
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>总体统计</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="status-indicator status-info"></span>班级总数: ${status.total_classes}</li>
+                            <li><span class="status-indicator status-info"></span>学生总数: ${status.total_students}</li>
+                            <li><span class="status-indicator status-info"></span>课程总数: ${status.total_courses}</li>
+                            <li><span class="status-indicator status-info"></span>轮次总数: ${status.total_rounds}</li>
+                            <li><span class="status-indicator status-info"></span>提交记录总数: ${status.total_submissions}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>活跃课程</h6>
+                        <ul class="list-unstyled">
+            `;
+            
+            status.active_courses.forEach(course => {
+                html += `
+                    <li>
+                        <span class="status-indicator status-success"></span>
+                        ${course.course_name}
+                        <small class="text-muted">(${course.rounds.length} 轮次, ${course.students.length} 学生)</small>
+                    </li>
+                `;
+            });
+            
+            html += `
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            statusContainer.innerHTML = html;
+        }
+
+        // 显示验证结果
+        function displayValidationResults(results) {
+            const statusContainer = document.getElementById('systemStatus');
+            
+            let html = `
+                <div class="row">
+                    <div class="col-12">
+                        <h6>分数验证结果</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>课程</th>
+                                        <th>轮次状态</th>
+                                        <th>学生数</th>
+                                        <th>平均分数</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+            `;
+            
+            results.courses_validated.forEach(course => {
+                const avgScore = course.students_validated.length > 0 ? 
+                    (course.students_validated.reduce((sum, s) => sum + s.calculated_score, 0) / course.students_validated.length).toFixed(1) : 0;
+                
+                html += `
+                    <tr>
+                        <td>${course.course_name}</td>
+                        <td>
+                            <span class="status-indicator ${course.rounds_valid ? 'status-success' : 'status-danger'}"></span>
+                            ${course.rounds_valid ? '正常' : '异常'}
+                        </td>
+                        <td>${course.students_validated.length}</td>
+                        <td>${avgScore}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            statusContainer.innerHTML = html;
+        }
+
+        // 显示原始数据
+        function displayRawData(data) {
+            const rawDataContainer = document.getElementById('rawData');
+            rawDataContainer.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 清除日志
+        function clearLogs() {
+            debugLogs = [];
+            updateLogDisplay();
+            addLogEntry('日志已清除', 'info');
+        }
+
+        // 页面加载时自动获取状态
+        document.addEventListener('DOMContentLoaded', function() {
+            addLogEntry('调试工具已加载', 'success');
+            getScoringStatus();
+        });
+
+        // 定期刷新状态
+        setInterval(() => {
+            getScoringStatus();
+        }, 30000); // 每30秒刷新一次
+    </script>
+</body>
+</html>

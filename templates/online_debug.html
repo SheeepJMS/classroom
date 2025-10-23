@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>线上Render数据库调试工具</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .debug-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .debug-card {
+            margin-bottom: 20px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .debug-header {
+            background: linear-gradient(135deg, #ff6b6b 0%, #ee5a24 100%);
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px 8px 0 0;
+        }
+        .debug-body {
+            padding: 20px;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-success { background-color: #28a745; }
+        .status-warning { background-color: #ffc107; }
+        .status-danger { background-color: #dc3545; }
+        .status-info { background-color: #17a2b8; }
+        .json-viewer {
+            background-color: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .btn-debug {
+            margin: 5px;
+        }
+        .log-entry {
+            padding: 8px 12px;
+            margin: 2px 0;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-info { background-color: #d1ecf1; border-left: 4px solid #17a2b8; }
+        .log-warning { background-color: #fff3cd; border-left: 4px solid #ffc107; }
+        .log-error { background-color: #f8d7da; border-left: 4px solid #dc3545; }
+        .log-success { background-color: #d4edda; border-left: 4px solid #28a745; }
+        .table-responsive {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .issue-highlight {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        .student-card {
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px 0;
+            background-color: #f8f9fa;
+        }
+        .student-correct { border-left: 4px solid #28a745; }
+        .student-wrong { border-left: 4px solid #dc3545; }
+        .student-no-answer { border-left: 4px solid #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="debug-container">
+        <div class="debug-card">
+            <div class="debug-header">
+                <h2><i class="fas fa-bug me-2"></i>线上Render数据库调试工具</h2>
+                <p class="mb-0">专门用于调试Render平台上的分数累计和轮次问题</p>
+            </div>
+            <div class="debug-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>问题诊断</h5>
+                        <button class="btn btn-primary btn-debug" onclick="checkScoring()">
+                            <i class="fas fa-calculator me-1"></i>检查分数累计问题
+                        </button>
+                        <button class="btn btn-info btn-debug" onclick="checkRounds()">
+                            <i class="fas fa-list-ol me-1"></i>检查轮次问题
+                        </button>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>问题修复</h5>
+                        <button class="btn btn-warning btn-debug" onclick="fixScoring()">
+                            <i class="fas fa-wrench me-1"></i>修复分数累计
+                        </button>
+                        <button class="btn btn-danger btn-debug" onclick="fixRounds()">
+                            <i class="fas fa-tools me-1"></i>修复轮次问题
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-chart-bar me-2"></i>问题诊断结果</h4>
+            </div>
+            <div class="debug-body">
+                <div id="diagnosisResults">
+                    <p class="text-muted">点击"检查分数累计问题"或"检查轮次问题"开始诊断</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-list me-2"></i>调试日志</h4>
+            </div>
+            <div class="debug-body">
+                <div id="debugLogs" style="max-height: 300px; overflow-y: auto;">
+                    <p class="text-muted">调试日志将在这里显示...</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-card">
+            <div class="debug-header">
+                <h4><i class="fas fa-code me-2"></i>原始数据</h4>
+            </div>
+            <div class="debug-body">
+                <div id="rawData" class="json-viewer">
+                    <p class="text-muted">原始数据将在这里显示...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // 调试日志数组
+        let debugLogs = [];
+
+        // 添加日志条目
+        function addLogEntry(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = {
+                timestamp: timestamp,
+                message: message,
+                type: type
+            };
+            debugLogs.push(logEntry);
+            updateLogDisplay();
+        }
+
+        // 更新日志显示
+        function updateLogDisplay() {
+            const logsContainer = document.getElementById('debugLogs');
+            logsContainer.innerHTML = '';
+            
+            debugLogs.slice(-50).reverse().forEach(log => {
+                const logDiv = document.createElement('div');
+                logDiv.className = `log-entry log-${log.type}`;
+                logDiv.innerHTML = `<strong>${log.timestamp}</strong> ${log.message}`;
+                logsContainer.appendChild(logDiv);
+            });
+        }
+
+        // 检查分数累计问题
+        async function checkScoring() {
+            addLogEntry('正在检查分数累计问题...', 'info');
+            
+            try {
+                const response = await fetch('/debug/check_scoring');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('分数累计问题检查完成', 'success');
+                    displayScoringResults(data.debug_info);
+                } else {
+                    addLogEntry(`检查失败: ${data.message}`, 'error');
+                }
+                displayRawData(data);
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 检查轮次问题
+        async function checkRounds() {
+            addLogEntry('正在检查轮次问题...', 'info');
+            
+            try {
+                const response = await fetch('/debug/check_rounds');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('轮次问题检查完成', 'success');
+                    displayRoundResults(data.round_info);
+                } else {
+                    addLogEntry(`检查失败: ${data.message}`, 'error');
+                }
+                displayRawData(data);
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 修复分数累计问题
+        async function fixScoring() {
+            if (!confirm('确定要修复分数累计问题吗？')) {
+                return;
+            }
+            
+            addLogEntry('正在修复分数累计问题...', 'warning');
+            
+            try {
+                const response = await fetch('/debug/fix_scoring');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('分数累计问题修复完成', 'success');
+                    displayFixResults(data.fix_results, 'scoring');
+                } else {
+                    addLogEntry(`修复失败: ${data.message}`, 'error');
+                }
+                displayRawData(data);
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 修复轮次问题
+        async function fixRounds() {
+            if (!confirm('确定要修复轮次问题吗？')) {
+                return;
+            }
+            
+            addLogEntry('正在修复轮次问题...', 'warning');
+            
+            try {
+                const response = await fetch('/debug/fix_rounds');
+                const data = await response.json();
+                
+                if (data.success) {
+                    addLogEntry('轮次问题修复完成', 'success');
+                    displayFixResults(data.fix_results, 'rounds');
+                } else {
+                    addLogEntry(`修复失败: ${data.message}`, 'error');
+                }
+                displayRawData(data);
+            } catch (error) {
+                addLogEntry(`网络错误: ${error.message}`, 'error');
+            }
+        }
+
+        // 显示分数检查结果
+        function displayScoringResults(debugInfo) {
+            const resultsContainer = document.getElementById('diagnosisResults');
+            
+            let html = '<h6>分数累计问题诊断结果</h6>';
+            
+            // 显示课程信息
+            debugInfo.courses.forEach(course => {
+                html += `
+                    <div class="student-card">
+                        <h6>课程: ${course.name} (ID: ${course.id})</h6>
+                        <p><strong>状态:</strong> ${course.is_active ? '活跃' : '非活跃'}</p>
+                        <p><strong>轮次数:</strong> ${course.rounds.length}</p>
+                        
+                        <h6>学生表现:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>学生</th>
+                                        <th>总分数</th>
+                                        <th>总轮次</th>
+                                        <th>正确轮次</th>
+                                        <th>准确率</th>
+                                        <th>问题</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                Object.entries(course.students).forEach(([studentName, data]) => {
+                    const accuracy = data.total_rounds > 0 ? (data.correct_rounds / data.total_rounds * 100).toFixed(1) : 0;
+                    const hasIssue = data.total_rounds > 1 && data.total_score !== data.correct_rounds;
+                    
+                    html += `
+                        <tr class="${hasIssue ? 'table-warning' : ''}">
+                            <td>${studentName}</td>
+                            <td>${data.total_score}</td>
+                            <td>${data.total_rounds}</td>
+                            <td>${data.correct_rounds}</td>
+                            <td>${accuracy}%</td>
+                            <td>${hasIssue ? '⚠️ 分数累计问题' : '✅ 正常'}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            // 显示具体问题
+            if (debugInfo.scoring_issues.length > 0) {
+                html += '<div class="issue-highlight"><h6>⚠️ 发现的分数累计问题:</h6>';
+                debugInfo.scoring_issues.forEach(issue => {
+                    html += `
+                        <p><strong>课程 ${issue.course_id} - 学生 ${issue.student_name}:</strong></p>
+                        <p>期望分数: ${issue.expected_score}, 实际分数: ${issue.actual_score}</p>
+                        <p>轮次详情: ${JSON.stringify(issue.rounds)}</p>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        // 显示轮次检查结果
+        function displayRoundResults(roundInfo) {
+            const resultsContainer = document.getElementById('diagnosisResults');
+            
+            let html = '<h6>轮次问题诊断结果</h6>';
+            
+            roundInfo.forEach(course => {
+                html += `
+                    <div class="student-card">
+                        <h6>课程: ${course.course_name} (ID: ${course.course_id})</h6>
+                        <p><strong>状态:</strong> ${course.is_active ? '活跃' : '非活跃'}</p>
+                        <p><strong>轮次数量:</strong> ${course.round_count}</p>
+                        <p><strong>最大轮次:</strong> ${course.max_round || '无'}</p>
+                        <p><strong>最小轮次:</strong> ${course.min_round || '无'}</p>
+                        
+                        <h6>轮次详情:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>轮次号</th>
+                                        <th>题目</th>
+                                        <th>正确答案</th>
+                                        <th>创建时间</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+                
+                course.details.forEach(detail => {
+                    html += `
+                        <tr>
+                            <td>${detail.round_number}</td>
+                            <td>${detail.question_text}</td>
+                            <td>${detail.correct_answer}</td>
+                            <td>${detail.created_date}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        // 显示修复结果
+        function displayFixResults(fixResults, type) {
+            const resultsContainer = document.getElementById('diagnosisResults');
+            
+            let html = `<h6>${type === 'scoring' ? '分数累计' : '轮次'}问题修复结果</h6>`;
+            
+            fixResults.forEach(result => {
+                html += `
+                    <div class="student-card">
+                        <h6>课程: ${result.course_name} (ID: ${result.course_id})</h6>
+                        <p><strong>修复状态:</strong> ${result.fixed ? '✅ 已修复' : 'ℹ️ 无需修复'}</p>
+                        ${type === 'scoring' ? 
+                            `<p><strong>正确答题数:</strong> ${result.correct_count}</p>` :
+                            `<p><strong>原轮次:</strong> ${JSON.stringify(result.old_rounds || result.rounds)}</p>
+                             ${result.new_rounds ? `<p><strong>新轮次:</strong> ${JSON.stringify(result.new_rounds)}</p>` : ''}`
+                        }
+                    </div>
+                `;
+            });
+            
+            resultsContainer.innerHTML = html;
+        }
+
+        // 显示原始数据
+        function displayRawData(data) {
+            const rawDataContainer = document.getElementById('rawData');
+            rawDataContainer.textContent = JSON.stringify(data, null, 2);
+        }
+
+        // 页面加载时自动检查
+        document.addEventListener('DOMContentLoaded', function() {
+            addLogEntry('线上Render数据库调试工具已加载', 'success');
+            addLogEntry('请点击"检查分数累计问题"开始诊断', 'info');
+        });
+    </script>
+</body>
+</html>
