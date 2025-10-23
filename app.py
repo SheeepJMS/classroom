@@ -468,6 +468,136 @@ def submit_student_answer():
             debug_logger.log_error(e, f"查询学生 {student_name} 失败")
             return jsonify({'success': False, 'message': f'查询学生失败: {str(e)}'}), 500
 
+        # 获取当前轮次 - 修复轮次管理问题
+        # 查找该课程中最大的轮次号
+        max_round_result = db.session.execute(
+            text("SELECT MAX(round_number) FROM course_rounds WHERE course_id = :course_id"),
+            {'course_id': current_course.id}
+        )
+        max_round = max_round_result.fetchone()[0] or 0
+        current_round_number = max_round + 1
+        
+        debug_logger.logger.info(f"课程 {current_course.id} 当前最大轮次: {max_round}, 新轮次: {current_round_number}")
+        
+        # 创建新的轮次记录
+        current_round = CourseRound(
+            course_id=current_course.id,
+            round_number=current_round_number,
+            question_text="数学题目",  # 暂时使用默认值
+            correct_answer="待定",  # 暂时使用默认值，等BINGO时更新
+            question_score=1
+        )
+        db.session.add(current_round)
+        db.session.flush()  # 获取ID
+        
+        debug_logger.logger.info(f"创建新轮次: {current_round_number} (ID: {current_round.id})")
+        
+        # 记录数据库操作
+        log_database_query("INSERT", "course_rounds", {
+            'id': current_round.id,
+            'course_id': current_course.id,
+            'round_number': current_round_number
+        })
+
+        # 检查学生是否已经提交过答案（在同一轮次中）
+        existing_submission = StudentSubmission.query.filter_by(
+            student_id=student.id,
+            round_id=current_round.id
+        ).first()
+        
+        if existing_submission:
+            debug_logger.logger.warning(f"学生 {student_name} 已在轮次 {current_round_number} 提交过答案")
+            return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
+
+        # 计算答题时间
+        answer_time_seconds = float(answer_time)
+        
+        # 保存学生提交记录
+        submission = StudentSubmission(
+            student_id=student.id,
+            round_id=current_round.id,
+            answer=answer,
+            is_correct=False,  # 暂时设为False，等BINGO时判断
+            answer_time=answer_time_seconds
+        )
+        db.session.add(submission)
+        
+        # 记录数据库操作
+        log_database_query("INSERT", "student_submissions", {
+            'student_id': student.id,
+            'round_id': current_round.id,
+            'answer': answer,
+            'answer_time': answer_time_seconds
+        })
+        
+        db.session.commit()
+        
+        # 记录分数流程
+        log_scoring_flow(student_name, current_round_number, "答案提交成功", {
+            'submission_id': submission.id,
+            'round_id': current_round.id,
+            'answer': answer,
+            'answer_time': answer_time_seconds
+        })
+        
+        debug_logger.logger.info(f"学生 {student_name} 答案提交成功: 轮次 {current_round_number}")
+
+        return jsonify({
+            'success': True, 
+            'message': '答案提交成功',
+            'course_id': current_course.id,
+            'submission_id': submission.id,
+            'round_number': current_round_number
+        })
+
+    except Exception as e:
+        debug_logger.log_error(e, "提交学生答案时")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'提交答案失败: {str(e)}'}), 500
+
+
+@app.route('/judge_answers', methods=['POST'])
+@debug_log('judge_answers')
+def judge_answers():
+    """判断答案对错API - 增强版"""
+    try:
+        data = request.get_json()
+        correct_answer = data.get('correct_answer', '').strip()
+        question_score = data.get('question_score', 1)
+        
+        debug_logger.logger.info(f"开始评判答案: {correct_answer}, 分数: {question_score}")
+        
+        # 从请求头获取班级ID
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
+
+        if not correct_answer:
+            debug_logger.logger.warning("评判失败: 正确答案为空")
+            return jsonify({'success': False, 'message': '正确答案不能为空'}), 400
+
+        if not class_id:
+            debug_logger.logger.warning("评判失败: 班级ID为空")
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+
+        # 获取当前活跃的课程
+        current_course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not current_course:
+            debug_logger.logger.warning(f"评判失败: 班级 {class_id} 没有活跃课程")
+            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+
+        debug_logger.logger.info(f"找到活跃课程: {current_course.name} (ID: {current_course.id})")
+
+        # 获取最新的轮次（刚刚学生提交答案时创建的）
+        current_round = CourseRound.query.filter_by(
+            course_id=current_course.id
+        ).order_by(CourseRound.round_number.desc()).first()
+        
+        if not current_round:
+            debug_logger.logger.warning(f"课程 {current_course.id} 没有轮次记录")
+            return jsonify({'success': False, 'message': '没有找到轮次记录'}), 400
 
         debug_logger.logger.info(f"找到轮次: {current_round.round_number} (ID: {current_round.id})")
 
@@ -482,6 +612,119 @@ def submit_student_answer():
         })
 
         # 获取班级学生数据并判断答案
+        students = get_students_by_class_id(class_id)
+        students_data = {}
+        
+        debug_logger.logger.info(f"开始处理 {len(students)} 个学生的答案")
+        
+        for student in students:
+            # 获取学生在该轮次的提交记录
+            submission = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                round_id=current_round.id
+            ).first()
+            
+            # 计算学生的历史总分数
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            # 获取该学生在当前课程中的所有提交记录
+            all_submissions = StudentSubmission.query.join(CourseRound).filter(
+                StudentSubmission.student_id == student.id,
+                CourseRound.course_id == current_course.id
+            ).all()
+            
+            for sub in all_submissions:
+                total_rounds += 1
+                if sub.is_correct:
+                    # 从CourseRound获取题目分数
+                    round_obj = CourseRound.query.get(sub.round_id)
+                    if round_obj and round_obj.question_score:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1  # 默认分数
+                    correct_rounds += 1
+            
+            # 获取最新答案
+            if all_submissions:
+                last_submission = max(all_submissions, key=lambda x: x.submitted_at)
+                last_answer = last_submission.answer
+                last_answer_time = last_submission.answer_time
+            
+            # 根据当前轮次提交情况确定学生状态
+            if submission:
+                # 学生已提交，判断答案对错
+                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
+                submission.is_correct = is_correct
+                
+                # 记录分数流程
+                log_scoring_flow(student.name, current_round.round_number, "答案评判", {
+                    'submission_id': submission.id,
+                    'answer': submission.answer,
+                    'correct_answer': correct_answer,
+                    'is_correct': is_correct,
+                    'question_score': question_score
+                })
+                
+                # 保存提交记录的更新
+                db.session.add(submission)
+                
+                if is_correct:
+                    expression = 'smile'
+                    # 更新总分数
+                    total_score += question_score
+                    correct_rounds += 1
+                else:
+                    expression = 'angry'
+                    
+                last_answer = submission.answer
+                last_answer_time = submission.answer_time
+                
+                debug_logger.logger.info(f"学生 {student.name}: 答案={submission.answer}, 正确={is_correct}, 总分数={total_score}")
+            else:
+                # 学生未提交
+                expression = 'embarrassed'
+                last_answer = ''
+                last_answer_time = 0
+                
+                debug_logger.logger.info(f"学生 {student.name}: 未提交答案")
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'score': total_score,  # 使用累计总分数
+                'total_rounds': total_rounds,  # 使用累计总轮次
+                'correct_rounds': correct_rounds,  # 使用累计正确次数
+                'last_answer_time': last_answer_time,
+                'expression': expression,
+                'animation': 'none',
+                'avatar_color': '#4ecdc4',
+                'answers': [],
+                'last_answer': last_answer
+            }
+        
+        # 提交所有更改到数据库
+        db.session.commit()
+        
+        debug_logger.logger.info(f"评判完成，处理了 {len(students_data)} 个学生")
+        
+        return jsonify({
+            'success': True,
+            'message': '答案判断完成',
+            'course_id': current_course.id,
+            'students': students_data,
+            'round_number': current_round.round_number
+        })
+
+    except Exception as e:
+        debug_logger.log_error(e, "评判答案时")
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'判断答案失败: {str(e)}'}), 500
+
+
+@app.route('/reports/<course_id>')
+def generate_report(course_id):
+    """生成报告页面"""
         students = get_students_by_class_id(class_id)
         students_data = {}
         
