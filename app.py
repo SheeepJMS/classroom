@@ -725,37 +725,15 @@ def judge_answers():
 @app.route('/reports/<course_id>')
 def generate_report(course_id):
     """生成报告页面"""
-        students = get_students_by_class_id(class_id)
+    try:
+        course = Course.query.get_or_404(course_id)
+        class_obj = Class.query.get(course.class_id)
+        
+        # 获取班级活跃学生数据（临时移除status过滤）
+        students = get_students_by_class_id(course.class_id)
         students_data = {}
         
-        debug_logger.logger.info(f"开始处理 {len(students)} 个学生的答案")
-        
         for student in students:
-            # 获取学生在该轮次的提交记录
-            submission = StudentSubmission.query.filter_by(
-                student_id=student.id,
-                round_id=current_round.id
-            ).first()
-            
-            if submission:
-                # 学生已提交，判断答案对错
-                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
-                submission.is_correct = is_correct
-                
-                # 记录分数流程
-                log_scoring_flow(student.name, current_round.round_number, "答案评判", {
-                    'submission_id': submission.id,
-                    'answer': submission.answer,
-                    'correct_answer': correct_answer,
-                    'is_correct': is_correct,
-                    'question_score': question_score
-                })
-                
-                # 保存提交记录的更新
-                db.session.add(submission)
-            
-            # 提交当前轮次的更新
-            db.session.flush()
             
             # 计算学生的累计统计数据
             total_score = 0
