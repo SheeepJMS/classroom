@@ -6,7 +6,7 @@
 
 import os
 import sys
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from datetime import datetime
@@ -133,12 +133,35 @@ def index():
         # 返回简化的错误页面
         return f"<h1>启动成功！</h1><p>但加载主页时出错: {str(e)}</p><p>请检查数据库连接。</p>", 500
 
-# 课堂路由
+# 课堂路由 - 重定向 /class 到 /classroom
+@app.route('/class/<class_id>')
+def class_detail(class_id):
+    """班级详情页 - 重定向到课堂页面"""
+    try:
+        # 查询班级是否存在
+        class_obj = SimpleClass.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'error': '班级不存在'}), 404
+        
+        # 重定向到课堂页面
+        return redirect(f'/classroom/{class_id}')
+    except Exception as e:
+        print(f"❌ 加载班级详情失败: {str(e)}")
+        return jsonify({'error': f'加载班级详情失败: {str(e)}'}), 500
+
 @app.route('/classroom/<class_id>')
 def classroom(class_id):
     """课堂页面"""
     try:
-        return render_template('classroom.html', class_id=class_id)
+        # 查询班级信息
+        class_obj = SimpleClass.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'error': '班级不存在'}), 404
+        
+        # 获取学生列表
+        students = SimpleStudent.query.filter_by(class_id=class_id).all()
+        
+        return render_template('classroom.html', class_id=class_id, class_obj=class_obj, students=students)
     except Exception as e:
         print(f"❌ 加载课堂页面失败: {str(e)}")
         return jsonify({'error': f'加载课堂页面失败: {str(e)}'}), 500
@@ -410,6 +433,153 @@ def next_round():
         print(f"❌ 进入下一轮失败: {str(e)}")
         db.session.rollback()
         return jsonify({'success': False, 'message': f'进入下一轮失败: {str(e)}'}), 500
+
+# 创建班级
+@app.route('/api/create_class', methods=['POST'])
+def create_class():
+    """创建新班级"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        description = data.get('description', '').strip()
+        
+        if not name:
+            return jsonify({'success': False, 'message': '班级名称不能为空'}), 400
+        
+        # 创建班级
+        class_id = str(uuid.uuid4())
+        new_class = SimpleClass(
+            id=class_id,
+            name=name,
+            is_active=True
+        )
+        db.session.add(new_class)
+        db.session.commit()
+        
+        print(f"✅ 创建新班级: {name} (ID: {class_id})")
+        
+        return jsonify({
+            'success': True,
+            'class_id': class_id,
+            'message': '班级创建成功'
+        })
+        
+    except Exception as e:
+        print(f"❌ 创建班级失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'创建班级失败: {str(e)}'}), 500
+
+# 结束班级
+@app.route('/api/end_class/<class_id>', methods=['POST'])
+def end_class(class_id):
+    """结束班级"""
+    try:
+        class_obj = SimpleClass.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+        
+        # 将班级设置为非活跃
+        class_obj.is_active = False
+        db.session.commit()
+        
+        print(f"✅ 班级已结束: {class_obj.name}")
+        
+        return jsonify({
+            'success': True,
+            'message': '班级已成功结束'
+        })
+        
+    except Exception as e:
+        print(f"❌ 结束班级失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'结束班级失败: {str(e)}'}), 500
+
+# 添加学生
+@app.route('/add_student', methods=['POST'])
+def add_student():
+    """添加学生到课堂"""
+    try:
+        data = request.get_json()
+        student_name = data.get('name', '').strip()
+        
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1]
+        
+        if not student_name or not class_id:
+            return jsonify({'error': '参数不完整'}), 400
+        
+        # 检查学生是否已存在
+        existing_student = SimpleStudent.query.filter_by(name=student_name, class_id=class_id).first()
+        if existing_student:
+            return jsonify({'error': '该学生已经存在'}), 400
+        
+        # 创建新学生
+        student_id = str(uuid.uuid4())
+        student = SimpleStudent(
+            id=student_id,
+            name=student_name,
+            class_id=class_id
+        )
+        db.session.add(student)
+        db.session.commit()
+        
+        print(f"✅ 添加学生: {student_name}")
+        
+        return jsonify({
+            'success': True,
+            'message': '学生添加成功'
+        })
+        
+    except Exception as e:
+        print(f"❌ 添加学生失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'error': f'添加学生失败: {str(e)}'}), 500
+
+# 开始课堂
+@app.route('/api/start_class', methods=['POST'])
+def start_class():
+    """开始课堂"""
+    try:
+        class_id = request.headers.get('X-Class-ID')
+        if not class_id:
+            data = request.get_json()
+            class_id = data.get('class_id')
+        
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        # 创建或获取活跃课程
+        course = SimpleCourse.query.filter_by(class_id=class_id, is_active=True).first()
+        if not course:
+            course_id = str(uuid.uuid4())
+            course = SimpleCourse(
+                id=course_id,
+                class_id=class_id,
+                name=f"课堂 {datetime.now().strftime('%Y/%m/%d %H:%M:%S')}",
+                current_round=1,
+                is_active=True
+            )
+            db.session.add(course)
+            db.session.commit()
+            print(f"✅ 创建新课程: {course.name}")
+        
+        return jsonify({
+            'success': True,
+            'course_id': course.id,
+            'message': '课堂已开始'
+        })
+        
+    except Exception as e:
+        print(f"❌ 开始课堂失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'开始课堂失败: {str(e)}'}), 500
 
 @app.route('/get_classroom_data')
 def get_classroom_data():
