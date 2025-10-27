@@ -22,8 +22,10 @@ if not database_url:
     print("⚠️ 警告: DATABASE_URL 环境变量未设置，使用默认SQLite数据库")
     database_url = 'sqlite:///math_homework.db'
 elif database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql://', 1)
-# 注意：Render的PostgreSQL会自动使用pg8000驱动
+    database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+elif database_url.startswith('postgresql://'):
+    database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
+# 使用pg8000驱动（兼容Python 3.13）
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -45,6 +47,16 @@ class Class(db.Model):
     ended_date = db.Column(db.DateTime)
     competition_goal_id = db.Column(db.String(36), db.ForeignKey('competition_goals.id'))
     
+    # 备用字段 - 用于未来扩展
+    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
+    extra_field_1 = db.Column(db.String(200))
+    extra_field_2 = db.Column(db.String(200))
+    extra_field_3 = db.Column(db.String(200))
+    extra_number_1 = db.Column(db.Integer)
+    extra_number_2 = db.Column(db.Integer)
+    extra_boolean_1 = db.Column(db.Boolean)
+    extra_boolean_2 = db.Column(db.Boolean)
+    
     # 关系
     students = db.relationship('Student', backref='class_ref', lazy=True, cascade='all, delete-orphan')
     courses = db.relationship('Course', backref='class_ref', lazy=True, cascade='all, delete-orphan')
@@ -60,6 +72,13 @@ class CompetitionGoal(db.Model):
     goal_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 备用字段 - 用于未来扩展
+    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
+    extra_field_1 = db.Column(db.String(200))
+    extra_field_2 = db.Column(db.String(200))
+    extra_number_1 = db.Column(db.Integer)  # 例如：目标分数
+    extra_number_2 = db.Column(db.Integer)
 
 class Student(db.Model):
     """学生模型"""
@@ -70,6 +89,16 @@ class Student(db.Model):
     class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
     status = db.Column(db.String(20), default='active')  # active, absent
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 备用字段 - 用于未来扩展
+    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
+    extra_field_1 = db.Column(db.String(200))  # 例如：学号、座位号、家长联系方式
+    extra_field_2 = db.Column(db.String(200))  # 例如：备注信息
+    extra_field_3 = db.Column(db.String(200))
+    extra_number_1 = db.Column(db.Integer)  # 例如：学生编号
+    extra_number_2 = db.Column(db.Integer)
+    extra_boolean_1 = db.Column(db.Boolean)  # 例如：是否特殊学生
+    extra_boolean_2 = db.Column(db.Boolean)
     
     # 关系
     submissions = db.relationship('StudentSubmission', backref='student_ref', lazy=True)
@@ -86,6 +115,14 @@ class Course(db.Model):
     current_round = db.Column(db.Integer, default=1)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime)
+    
+    # 备用字段 - 用于未来扩展
+    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
+    extra_field_1 = db.Column(db.String(200))  # 例如：课程主题、课程类型
+    extra_field_2 = db.Column(db.String(200))
+    extra_number_1 = db.Column(db.Integer)  # 例如：总题数
+    extra_number_2 = db.Column(db.Integer)
+    extra_boolean_1 = db.Column(db.Boolean)  # 例如：是否公开课
     
     # 关系
     rounds = db.relationship('CourseRound', backref='course_ref', lazy=True, cascade='all, delete-orphan')
