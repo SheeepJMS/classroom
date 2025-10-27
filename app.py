@@ -236,8 +236,11 @@ def class_management(class_id):
         if not class_obj:
             return jsonify({'error': '班级不存在'}), 404
         
-        # 获取学生列表
-        students = Student.query.filter_by(class_id=class_id).all()
+        # 获取学生列表（按状态分组）
+        all_students = Student.query.filter_by(class_id=class_id).all()
+        active_students = [s for s in all_students if s.status == 'active']
+        absent_students = [s for s in all_students if s.status == 'absent']
+        students = active_students + absent_students  # 活跃学生在前面
         
         # 获取课程列表
         courses = Course.query.filter_by(class_id=class_id).order_by(Course.created_at.desc()).all()
@@ -478,13 +481,34 @@ def student_absent(student_id):
         db.session.commit()
         
         print(f"✅ 学生请假: {student.name}")
-        return jsonify({'success': True})
+        return jsonify({'success': True, 'message': f'{student.name}已请假'})
         
     except Exception as e:
         print(f"❌ 学生请假失败: {str(e)}")
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'学生请假失败: {str(e)}'}), 500
+
+# 学生恢复
+@app.route('/api/student_active/<student_id>', methods=['POST'])
+def student_active(student_id):
+    """学生恢复（取消请假）"""
+    try:
+        student = Student.query.filter_by(id=student_id).first()
+        if not student:
+            return jsonify({'success': False, 'message': '学生不存在'}), 404
+        
+        student.status = 'active'
+        db.session.commit()
+        
+        print(f"✅ 学生恢复: {student.name}")
+        return jsonify({'success': True, 'message': f'{student.name}已恢复'})
+        
+    except Exception as e:
+        print(f"❌ 学生恢复失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'学生恢复失败: {str(e)}'}), 500
 
 # 创建课程
 @app.route('/api/create_course', methods=['POST'])
