@@ -82,26 +82,51 @@ class SimpleClass(db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+# 初始化函数：在应用启动时创建数据库表
+def init_database():
+    """初始化数据库表"""
+    try:
+        with app.app_context():
+            db.create_all()
+            print("✅ 数据库表创建成功")
+            
+            # 如果没有默认班级，创建一个
+            default_class = SimpleClass.query.filter_by(name="默认班级").first()
+            if not default_class:
+                default_class = SimpleClass(
+                    id=str(uuid.uuid4()),
+                    name="默认班级",
+                    is_active=True
+                )
+                db.session.add(default_class)
+                db.session.commit()
+                print("✅ 创建默认班级")
+    except Exception as e:
+        print(f"❌ 初始化数据库失败: {str(e)}")
+        traceback.print_exc()
+
+# 在应用启动时初始化数据库（在所有模型定义之后）
+init_database()
+
 # 首页路由
 @app.route('/')
 def index():
     """首页"""
     try:
-        with app.app_context():
-            # 获取所有班级
-            classes = SimpleClass.query.filter_by(is_active=True).all()
-            
-            # 计算总学生数量
-            total_students = SimpleStudent.query.count()
-            
-            # 获取所有活跃课程
-            active_courses = SimpleCourse.query.filter_by(is_active=True).all()
-            total_courses = len(active_courses)
-            
-            return render_template('homepage.html',
-                                 classes=classes,
-                                 total_students=total_students,
-                                 total_courses=total_courses)
+        # 获取所有班级
+        classes = SimpleClass.query.filter_by(is_active=True).all()
+        
+        # 计算总学生数量
+        total_students = SimpleStudent.query.count()
+        
+        # 获取所有活跃课程
+        active_courses = SimpleCourse.query.filter_by(is_active=True).all()
+        total_courses = len(active_courses)
+        
+        return render_template('homepage.html',
+                             classes=classes,
+                             total_students=total_students,
+                             total_courses=total_courses)
     except Exception as e:
         print(f"❌ 加载首页失败: {str(e)}")
         traceback.print_exc()
@@ -463,33 +488,7 @@ def get_classroom_data():
         print(f"❌ 获取课堂数据失败: {str(e)}")
         return jsonify({'success': False, 'message': f'获取数据失败: {str(e)}'}), 500
 
-# 创建数据库表
-def create_tables():
-    """创建数据库表"""
-    try:
-        with app.app_context():
-            db.create_all()
-            print("✅ 数据库表创建成功")
-            
-            # 如果没有默认班级，创建一个
-            default_class = SimpleClass.query.filter_by(name="默认班级").first()
-            if not default_class:
-                default_class = SimpleClass(
-                    id=str(uuid.uuid4()),
-                    name="默认班级",
-                    is_active=True
-                )
-                db.session.add(default_class)
-                db.session.commit()
-                print("✅ 创建默认班级")
-    except Exception as e:
-        print(f"❌ 创建数据库表失败: {str(e)}")
-        traceback.print_exc()
-
 if __name__ == "__main__":
-    # 初始化数据库
-    create_tables()
-    
     # 启动服务器
     port = int(os.environ.get('PORT', 5000))
     print(f"🚀 启动全新服务器，端口: {port}")
