@@ -436,6 +436,7 @@ def bind_goal():
 
 # 添加学生
 @app.route('/add_student', methods=['POST'])
+@app.route('/api/add_student', methods=['POST'])
 def add_student():
     """添加学生"""
     try:
