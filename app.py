@@ -11,13 +11,17 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
 from datetime import datetime
 import traceback
+import uuid
 
 # 创建Flask应用
 app = Flask(__name__)
 
 # 数据库配置
 database_url = os.environ.get('DATABASE_URL')
-if database_url.startswith('postgres://'):
+if not database_url:
+    print("⚠️ 警告: DATABASE_URL 环境变量未设置，使用默认SQLite数据库")
+    database_url = 'sqlite:///math_homework.db'
+elif database_url.startswith('postgres://'):
     database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
 elif database_url.startswith('postgresql://'):
     database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
@@ -69,6 +73,50 @@ class SimpleRound(db.Model):
     question_score = db.Column(db.Integer, default=1)
     is_completed = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class SimpleClass(db.Model):
+    __tablename__ = 'simple_classes'
+    
+    id = db.Column(db.String(36), primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    is_active = db.Column(db.Boolean, default=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# 首页路由
+@app.route('/')
+def index():
+    """首页"""
+    try:
+        with app.app_context():
+            # 获取所有班级
+            classes = SimpleClass.query.filter_by(is_active=True).all()
+            
+            # 计算总学生数量
+            total_students = SimpleStudent.query.count()
+            
+            # 获取所有活跃课程
+            active_courses = SimpleCourse.query.filter_by(is_active=True).all()
+            total_courses = len(active_courses)
+            
+            return render_template('homepage.html',
+                                 classes=classes,
+                                 total_students=total_students,
+                                 total_courses=total_courses)
+    except Exception as e:
+        print(f"❌ 加载首页失败: {str(e)}")
+        traceback.print_exc()
+        # 返回简化的错误页面
+        return f"<h1>启动成功！</h1><p>但加载主页时出错: {str(e)}</p><p>请检查数据库连接。</p>", 500
+
+# 课堂路由
+@app.route('/classroom/<class_id>')
+def classroom(class_id):
+    """课堂页面"""
+    try:
+        return render_template('classroom.html', class_id=class_id)
+    except Exception as e:
+        print(f"❌ 加载课堂页面失败: {str(e)}")
+        return jsonify({'error': f'加载课堂页面失败: {str(e)}'}), 500
 
 @app.route('/submit_student_answer', methods=['POST'])
 def submit_student_answer():
@@ -422,11 +470,28 @@ def create_tables():
         with app.app_context():
             db.create_all()
             print("✅ 数据库表创建成功")
+            
+            # 如果没有默认班级，创建一个
+            default_class = SimpleClass.query.filter_by(name="默认班级").first()
+            if not default_class:
+                default_class = SimpleClass(
+                    id=str(uuid.uuid4()),
+                    name="默认班级",
+                    is_active=True
+                )
+                db.session.add(default_class)
+                db.session.commit()
+                print("✅ 创建默认班级")
     except Exception as e:
         print(f"❌ 创建数据库表失败: {str(e)}")
+        traceback.print_exc()
 
 if __name__ == "__main__":
+    # 初始化数据库
     create_tables()
+    
+    # 启动服务器
     port = int(os.environ.get('PORT', 5000))
-    print(f"🚀 启动全新服务器: {port}")
+    print(f"🚀 启动全新服务器，端口: {port}")
+    print(f"📝 数据库URI: {app.config['SQLALCHEMY_DATABASE_URI'][:50]}...")
     app.run(host='0.0.0.0', port=port, debug=False)
