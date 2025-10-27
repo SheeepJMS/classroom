@@ -22,10 +22,9 @@ if not database_url:
     print("⚠️ 警告: DATABASE_URL 环境变量未设置，使用默认SQLite数据库")
     database_url = 'sqlite:///math_homework.db'
 elif database_url.startswith('postgres://'):
-    database_url = database_url.replace('postgres://', 'postgresql+pg8000://', 1)
+    database_url = database_url.replace('postgres://', 'postgresql+psycopg://', 1)
 elif database_url.startswith('postgresql://'):
-    database_url = database_url.replace('postgresql://', 'postgresql+pg8000://', 1)
-# 使用pg8000驱动（兼容Python 3.13）
+    database_url = database_url.replace('postgresql://', 'postgresql+psycopg://', 1)
 
 app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -47,16 +46,6 @@ class Class(db.Model):
     ended_date = db.Column(db.DateTime)
     competition_goal_id = db.Column(db.String(36), db.ForeignKey('competition_goals.id'))
     
-    # 备用字段 - 用于未来扩展
-    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
-    extra_field_1 = db.Column(db.String(200))
-    extra_field_2 = db.Column(db.String(200))
-    extra_field_3 = db.Column(db.String(200))
-    extra_number_1 = db.Column(db.Integer)
-    extra_number_2 = db.Column(db.Integer)
-    extra_boolean_1 = db.Column(db.Boolean)
-    extra_boolean_2 = db.Column(db.Boolean)
-    
     # 关系
     students = db.relationship('Student', backref='class_ref', lazy=True, cascade='all, delete-orphan')
     courses = db.relationship('Course', backref='class_ref', lazy=True, cascade='all, delete-orphan')
@@ -72,13 +61,6 @@ class CompetitionGoal(db.Model):
     goal_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # 备用字段 - 用于未来扩展
-    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
-    extra_field_1 = db.Column(db.String(200))
-    extra_field_2 = db.Column(db.String(200))
-    extra_number_1 = db.Column(db.Integer)  # 例如：目标分数
-    extra_number_2 = db.Column(db.Integer)
 
 class Student(db.Model):
     """学生模型"""
@@ -89,16 +71,6 @@ class Student(db.Model):
     class_id = db.Column(db.String(36), db.ForeignKey('classes.id'), nullable=False)
     status = db.Column(db.String(20), default='active')  # active, absent
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # 备用字段 - 用于未来扩展
-    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
-    extra_field_1 = db.Column(db.String(200))  # 例如：学号、座位号、家长联系方式
-    extra_field_2 = db.Column(db.String(200))  # 例如：备注信息
-    extra_field_3 = db.Column(db.String(200))
-    extra_number_1 = db.Column(db.Integer)  # 例如：学生编号
-    extra_number_2 = db.Column(db.Integer)
-    extra_boolean_1 = db.Column(db.Boolean)  # 例如：是否特殊学生
-    extra_boolean_2 = db.Column(db.Boolean)
     
     # 关系
     submissions = db.relationship('StudentSubmission', backref='student_ref', lazy=True)
@@ -115,14 +87,6 @@ class Course(db.Model):
     current_round = db.Column(db.Integer, default=1)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     ended_at = db.Column(db.DateTime)
-    
-    # 备用字段 - 用于未来扩展
-    extra_data = db.Column(db.Text)  # JSON格式存储额外数据
-    extra_field_1 = db.Column(db.String(200))  # 例如：课程主题、课程类型
-    extra_field_2 = db.Column(db.String(200))
-    extra_number_1 = db.Column(db.Integer)  # 例如：总题数
-    extra_number_2 = db.Column(db.Integer)
-    extra_boolean_1 = db.Column(db.Boolean)  # 例如：是否公开课
     
     # 关系
     rounds = db.relationship('CourseRound', backref='course_ref', lazy=True, cascade='all, delete-orphan')
@@ -229,8 +193,8 @@ def class_detail(class_id):
         return jsonify({'error': f'加载班级详情失败: {str(e)}'}), 500
 
 @app.route('/classroom/<class_id>')
-def class_management(class_id):
-    """班级管理页面 - 显示学生列表、课程列表等"""
+def classroom(class_id):
+    """课堂页面"""
     try:
         class_obj = Class.query.filter_by(id=class_id).first()
         if not class_obj:
@@ -239,39 +203,10 @@ def class_management(class_id):
         # 获取学生列表
         students = Student.query.filter_by(class_id=class_id).all()
         
-        # 获取课程列表
-        courses = Course.query.filter_by(class_id=class_id).order_by(Course.created_at.desc()).all()
-        
-        return render_template('class_detail.html', 
-                             class_data=class_obj, 
-                             class_obj=class_obj,
-                             class_id=class_id,
-                             students=students,
-                             courses=courses)
+        return render_template('classroom.html', class_id=class_id, class_obj=class_obj, students=students)
     except Exception as e:
-        print(f"❌ 加载班级管理页面失败: {str(e)}")
-        return jsonify({'error': f'加载班级管理页面失败: {str(e)}'}), 500
-
-@app.route('/course/<course_id>')
-def course_page(course_id):
-    """课程答题页面"""
-    try:
-        course = Course.query.filter_by(id=course_id).first()
-        if not course:
-            return jsonify({'error': '课程不存在'}), 404
-        
-        class_obj = Class.query.filter_by(id=course.class_id).first()
-        students = Student.query.filter_by(class_id=course.class_id, status='active').all()
-        
-        return render_template('classroom.html', 
-                             course_id=course_id,
-                             course=course,
-                             class_id=course.class_id,
-                             class_obj=class_obj, 
-                             students=students)
-    except Exception as e:
-        print(f"❌ 加载课程页面失败: {str(e)}")
-        return jsonify({'error': f'加载课程页面失败: {str(e)}'}), 500
+        print(f"❌ 加载课堂页面失败: {str(e)}")
+        return jsonify({'error': f'加载课堂页面失败: {str(e)}'}), 500
 
 # 报告列表页面
 @app.route('/reports')
@@ -519,11 +454,7 @@ def create_course():
         db.session.commit()
         
         print(f"✅ 创建新课程: {name}")
-        return jsonify({
-            'success': True, 
-            'course_id': course_id,
-            'redirect_url': f'/course/{course_id}'
-        })
+        return jsonify({'success': True, 'course_id': course_id})
         
     except Exception as e:
         print(f"❌ 创建课程失败: {str(e)}")
