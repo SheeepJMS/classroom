@@ -556,6 +556,12 @@ def create_course():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'创建课程失败: {str(e)}'}), 500
 
+# 创建课程（别名）
+@app.route('/api/start_course', methods=['POST'])
+def start_course():
+    """创建课程（前端调用此接口）"""
+    return create_course()
+
 # 开始课程
 @app.route('/api/start_class', methods=['POST'])
 def start_class():
