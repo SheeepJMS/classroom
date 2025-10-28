@@ -154,12 +154,12 @@ class StudentSubmission(db.Model):
     answer_time = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
-    # 行为记录
-    guess_count = db.Column(db.Integer, default=0)  # 猜题次数
-    copy_count = db.Column(db.Integer, default=0)  # 抄袭次数
-    noisy_count = db.Column(db.Integer, default=0)  # 吵闹次数
-    distracted_count = db.Column(db.Integer, default=0)  # 分心次数
-    penalty_score = db.Column(db.Integer, default=0)  # 扣分总数
+    # 行为记录（新增字段，需要迁移数据库）
+    guess_count = db.Column(db.Integer, default=0, nullable=True)  # 猜题次数
+    copy_count = db.Column(db.Integer, default=0, nullable=True)  # 抄袭次数
+    noisy_count = db.Column(db.Integer, default=0, nullable=True)  # 吵闹次数
+    distracted_count = db.Column(db.Integer, default=0, nullable=True)  # 分心次数
+    penalty_score = db.Column(db.Integer, default=0, nullable=True)  # 扣分总数
 
 class CourseAttendance(db.Model):
     """课程出勤模型"""
@@ -1218,6 +1218,9 @@ def ceremony(course_id):
     except Exception as e:
         print(f"❌ 加载领奖台失败: {str(e)}")
         return jsonify({'error': f'加载领奖台失败: {str(e)}'}), 500
+
+# 在应用启动时初始化数据库
+init_database()
 
 if __name__ == "__main__":
     port = int(os.environ.get('PORT', 5000))

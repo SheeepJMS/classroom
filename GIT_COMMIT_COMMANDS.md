@@ -2,29 +2,21 @@
 
 ```bash
 git add app.py templates/classroom.html templates/class_detail.html
-git commit -m "完善界面切换：BINGO前显示行为按钮，BINGO后显示统计数据，next_round切换回按钮"
+git commit -m "修复数据库字段不存在错误：添加行为记录字段并初始化数据库"
 git push origin main
 ```
 
-## 所有修复内容总结
+## 修复内容
 
-### 1. 学生行为记录功能
-- 四个行为按钮：Guess（橙色🎲）、Copy（红色📋）、Noisy（紫色🔊）、Distracted（黄色🙈）
-- 点击扣2分，不影响准确率
-- 记录行为次数并显示在按钮上
+### 问题
+- 数据库报错：column student_submissions.guess_count does not exist
+- 原因：新增了数据库字段（guess_count, copy_count, noisy_count, distracted_count, penalty_score），但数据库中没有这些列
 
-### 2. 界面切换逻辑
-- **答题阶段（START到BINGO）**：显示四个行为按钮
-- **评判阶段（点击BINGO后）**：隐藏按钮，显示四个统计数据（Score, Rounds, Acc, Answer）
-- **下一轮（点击Next）**：重新切换回显示行为按钮，为下一轮答题做准备
+### 解决方案
+1. 将字段设置为 `nullable=True`，使其兼容已有数据库
+2. 在 `init_database()` 函数中调用 `db.create_all()` 来自动创建缺失的字段
+3. 确保应用启动时调用 `init_database()`
 
-### 3. 学生请假功能
-- 请假按钮和恢复按钮
-- 请假学生不参加新课程
-- 请假学生自动排到底部
-- 显示正确的统计数据
-
-### 4. 准确率和分数计算
-- 准确率计算：未作答算作错误
-- 扣分不影响准确率
-- 正确累加分数和轮次
+### 注意事项
+- 部署到 Render 后，数据库表会自动更新（添加新字段）
+- 如果字段仍然不存在，可能需要手动执行 SQL 添加字段
