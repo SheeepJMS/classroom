@@ -2,27 +2,23 @@
 
 ```bash
 git add app.py templates/classroom.html
-git commit -m "简化行为按钮：点击后该题得分为0，不再扣分"
+git commit -m "修复JavaScript语法错误：showAnswerResults函数括号不匹配"
+git push origin main
+```
+
+ibu commit-m "修复语法错误导致学生卡片不显示的问题"
 git push origin main
 ```
 
 ## 修复内容
 
-### 简化逻辑
-- **移除扣分逻辑**：不再使用 penalty_score 扣2分
-- **直接设为错题**：点击任何行为按钮后，`is_correct = False`
-- **该题得分为0**：在评判时不会加分，也不会计入正确轮次
+### 问题
+- JavaScript语法错误："missing ) after argument list"
+- 导致学生卡片无法显示
 
-### 修改
-1. **后端 (`mark_behavior`)**：
-   - 移除 `submission.penalty_score += 2`
-   - 添加 `submission.is_correct = False`
-   - 提示信息改为"该题得分为0"
+### 原因
+在 `showAnswerResults` 函数中，修改代码时导致了括号不匹配，1060行有 `} }` 两个关闭括号，但对应的打开括号不正确
 
-2. **前端提示**：
-   - 将"将扣2分"改为"该题得分为0"
-   - 移除扣分相关的UI更新
-
-3. **分数计算**：
-   - 移除所有 penalty_score 处理
-   - 只依据 is_correct 判断
+### 解决
+- 修正括号匹配
+- 确保 `showAnswerResults` 函数逻辑正确
