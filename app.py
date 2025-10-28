@@ -12,6 +12,7 @@ from sqlalchemy import text
 from datetime import datetime
 import traceback
 import uuid
+import random
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -1241,13 +1242,20 @@ def ceremony(course_id):
             
             student_scores.append({
                 'name': student.name,
-                'score': total_score
+                'score': total_score,
+                'avatar_color': student.avatar_color if hasattr(student, 'avatar_color') else f'#{random.randint(0, 0xFFFFFF):06x}'
             })
         
         # 按分数排序
         student_scores.sort(key=lambda x: x['score'], reverse=True)
         
-        return render_template('ceremony.html', course=course, student_scores=student_scores)
+        # 获取班级信息
+        class_obj = Class.query.filter_by(id=course.class_id).first()
+        
+        return render_template('ceremony.html', 
+                             course=course, 
+                             student_scores=student_scores,
+                             classroom_data=class_obj if class_obj else {'id': course.class_id})
         
     except Exception as e:
         print(f"❌ 加载领奖台失败: {str(e)}")

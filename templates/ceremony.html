@@ -92,7 +92,7 @@
 
     <!-- 控制按钮 -->
     <div class="ceremony-controls">
-        <button class="btn btn-success btn-lg" onclick="location.href='/reports/{{ classroom_data.id }}'">
+        <button class="btn btn-success btn-lg" onclick="location.href='/reports/' + classId">
             <i class="fas fa-chart-bar me-2"></i>查看报告
         </button>
         <button class="btn btn-warning btn-lg" onclick="location.href='/'">
@@ -102,19 +102,20 @@
 </div>
 
 <script>
-let classroomData = {{ classroom_data | tojson }};
+let studentScores = {{ student_scores | tojson }};
+let classId = '{{ course.class_id }}';
 
 // 初始化颁奖典礼
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('颁奖典礼数据:', classroomData);
+    console.log('学生分数数据:', studentScores);
     setupCeremony();
 });
 
 // 设置颁奖典礼
 function setupCeremony() {
-    console.log('开始设置颁奖典礼，数据:', classroomData);
-    const students = Object.values(classroomData.students || {});
-    console.log('学生数据:', students);
+    console.log('开始设置颁奖典礼，学生数据:', studentScores);
+    const students = studentScores || [];
+    console.log('学生数组:', students);
     
     if (students.length === 0) {
         console.log('没有学生数据，显示提示信息');
