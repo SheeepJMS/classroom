@@ -180,6 +180,26 @@ def init_database():
             db.create_all()
             print("✅ 数据库表创建成功")
             
+            # 尝试添加新字段到已存在的 student_submissions 表
+            try:
+                from sqlalchemy import text
+                # 检查字段是否存在并添加
+                with db.engine.connect() as conn:
+                    # 添加 guess_count
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS guess_count INTEGER DEFAULT 0"))
+                    # 添加 copy_count
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS copy_count INTEGER DEFAULT 0"))
+                    # 添加 noisy_count
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS noisy_count INTEGER DEFAULT 0"))
+                    # 添加 distracted_count
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0"))
+                    # 添加 penalty_score
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0"))
+                    conn.commit()
+                print("✅ 数据库字段添加成功")
+            except Exception as e:
+                print(f"⚠️ 添加字段时出错（可能已经存在）: {str(e)}")
+            
             # 如果没有默认班级，创建一个
             default_class = Class.query.filter_by(name="默认班级").first()
             if not default_class:
