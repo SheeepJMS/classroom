@@ -504,12 +504,12 @@
                     <div class="student-card {% if student.status == 'absent' %}student-absent{% endif %}">
                         <div class="student-avatar">{% if student.status == 'absent' %}😴{% else %}😊{% endif %}</div>
                         <div class="student-name">{{ student.name }}</div>
-                        <div class="student-stats">
-                            TOTAL: {{ student.total_score if hasattr(student, 'total_score') else 0 }}<br>
-                            COURSES: {{ student.courses_count if hasattr(student, 'courses_count') else 0 }}<br>
-                            ATTENDANCE: {{ (100 if hasattr(student, 'absences_count') and student.absences_count == 0 and student.courses_count == 0 else ((student.courses_count / (student.courses_count + student.absences_count) * 100) | round)) if hasattr(student, 'absences_count') and hasattr(student, 'courses_count') else 100 }}%<br>
-                            ABSENCES: {{ student.absences_count if hasattr(student, 'absences_count') else 0 }}
-                        </div>
+                    <div class="student-stats">
+                        TOTAL: {{ getattr(student, 'total_score', 0) }}<br>
+                        COURSES: {{ getattr(student, 'courses_count', 0) }}<br>
+                        ATTENDANCE: {% set courses = getattr(student, 'courses_count', 0) %}{% set absences = getattr(student, 'absences_count', 0) %}{{ (100 if courses == 0 and absences == 0 else ((courses / (courses + absences) * 100) | round) if courses + absences > 0 else 100) }}%<br>
+                        ABSENCES: {{ getattr(student, 'absences_count', 0) }}
+                    </div>
                         <div class="student-actions">
                             <a href="/student_report_center/{{ student.id }}" class="btn btn-primary btn-sm mb-2" title="报告中心">
                                 <i class="fas fa-chart-line"></i> 报告中心
