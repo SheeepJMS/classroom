@@ -3,6 +3,15 @@
 {% block title %}Classroom Management System{% endblock %}
 
 {% block content %}
+<style>
+/* 响应式按钮 */
+@media (max-width: 600px) {
+    .behavior-btn .btn-icon,
+    .behavior-btn .btn-count {
+        display: none;
+    }
+}
+</style>
 <div class="classroom-container">
     
     <!-- 顶部控制栏 -->
@@ -532,22 +541,25 @@ function createStudentCard(student) {
         <div class="student-result" id="result-${student.name}" style="display: none;">
             <span class="result-text"></span>
         </div>
-        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
-            <button class="btn btn-sm" style="background-color: #ff9800; color: white; border: none;" onclick="markBehavior('${student.name}', 'guess')" title="猜题">
-                <i class="fas fa-dice"></i> Guess (${student.guess_count || 0})
+        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 3px; margin-top: 10px; flex-wrap: nowrap; justify-content: space-between;">
+            <button class="btn btn-sm behavior-btn" data-behavior="guess" style="flex: 1; background-color: #ff9800; color: white; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="markBehavior('${student.name}', 'guess')" title="猜题">
+                <span class="btn-icon"><i class="fas fa-dice"></i></span><span class="btn-text">Guess</span><span class="btn-count">(${student.guess_count || 0})</span>
             </button>
-            <button class="btn btn-sm" style="background-color: #f44336; color: white; border: none;" onclick="markBehavior('${student.name}', 'copy')" title="抄袭">
-                <i class="fas fa-copy"></i> Copy (${student.copy_count || 0})
+            <button class="btn btn-sm behavior-btn" data-behavior="copy" style="flex: 1; background-color: #f44336; color: white; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="markBehavior('${student.name}', 'copy')" title="抄袭">
+                <span class="btn-icon"><i class="fas fa-copy"></i></span><span class="btn-text">Copy</span><span class="btn-count">(${student.copy_count || 0})</span>
             </button>
-            <button class="btn btn-sm" style="background-color: #9c27b0; color: white; border: none;" onclick="markBehavior('${student.name}', 'noisy')" title="吵闹">
-                <i class="fas fa-volume-up"></i> Noisy (${student.noisy_count || 0})
+            <button class="btn btn-sm behavior-btn" data-behavior="noisy" style="flex: 1; background-color: #9c27b0; color: white; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="markBehavior('${student.name}', 'noisy')" title="吵闹">
+                <span class="btn-icon"><i class="fas fa-volume-up"></i></span><span class="btn-text">Noisy</span><span class="btn-count">(${student.noisy_count || 0})</span>
             </button>
-            <button class="btn btn-sm" style="background-color: #ffeb3b; color: #333; border: none;" onclick="markBehavior('${student.name}', 'distracted')" title="分心">
-                <i class="fas fa-eye-slash"></i> Distracted (${student.distracted_count || 0})
+            <button class="btn btn-sm behavior-btn" data-behavior="distracted" style="flex: 1; background-color: #ffeb3b; color: #333; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" onclick="markBehavior('${student.name}', 'distracted')" title="分心">
+                <span class="btn-icon"><i class="fas fa-eye-slash"></i></span><span class="btn-text">Distracted</span><span class="btn-count">(${student.distracted_count || 0})</span>
             </button>
         </div>
+        <div class="student-punished" id="punished-${student.name}" style="display: none; padding: 10px; background-color: #ff4444; color: white; border-radius: 4px; text-align: center; font-weight: bold; margin-top: 10px;">
+            <span class="punished-text">PUNISHED</span>
+        </div>
         <!-- BINGO后：显示统计数据 -->
-        <div class="student-stats" id="stats-${student.name}" style="display: none;">
+        <div class="student-stats" id="stats-${student.name}" style="display: none !important;">
             <div class="stat-item">
                 <span class="stat-label">Score</span>
                 <span class="stat-value">${student.score}</span>
@@ -1366,6 +1378,13 @@ function nextRound() {
                     behaviorButtons.style.display = 'flex';
                     behaviorButtons.style.flexDirection = 'row';
                 }
+                
+                // 隐藏punished状态
+                const punishedDiv = document.getElementById(`punished-${student.name}`);
+                if (punishedDiv) {
+                    punishedDiv.style.display = 'none';
+                }
+                
                 // 清空输入框
                 if (answerInput) {
                     answerInput.value = '';
@@ -1479,16 +1498,29 @@ function markBehavior(studentName, behavior) {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // 更新本地数据
-                if (classroomData.students[studentName]) {
-                    classroomData.students[studentName][behavior + '_count'] = (classroomData.students[studentName][behavior + '_count'] || 0) + 1;
-                    
-                    // 更新按钮显示
-                    const button = document.querySelector(`#behavior-buttons-${studentName} button[onclick*="${behavior}"]`);
-                    if (button) {
-                        button.innerHTML = button.innerHTML.replace(/\(\d+\)/, `(${classroomData.students[studentName][behavior + '_count']})`);
-                    }
+                // 隐藏行为按钮和输入框
+                const behaviorButtons = document.getElementById(`behavior-buttons-${studentName}`);
+                const inputGroup = document.getElementById(`input-group-${studentName}`);
+                const submittedDiv = document.getElementById(`submitted-${studentName}`);
+                
+                if (behaviorButtons) {
+                    behaviorButtons.style.display = 'none';
                 }
+                if (inputGroup) {
+                    inputGroup.style.display = 'none';
+                }
+                if (submittedDiv) {
+                    submittedDiv.style.display = 'none';
+                }
+                
+                // 显示PUNISHED状态
+                const punishedDiv = document.getElementById(`punished-${studentName}`);
+                if (punishedDiv) {
+                    punishedDiv.style.display = 'block';
+                }
+                
+                // 更新学生表情
+                updateStudentExpression(studentName, 'angry');
                 
                 alert('已记录！该轮次得分为0');
             } else {
