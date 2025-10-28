@@ -906,15 +906,14 @@ def judge_answers():
             
             # 计算总分数和轮次
             total_score = historical_score + current_round_score
-            # total_rounds: 学生参与的轮次数（包括当前轮次）
+            # total_rounds: 课程的总轮次数（包括未参与的轮次），用于计算准确率
+            # 准确率 = 正确轮次数 / 课程总轮次数
+            total_rounds = course.current_round  # 使用当前课程的总轮次
             if submission:
-                # 有提交记录，说明参与了当前轮次
-                total_rounds = len(historical_rounds) + 1
-                # correct_rounds: 正确的轮次数
+                # 有提交记录，正确轮次增加
                 correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
             else:
-                # 没有提交记录，只统计历史轮次
-                total_rounds = len(historical_rounds)
+                # 没有提交记录，正确轮次不变（未作答算作错误）
                 correct_rounds = historical_correct_rounds
             
             students_data[student.name] = {
@@ -1002,8 +1001,6 @@ def next_round():
             
             # 计算所有轮次的分数和准确率
             total_score = 0
-            completed_rounds = set(sub.round_number for sub in submissions)
-            total_rounds = len(completed_rounds)
             correct_rounds = 0
             
             for sub in submissions:
@@ -1015,7 +1012,9 @@ def next_round():
                     else:
                         total_score += 1
             
-            # correct_rounds是正确答题的轮次数（同一轮次只算一次）
+            # total_rounds: 课程的总轮次数（包括未参与的轮次）
+            # correct_rounds: 正确答题的轮次数（同一轮次只算一次）
+            total_rounds = course.current_round - 1  # 当前课程的总轮次减1（因为还没进入下一轮）
             correct_rounds = len(set(sub.round_number for sub in submissions if sub.is_correct))
             print(f"  → 总分: {total_score}, 总轮次: {total_rounds}, 正确轮次: {correct_rounds}")
             

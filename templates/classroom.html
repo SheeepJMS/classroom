@@ -1420,8 +1420,21 @@ function changeScore(delta) {
 // 课堂结束
 function endClass() {
     if (confirm('确定要结束课堂吗？将进入颁奖典礼！')) {
-        // 跳转到颁奖典礼页面
-        window.location.href = '/ceremony/{{ class_obj.id }}';
+        // 发送结束课程请求
+        fetch('/api/end_course/{{ course_id }}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => {
+            // 后端会返回redirect，但前端直接跳转更快
+            window.location.href = '/ceremony/{{ course_id }}';
+        })
+        .catch(error => {
+            console.error('结束课程失败:', error);
+            alert('结束课程失败，请重试');
+        });
     }
 }
 </script>
