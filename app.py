@@ -897,7 +897,15 @@ def judge_answers():
 def next_round():
     """进入下一轮"""
     try:
-        data = request.get_json() or {}
+        # 安全获取JSON数据
+        try:
+            data = request.get_json()
+        except:
+            data = {}
+        
+        if not data:
+            data = {}
+        
         course_id = data.get('course_id')
         class_id = request.headers.get('X-Class-ID')
         
@@ -968,7 +976,8 @@ def next_round():
     except Exception as e:
         print(f"❌ 进入下一轮失败: {str(e)}")
         traceback.print_exc()
-        db.session.rollback()
+        if db.session:
+            db.session.rollback()
         return jsonify({'success': False, 'message': f'进入下一轮失败: {str(e)}'}), 500
 
 # 结束课程
