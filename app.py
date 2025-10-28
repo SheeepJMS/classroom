@@ -719,21 +719,29 @@ def submit_student_answer():
         answer = data.get('answer', '').strip()
         answer_time = data.get('answer_time', 0.0)
         
-        class_id = request.headers.get('X-Class-ID')
-        if not class_id:
-            referer = request.headers.get('Referer', '')
-            if '/classroom/' in referer:
-                class_id = referer.split('/classroom/')[-1].split('?')[0]
+        # 尝试从URL获取course_id
+        course_id = None
+        referer = request.headers.get('Referer', '')
+        if '/course/' in referer:
+            course_id = referer.split('/course/')[-1].split('?')[0]
         
-        if not student_name or not answer or not class_id:
+        # 如果没有course_id，尝试从class_id获取活跃课程
+        if not course_id:
+            class_id = request.headers.get('X-Class-ID')
+            if class_id:
+                course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+                if course:
+                    course_id = course.id
+        
+        if not student_name or not answer or not course_id:
             return jsonify({'success': False, 'message': '参数不完整'}), 400
         
         # 获取课程和学生
-        course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        course = Course.query.filter_by(id=course_id).first()
         if not course:
-            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+            return jsonify({'success': False, 'message': '课程不存在'}), 404
         
-        student = Student.query.filter_by(name=student_name, class_id=class_id).first()
+        student = Student.query.filter_by(name=student_name, class_id=course.class_id).first()
         if not student:
             return jsonify({'success': False, 'message': '学生不存在'}), 400
         
@@ -778,19 +786,29 @@ def judge_answers():
         correct_answer = data.get('correct_answer', '').strip()
         question_score = data.get('question_score', 1)
         
-        class_id = request.headers.get('X-Class-ID')
-        if not class_id:
-            referer = request.headers.get('Referer', '')
-            if '/classroom/' in referer:
-                class_id = referer.split('/classroom/')[-1].split('?')[0]
+        # 尝试从URL获取course_id
+        course_id = None
+        referer = request.headers.get('Referer', '')
+        if '/course/' in referer:
+            course_id = referer.split('/course/')[-1].split('?')[0]
         
-        if not correct_answer or not class_id:
+        # 如果没有course_id，尝试从class_id获取活跃课程
+        if not course_id:
+            class_id = request.headers.get('X-Class-ID')
+            if class_id:
+                course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+                if course:
+                    course_id = course.id
+        
+        if not correct_answer or not course_id:
             return jsonify({'success': False, 'message': '参数不完整'}), 400
         
         # 获取课程
-        course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        course = Course.query.filter_by(id=course_id).first()
         if not course:
-            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+            return jsonify({'success': False, 'message': '课程不存在'}), 404
+        
+        class_id = course.class_id  # 使用课程对应的班级ID
         
         # 创建或更新轮次记录
         round_record = CourseRound.query.filter_by(
@@ -814,10 +832,10 @@ def judge_answers():
             round_record.is_completed = True
         
         # 评判所有学生的答案
-        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        students_list = Student.query.filter_by(class_id=class_id, status='active').all()
         students_data = {}
         
-        for student in students:
+        for student in students_list:
             submission = StudentSubmission.query.filter_by(
                 student_id=student.id,
                 course_id=course.id,
@@ -830,31 +848,34 @@ def judge_answers():
                 course_id=course.id
             ).all()
             
-            total_score = 0
-            total_rounds = len(set(sub.round_number for sub in all_submissions))
-            correct_rounds = 0
+            # 先计算历史成绩（不包括当前轮次）
+            historical_score = 0
+            historical_correct_rounds = 0
+            historical_rounds = set()
             
             for sub in all_submissions:
-                if sub.is_correct:
-                    round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
-                    if round_obj:
-                        total_score += round_obj.question_score
-                    else:
-                        total_score += 1
-                    correct_rounds += 1
+                if sub.round_number < course.current_round:  # 只计算历史轮次
+                    historical_rounds.add(sub.round_number)
+                    if sub.is_correct:
+                        round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
+                        if round_obj:
+                            historical_score += round_obj.question_score
+                        else:
+                            historical_score += 1
+                        historical_correct_rounds += 1
             
             # 判断当前答案
             expression = 'neutral'
             last_answer = ''
             last_answer_time = 0
+            current_round_score = 0
             
             if submission:
                 is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
                 submission.is_correct = is_correct
                 
                 if is_correct:
-                    total_score += question_score
-                    correct_rounds += 1
+                    current_round_score = question_score
                     expression = 'smile'
                 else:
                     expression = 'angry'
@@ -863,6 +884,11 @@ def judge_answers():
                 last_answer_time = submission.answer_time
             else:
                 expression = 'embarrassed'
+            
+            # 计算总分数和轮次
+            total_score = historical_score + current_round_score
+            total_rounds = len(historical_rounds) + (1 if submission else 0)
+            correct_rounds = historical_correct_rounds + (1 if submission and is_correct else 0)
             
             students_data[student.name] = {
                 'name': student.name,
@@ -915,6 +941,12 @@ def next_round():
             if course:
                 course_id = course.id
         
+        # 如果仍然没有，尝试从URL获取
+        if not course_id:
+            referer = request.headers.get('Referer', '')
+            if '/course/' in referer:
+                course_id = referer.split('/course/')[-1].split('?')[0]
+        
         if not course_id:
             return jsonify({'success': False, 'message': '课程ID不能为空'}), 400
         
@@ -939,8 +971,8 @@ def next_round():
                 course_id=course_id
             ).all()
             
+            # 计算所有轮次的分数和准确率
             total_score = 0
-            # total_rounds 应该是所有轮次中最大值的轮次数
             completed_rounds = set(sub.round_number for sub in submissions)
             total_rounds = len(completed_rounds)
             correct_rounds = 0
@@ -952,7 +984,9 @@ def next_round():
                         total_score += round_obj.question_score
                     else:
                         total_score += 1
-                    correct_rounds += 1
+            
+            # correct_rounds是正确答题的轮次数（同一轮次只算一次）
+            correct_rounds = len(set(sub.round_number for sub in submissions if sub.is_correct))
             
             students_data[student.name] = {
                 'name': student.name,
