@@ -204,6 +204,11 @@
     border: 1px solid #e9ecef;
 }
 
+.student-card.student-absent {
+    opacity: 0.6;
+    background: #fff3cd;
+}
+
 .student-avatar {
     width: 60px;
     height: 60px;
@@ -496,20 +501,28 @@
                 {% if students %}
                 <div class="students-grid">
                     {% for student in students %}
-                    <div class="student-card">
-                        <div class="student-avatar">😊</div>
+                    <div class="student-card {% if student.status == 'absent' %}student-absent{% endif %}">
+                        <div class="student-avatar">{% if student.status == 'absent' %}😴{% else %}😊{% endif %}</div>
                         <div class="student-name">{{ student.name }}</div>
                         <div class="student-stats">
-                            TOTAL 0<br>
-                            COURSES: 0<br>
-                            ATTENDANCE: 100%<br>
-                            ABSENCES: 0<br>
-                            SCORE: 0
+                            TOTAL: {{ student.total_score if hasattr(student, 'total_score') else 0 }}<br>
+                            COURSES: {{ student.courses_count if hasattr(student, 'courses_count') else 0 }}<br>
+                            ATTENDANCE: {{ (100 if hasattr(student, 'absences_count') and student.absences_count == 0 and student.courses_count == 0 else ((student.courses_count / (student.courses_count + student.absences_count) * 100) | round)) if hasattr(student, 'absences_count') and hasattr(student, 'courses_count') else 100 }}%<br>
+                            ABSENCES: {{ student.absences_count if hasattr(student, 'absences_count') else 0 }}
                         </div>
                         <div class="student-actions">
                             <a href="/student_report_center/{{ student.id }}" class="btn btn-primary btn-sm mb-2" title="报告中心">
                                 <i class="fas fa-chart-line"></i> 报告中心
                             </a>
+                            {% if student.status == 'active' %}
+                            <button class="btn btn-warning btn-sm mb-2" onclick="markStudentAbsent('{{ student.id }}')" title="请假">
+                                <i class="fas fa-user-slash"></i> 请假
+                            </button>
+                            {% else %}
+                            <button class="btn btn-success btn-sm mb-2" onclick="markStudentActive('{{ student.id }}')" title="恢复上课">
+                                <i class="fas fa-user-check"></i> 恢复上课
+                            </button>
+                            {% endif %}
                             <button class="btn btn-danger btn-sm" onclick="graduateStudent('{{ student.id }}')" title="删除学生">
                                 <i class="fas fa-trash"></i>
                             </button>
@@ -632,6 +645,56 @@ function addStudent() {
         console.error('Error:', error);
         alert('添加学生时发生错误');
     });
+}
+
+// 学生请假
+function markStudentAbsent(studentId) {
+    if (confirm('确定要标记这个学生为请假吗？')) {
+        fetch('/api/student_absent/' + studentId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('学生已标记为请假');
+                location.reload();
+            } else {
+                alert('操作失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
+}
+
+// 恢复上课
+function markStudentActive(studentId) {
+    if (confirm('确定要恢复这个学生上课吗？')) {
+        fetch('/api/student_active/' + studentId, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('学生已恢复上课');
+                location.reload();
+            } else {
+                alert('操作失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
 }
 
 function graduateStudent(studentId) {

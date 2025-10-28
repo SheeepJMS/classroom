@@ -546,6 +546,25 @@ function createStudentCard(student) {
                 <i class="fas fa-eye-slash"></i> Distracted (${student.distracted_count || 0})
             </button>
         </div>
+        <!-- BINGO后：显示统计数据 -->
+        <div class="student-stats" id="stats-${student.name}" style="display: none;">
+            <div class="stat-item">
+                <span class="stat-label">Score</span>
+                <span class="stat-value">${student.score}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Rounds</span>
+                <span class="stat-value">${student.total_rounds || 0}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Acc</span>
+                <span class="stat-value">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Answer</span>
+                <span class="stat-value">${student.last_answer || '-'}</span>
+            </div>
+        </div>
         <div class="student-status" id="status-${student.name}"></div>
     `;
     
@@ -1022,7 +1041,12 @@ function showAnswerResults(correctAnswer) {
                 submittedDiv.style.display = 'none';
             }
             
-            // 显示四个指标
+            // 隐藏行为按钮，显示统计数据
+            const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
+            if (behaviorButtons) {
+                behaviorButtons.style.display = 'none';
+            }
+            
             const statsDiv = document.getElementById(`stats-${student.name}`);
             console.log(`学生 ${student.name} 的统计数据元素:`, statsDiv);
             console.log(`学生 ${student.name} 的DOM结构:`, document.querySelector(`[data-student="${student.name}"]`));
@@ -1311,6 +1335,7 @@ function nextRound() {
                 const submittedDiv = document.getElementById(`submitted-${student.name}`);
                 const resultDiv = document.getElementById(`result-${student.name}`);
                 const statsDiv = document.getElementById(`stats-${student.name}`);
+                const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
                 const answerInput = document.querySelector(`[data-student="${student.name}"].student-answer-input`);
                 
                 if (inputGroup) {
@@ -1322,8 +1347,12 @@ function nextRound() {
                 if (resultDiv) {
                     resultDiv.style.display = 'none';
                 }
+                // 隐藏统计数据，显示行为按钮
                 if (statsDiv) {
                     statsDiv.style.display = 'none';
+                }
+                if (behaviorButtons) {
+                    behaviorButtons.style.display = 'flex';
                 }
                 // 清空输入框
                 if (answerInput) {

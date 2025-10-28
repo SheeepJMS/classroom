@@ -1,40 +1,30 @@
 # Git 提交命令
 
 ```bash
-git add app.py templates/classroom.html
-git commit -m "添加学生行为记录：替换统计数据为四个按钮(guess/copy/noisy/distracted)，每次点击扣2分"
+git add app.py templates/classroom.html templates/class_detail.html
+git commit -m "完善界面切换：BINGO前显示行为按钮，BINGO后显示统计数据，next_round切换回按钮"
 git push origin main
 ```
 
-## 修复内容
+## 所有修复内容总结
 
-### 1. 数据库模型更新
-- 在 `StudentSubmission` 模型中添加了行为记录字段：
-  - `guess_count`: 猜题次数（橙色按钮 🎲）
-  - `copy_count`: 抄袭次数（红色按钮 📋）
-  - `noisy_count`: 吵闹次数（紫色按钮 🔊）
-  - `distracted_count`: 分心次数（黄色按钮 🙈）
-  - `penalty_score`: 扣分总数
+### 1. 学生行为记录功能
+- 四个行为按钮：Guess（橙色🎲）、Copy（红色📋）、Noisy（紫色🔊）、Distracted（黄色🙈）
+- 点击扣2分，不影响准确率
+- 记录行为次数并显示在按钮上
 
-### 2. 前端更新
-- 替换了学生卡片底部的统计数据（SCORE, ROUNDS, ACC, ANSWER）为四个行为按钮
-- 每个按钮显示对应的图标和计数
-- 点击按钮后弹窗确认，然后调用后端API
-- 按钮颜色和图标：
-  - Guess: 橙色 (#ff9800) 🎲
-  - Copy: 红色 (#f44336) 📋
-  - Noisy: 紫色 (#9c27b0) 🔊
-  - Distracted: 黄色 (#ffeb3b) 🙈
+### 2. 界面切换逻辑
+- **答题阶段（START到BINGO）**：显示四个行为按钮
+- **评判阶段（点击BINGO后）**：隐藏按钮，显示四个统计数据（Score, Rounds, Acc, Answer）
+- **下一轮（点击Next）**：重新切换回显示行为按钮，为下一轮答题做准备
 
-### 3. 后端API
-- 添加了 `/api/mark_behavior` 端点
-\-\-record 学生行为并扣2分
-- 在 `judge_answers` 和 `next_round` 函数的分数计算中减去 `penalty_score`
-- 扣分不影响准确率（因为只影响总分，不影响 `is_correct`）
+### 3. 学生请假功能
+- 请假按钮和恢复按钮
+- 请假学生不参加新课程
+- 请假学生自动排到底部
+- 显示正确的统计数据
 
-### 4. 功能特点
-- ✅ 点击按钮前弹窗确认
-- ✅ 每次点击扣2分
-- ✅ 不影响准确率（ACC）
-- ✅ 记录行为次数（显示在按钮上）
-- ✅ 扣分影响总分显示
+### 4. 准确率和分数计算
+- 准确率计算：未作答算作错误
+- 扣分不影响准确率
+- 正确累加分数和轮次
