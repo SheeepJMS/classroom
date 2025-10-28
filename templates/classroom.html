@@ -13,7 +13,7 @@
                 <div class="left-info-section">
                     <div class="control-item">
                         <div class="control-label">Round</div>
-                        <div class="control-value" id="roundNumber">1</div>
+                        <div class="control-value" id="roundNumber">{{ course.current_round if course else 1 }}</div>
                     </div>
                     <div class="control-item">
                         <div class="control-label">Score</div>

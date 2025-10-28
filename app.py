@@ -940,7 +940,9 @@ def next_round():
             ).all()
             
             total_score = 0
-            total_rounds = len(set(sub.round_number for sub in submissions))
+            # total_rounds 应该是所有轮次中最大值的轮次数
+            completed_rounds = set(sub.round_number for sub in submissions)
+            total_rounds = len(completed_rounds)
             correct_rounds = 0
             
             for sub in submissions:
