@@ -155,6 +155,7 @@ let startTime = null;
 document.addEventListener('DOMContentLoaded', function() {
     console.log('DOMContentLoaded event fired');
     console.log('Class ID:', '{{ class_obj.id }}');
+    console.log('Course ID:', '{{ course_id }}');
     console.log('About to start fetch...');
     
     // 强制刷新学生数据
@@ -597,7 +598,8 @@ function submitStudentAnswer(studentName, answer) {
         body: JSON.stringify({
             student_name: studentName,
             answer: answer,
-            answer_time: answerTime
+            answer_time: answerTime,
+            course_id: '{{ course_id }}'
         })
     })
     .then(response => response.json())
@@ -826,7 +828,8 @@ function stopTimer() {
             },
             body: JSON.stringify({
                 correct_answer: correctAnswer,
-                question_score: questionScore
+                question_score: questionScore,
+                course_id: '{{ course_id }}'
             })
         })
         .then(response => {
@@ -1235,15 +1238,21 @@ function nextRound() {
         headers: {
             'Content-Type': 'application/json',
             'X-Class-ID': '{{ class_obj.id }}'
-        }
+        },
+        body: JSON.stringify({
+            course_id: '{{ course_id }}'
+        })
     })
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            console.log('✅ next_round 成功，新轮次:', data.round);
+            console.log('📊 返回的学生数据:', data.students);
             classroomData.students = data.students;
             classroomData.current_round = data.round;
             classroomData.round_active = false;
             
+            console.log('🔄 开始重置UI...');
             // 更新轮次显示
             updateRoundStatus();
             
@@ -1326,10 +1335,12 @@ function nextRound() {
                 }
             });
             
+            console.log('📝 调用 updateStudentsDisplay...');
             updateStudentsDisplay(true);  // 保持服务器返回的状态
             
             // 确保所有学生表情都重置为neutral
             setTimeout(() => {
+                console.log('😊 重置所有学生表情为 neutral');
                 Object.values(classroomData.students).forEach(student => {
                     // 过滤掉无效的学生数据
                     if (!student || !student.name || student.name === 'undefined' || student.name === '') {
@@ -1339,6 +1350,7 @@ function nextRound() {
                 });
             }, 100);
             updateRoundStatus();
+            console.log('✅ next_round 流程完成！');
         }
     })
     .catch(error => {

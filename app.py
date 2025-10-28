@@ -719,13 +719,16 @@ def submit_student_answer():
         answer = data.get('answer', '').strip()
         answer_time = data.get('answer_time', 0.0)
         
-        # 尝试从URL获取course_id
-        course_id = None
-        referer = request.headers.get('Referer', '')
-        if '/course/' in referer:
-            course_id = referer.split('/course/')[-1].split('?')[0]
+        # 优先从请求体中获取course_id
+        course_id = data.get('course_id')
         
-        # 如果没有course_id，尝试从class_id获取活跃课程
+        # 如果没提供course_id，尝试从URL获取
+        if not course_id:
+            referer = request.headers.get('Referer', '')
+            if '/course/' in referer:
+                course_id = referer.split('/course/')[-1].split('?')[0]
+        
+        # 如果仍然没有course_id，尝试从class_id获取活跃课程
         if not course_id:
             class_id = request.headers.get('X-Class-ID')
             if class_id:
@@ -787,13 +790,16 @@ def judge_answers():
         correct_answer = data.get('correct_answer', '').strip()
         question_score = data.get('question_score', 1)
         
-        # 尝试从URL获取course_id
-        course_id = None
-        referer = request.headers.get('Referer', '')
-        if '/course/' in referer:
-            course_id = referer.split('/course/')[-1].split('?')[0]
+        # 优先从请求体中获取course_id
+        course_id = data.get('course_id')
         
-        # 如果没有course_id，尝试从class_id获取活跃课程
+        # 如果没提供course_id，尝试从URL获取
+        if not course_id:
+            referer = request.headers.get('Referer', '')
+            if '/course/' in referer:
+                course_id = referer.split('/course/')[-1].split('?')[0]
+        
+        # 如果仍然没有course_id，尝试从class_id获取活跃课程
         if not course_id:
             class_id = request.headers.get('X-Class-ID')
             if class_id:
