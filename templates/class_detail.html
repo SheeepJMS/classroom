@@ -678,8 +678,12 @@ function startNewCourse() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // 直接跳转到课堂答题页面，不显示成功提示
-                window.location.href = '/classroom/{{ class_data.id }}';
+                // 跳转到课程答题页面
+                if (data.redirect_url) {
+                    window.location.href = data.redirect_url;
+                } else {
+                    window.location.href = '/classroom/{{ class_data.id }}';
+                }
             } else {
                 alert('创建课程失败：' + (data.message || '未知错误'));
             }
