@@ -153,6 +153,13 @@ class StudentSubmission(db.Model):
     is_correct = db.Column(db.Boolean, default=False)
     answer_time = db.Column(db.Float, nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 行为记录
+    guess_count = db.Column(db.Integer, default=0)  # 猜题次数
+    copy_count = db.Column(db.Integer, default=0)  # 抄袭次数
+    noisy_count = db.Column(db.Integer, default=0)  # 吵闹次数
+    distracted_count = db.Column(db.Integer, default=0)  # 分心次数
+    penalty_score = db.Column(db.Integer, default=0)  # 扣分总数
 
 class CourseAttendance(db.Model):
     """课程出勤模型"""
@@ -241,6 +248,43 @@ def class_management(class_id):
         active_students = [s for s in all_students if s.status == 'active']
         absent_students = [s for s in all_students if s.status == 'absent']
         students = active_students + absent_students  # 活跃学生在前面
+        
+        # 为学生添加统计数据
+        all_courses = Course.query.filter_by(class_id=class_id).all()
+        for student in students:
+            # 计算总得分（所有课程得分的累加）
+            total_score = 0
+            courses_count = 0
+            absences_count = 0
+            
+            for course in all_courses:
+                submissions = StudentSubmission.query.filter_by(
+                    student_id=student.id,
+                    course_id=course.id
+                ).all()
+                
+                # 如果学生在该课程有提交记录，说明参加了
+                if submissions:
+                    courses_count += 1
+                    for sub in submissions:
+                        if sub.is_correct:
+                            round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
+                            if round_obj:
+                                total_score += round_obj.question_score
+                            else:
+                                total_score += 1
+                else:
+                    # 检查是否标记为缺席
+                    attendance = CourseAttendance.query.filter_by(
+                        student_id=student.id,
+                        course_id=course.id
+                    ).first()
+                    if attendance and attendance.is_absent:
+                        absences_count += 1
+            
+            student.total_score = total_score
+            student.courses_count = courses_count
+            student.absences_count = absences_count
         
         # 获取课程列表
         courses = Course.query.filter_by(class_id=class_id).order_by(Course.created_at.desc()).all()
@@ -872,6 +916,9 @@ def judge_answers():
                             historical_score += round_obj.question_score
                         else:
                             historical_score += 1
+                    # 减去扣分（penalty_score）
+                    if sub.penalty_score:
+                        historical_score -= sub.penalty_score
             
             # 历史正确轮次数（同一轮次只算一次）
             historical_correct_rounds = len([r for r in historical_rounds if 
@@ -1011,6 +1058,9 @@ def next_round():
                         total_score += round_obj.question_score
                     else:
                         total_score += 1
+                # 减去扣分（penalty_score）
+                if sub.penalty_score:
+                    total_score -= sub.penalty_score
             
             # total_rounds: 课程的总轮次数（包括未参与的轮次）
             # correct_rounds: 正确答题的轮次数（同一轮次只算一次）
@@ -1067,6 +1117,69 @@ def end_course(course_id):
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束课程失败: {str(e)}'}), 500
+
+# 标记学生行为
+@app.route('/api/mark_behavior', methods=['POST'])
+def mark_behavior():
+    """标记学生行为（guess, copy, noisy, distracted）"""
+    try:
+        data = request.get_json()
+        student_name = data.get('student_name', '').strip()
+        behavior = data.get('behavior', '').strip()
+        course_id = data.get('course_id')
+        
+        # 如果没提供course_id，尝试获取
+        if not course_id:
+            referer = request.headers.get('Referer', '')
+            if '/course/' in referer:
+                course_id = referer.split('/course/')[-1].split('?')[0]
+        
+        if not student_name or not behavior or not course_id:
+            return jsonify({'success': False, 'message': '参数不完整'}), 400
+        
+        # 获取课程和学生
+        course = Course.query.filter_by(id=course_id).first()
+        if not course:
+            return jsonify({'success': False, 'message': '课程不存在'}), 404
+        
+        student = Student.query.filter_by(name=student_name, class_id=course.class_id).first()
+        if not student:
+            return jsonify({'success': False, 'message': '学生不存在'}), 404
+        
+        # 获取当前轮次的提交记录
+        submission = StudentSubmission.query.filter_by(
+            student_id=student.id,
+            course_id=course_id,
+            round_number=course.current_round
+        ).first()
+        
+        if not submission:
+            return jsonify({'success': False, 'message': '学生当前轮次没有提交记录'}), 400
+        
+        # 更新行为计数
+        if behavior == 'guess':
+            submission.guess_count += 1
+        elif behavior == 'copy':
+            submission.copy_count += 1
+        elif behavior == 'noisy':
+            submission.noisy_count += 1
+        elif behavior == 'distracted':
+            submission.distracted_count += 1
+        
+        # 扣2分（不影响准确率，只是总分减少）
+        submission.penalty_score += 2
+        
+        db.session.commit()
+        
+        print(f"✅ 学生 {student_name} 行为标记: {behavior}, 扣2分")
+        return jsonify({'success': True, 'message': '行为已记录'})
+        
+    except Exception as e:
+        print(f"❌ 标记行为失败: {str(e)}")
+        traceback.print_exc()
+        if db.session:
+            db.session.rollback()
+        return jsonify({'success': False, 'message': f'标记失败: {str(e)}'}), 500
 
 # 领奖台页面
 @app.route('/ceremony/<course_id>')

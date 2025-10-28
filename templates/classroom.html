@@ -532,23 +532,19 @@ function createStudentCard(student) {
         <div class="student-result" id="result-${student.name}" style="display: none;">
             <span class="result-text"></span>
         </div>
-        <div class="student-stats" id="stats-${student.name}" style="display: none;">
-            <div class="stat-item">
-                <span class="stat-label">Score</span>
-                <span class="stat-value">${student.score}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Rounds</span>
-                <span class="stat-value">${student.total_rounds || 0}</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Acc</span>
-                <span class="stat-value">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
-            </div>
-            <div class="stat-item">
-                <span class="stat-label">Answer</span>
-                <span class="stat-value">${student.last_answer || '-'}</span>
-            </div>
+        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+            <button class="btn btn-sm" style="background-color: #ff9800; color: white; border: none;" onclick="markBehavior('${student.name}', 'guess')" title="猜题">
+                <i class="fas fa-dice"></i> Guess (${student.guess_count || 0})
+            </button>
+            <button class="btn btn-sm" style="background-color: #f44336; color: white; border: none;" onclick="markBehavior('${student.name}', 'copy')" title="抄袭">
+                <i class="fas fa-copy"></i> Copy (${student.copy_count || 0})
+            </button>
+            <button class="btn btn-sm" style="background-color: #9c27b0; color: white; border: none;" onclick="markBehavior('${student.name}', 'noisy')" title="吵闹">
+                <i class="fas fa-volume-up"></i> Noisy (${student.noisy_count || 0})
+            </button>
+            <button class="btn btn-sm" style="background-color: #ffeb3b; color: #333; border: none;" onclick="markBehavior('${student.name}', 'distracted')" title="分心">
+                <i class="fas fa-eye-slash"></i> Distracted (${student.distracted_count || 0})
+            </button>
         </div>
         <div class="student-status" id="status-${student.name}"></div>
     `;
@@ -1415,6 +1411,61 @@ function changeScore(delta) {
     if (newScore > 10) newScore = 10;
     
     scoreElement.textContent = newScore;
+}
+
+// 记录学生行为
+function markBehavior(studentName, behavior) {
+    const messages = {
+        'guess': '确定要标记学生为"猜题"吗？将扣2分！',
+        'copy': '确定要标记学生为"抄袭"吗？将扣2分！',
+        'noisy': '确定要标记学生为"吵闹"吗？将扣2分！',
+        'distracted': '确定要标记学生为"分心"吗？将扣2分！'
+    };
+    
+    if (confirm(messages[behavior])) {
+        fetch('/api/mark_behavior', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Class-ID': '{{ class_obj.id }}'
+            },
+            body: JSON.stringify({
+                student_name: studentName,
+                behavior: behavior,
+                course_id: '{{ course_id }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 更新本地数据
+                if (classroomData.students[studentName]) {
+                    classroomData.students[studentName][behavior + '_count'] = (classroomData.students[studentName][behavior + '_count'] || 0) + 1;
+                    classroomData.students[studentName].score = (classroomData.students[studentName].score || 0) - 2;
+                    
+                    // 更新按钮显示
+                    const button = document.querySelector(`#behavior-buttons-${studentName} button[onclick*="${behavior}"]`);
+                    if (button) {
+                        button.innerHTML = button.innerHTML.replace(/\(\d+\)/, `(${classroomData.students[studentName][behavior + '_count']})`);
+                    }
+                    
+                    // 更新分数显示
+                    const scoreElement = document.querySelector(`[data-student="${studentName}"] .stat-value`);
+                    if (scoreElement && classroomData.students[studentName]) {
+                        scoreElement.textContent = classroomData.students[studentName].score;
+                    }
+                }
+                
+                alert('已记录！该学生扣2分');
+            } else {
+                alert('操作失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('操作失败，请重试');
+        });
+    }
 }
 
 // 课堂结束
