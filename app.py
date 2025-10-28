@@ -560,7 +560,63 @@ def create_course():
 @app.route('/api/start_course', methods=['POST'])
 def start_course():
     """创建课程（前端调用此接口）"""
-    return create_course()
+    try:
+        data = request.get_json()
+        # 支持两种参数名：course_name 和 name
+        name = data.get('course_name', '').strip()
+        if not name:
+            name = data.get('name', '').strip()
+        
+        # 从URL或headers获取class_id
+        class_id = data.get('class_id')
+        if not class_id:
+            class_id = request.headers.get('X-Class-ID')
+        
+        if not class_id:
+            # 尝试从referer获取
+            referer = request.headers.get('Referer', '')
+            if '/classroom/' in referer:
+                class_id = referer.split('/classroom/')[-1].split('?')[0]
+        
+        if not name:
+            return jsonify({'success': False, 'message': '课程名称不能为空'}), 400
+        
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        # 结束所有活跃课程
+        Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False, 'ended_at': datetime.utcnow()})
+        
+        # 创建新课程
+        course_id = str(uuid.uuid4())
+        course = Course(id=course_id, class_id=class_id, name=name, current_round=1, is_active=True)
+        db.session.add(course)
+        db.session.commit()
+        
+        # 标记学生出勤
+        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        for student in students:
+            attendance = CourseAttendance(
+                id=str(uuid.uuid4()),
+                course_id=course_id,
+                student_id=student.id,
+                is_absent=False
+            )
+            db.session.add(attendance)
+        db.session.commit()
+        
+        print(f"✅ 创建新课程: {name}")
+        return jsonify({
+            'success': True, 
+            'course_id': course_id,
+            'redirect_url': f'/course/{course_id}'
+        })
+        
+    except Exception as e:
+        print(f"❌ 创建课程失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'创建课程失败: {str(e)}'}), 500
 
 # 开始课程
 @app.route('/api/start_class', methods=['POST'])
