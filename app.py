@@ -753,6 +753,7 @@ def submit_student_answer():
         ).first()
         
         if existing:
+            print(f"⚠️ 学生 {student_name} 在轮次 {course.current_round} 已经提交过答案: {existing.answer}")
             return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
         
         # 创建提交记录
@@ -768,7 +769,7 @@ def submit_student_answer():
         db.session.add(submission)
         db.session.commit()
         
-        print(f"✅ 学生 {student_name} 提交答案: {answer}")
+        print(f"✅ 学生 {student_name} 在轮次 {course.current_round} 提交答案: {answer}")
         return jsonify({'success': True})
         
     except Exception as e:
@@ -803,12 +804,15 @@ def judge_answers():
         if not correct_answer or not course_id:
             return jsonify({'success': False, 'message': '参数不完整'}), 400
         
+        
         # 获取课程
         course = Course.query.filter_by(id=course_id).first()
         if not course:
             return jsonify({'success': False, 'message': '课程不存在'}), 404
         
         class_id = course.class_id  # 使用课程对应的班级ID
+        
+        print(f"🎯 评判轮次 {course.current_round} 的答案，正确答案: {correct_answer}，分数: {question_score}")
         
         # 创建或更新轮次记录
         round_record = CourseRound.query.filter_by(
@@ -862,19 +866,27 @@ def judge_answers():
                             historical_score += round_obj.question_score
                         else:
                             historical_score += 1
-                        historical_correct_rounds += 1
+            
+            # 历史正确轮次数（同一轮次只算一次）
+            historical_correct_rounds = len([r for r in historical_rounds if 
+                any(sub.is_correct and sub.round_number == r for sub in all_submissions)])
             
             # 判断当前答案
             expression = 'neutral'
             last_answer = ''
             last_answer_time = 0
             current_round_score = 0
+            is_current_correct = False
             
             if submission:
-                is_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
-                submission.is_correct = is_correct
+                # 判断当前轮次答案是否正确
+                print(f"📝 学生 {student.name} 轮次 {course.current_round} 答案: '{submission.answer}' vs 正确答案: '{correct_answer}'")
+                is_current_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
+                # 更新数据库中的is_correct状态
+                submission.is_correct = is_current_correct
+                print(f"{'✅ 正确' if is_current_correct else '❌ 错误'}: {is_current_correct}")
                 
-                if is_correct:
+                if is_current_correct:
                     current_round_score = question_score
                     expression = 'smile'
                 else:
@@ -883,12 +895,21 @@ def judge_answers():
                 last_answer = submission.answer
                 last_answer_time = submission.answer_time
             else:
+                print(f"⚠️ 学生 {student.name} 在轮次 {course.current_round} 没有提交答案")
                 expression = 'embarrassed'
             
             # 计算总分数和轮次
             total_score = historical_score + current_round_score
-            total_rounds = len(historical_rounds) + (1 if submission else 0)
-            correct_rounds = historical_correct_rounds + (1 if submission and is_correct else 0)
+            # total_rounds: 学生参与的轮次数（包括当前轮次）
+            if submission:
+                # 有提交记录，说明参与了当前轮次
+                total_rounds = len(historical_rounds) + 1
+                # correct_rounds: 正确的轮次数
+                correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
+            else:
+                # 没有提交记录，只统计历史轮次
+                total_rounds = len(historical_rounds)
+                correct_rounds = historical_correct_rounds
             
             students_data[student.name] = {
                 'name': student.name,
@@ -971,6 +992,8 @@ def next_round():
                 course_id=course_id
             ).all()
             
+            print(f"👤 学生 {student.name} 有 {len(submissions)} 条提交记录")
+            
             # 计算所有轮次的分数和准确率
             total_score = 0
             completed_rounds = set(sub.round_number for sub in submissions)
@@ -978,6 +1001,7 @@ def next_round():
             correct_rounds = 0
             
             for sub in submissions:
+                print(f"  轮次 {sub.round_number}: 答案='{sub.answer}' is_correct={sub.is_correct}")
                 if sub.is_correct:
                     round_obj = CourseRound.query.filter_by(course_id=course_id, round_number=sub.round_number).first()
                     if round_obj:
@@ -987,6 +1011,7 @@ def next_round():
             
             # correct_rounds是正确答题的轮次数（同一轮次只算一次）
             correct_rounds = len(set(sub.round_number for sub in submissions if sub.is_correct))
+            print(f"  → 总分: {total_score}, 总轮次: {total_rounds}, 正确轮次: {correct_rounds}")
             
             students_data[student.name] = {
                 'name': student.name,
