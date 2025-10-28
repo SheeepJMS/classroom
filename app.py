@@ -897,24 +897,33 @@ def judge_answers():
 def next_round():
     """进入下一轮"""
     try:
+        data = request.get_json() or {}
+        course_id = data.get('course_id')
         class_id = request.headers.get('X-Class-ID')
-        if not class_id:
-            referer = request.headers.get('Referer', '')
-            if '/classroom/' in referer:
-                class_id = referer.split('/classroom/')[-1].split('?')[0]
         
-        if not class_id:
-            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        # 如果没提供course_id，尝试从class_id获取活跃课程
+        if not course_id and class_id:
+            course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+            if course:
+                course_id = course.id
         
-        course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not course_id:
+            return jsonify({'success': False, 'message': '课程ID不能为空'}), 400
+        
+        course = Course.query.filter_by(id=course_id).first()
         if not course:
-            return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
+            return jsonify({'success': False, 'message': '课程不存在'}), 404
         
         course.current_round += 1
         db.session.commit()
         
         print(f"✅ 进入下一轮: {course.current_round}")
-        return jsonify({'success': True, 'round_number': course.current_round})
+        return jsonify({
+            'success': True, 
+            'round': course.current_round,
+            'round_number': course.current_round,
+            'current_round': course.current_round
+        })
         
     except Exception as e:
         print(f"❌ 进入下一轮失败: {str(e)}")
