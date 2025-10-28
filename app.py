@@ -912,17 +912,57 @@ def next_round():
         
         course = Course.query.filter_by(id=course_id).first()
         if not course:
+            print(f"❌ 课程不存在: {course_id}")
             return jsonify({'success': False, 'message': '课程不存在'}), 404
         
+        print(f"当前课程轮次: {course.current_round}")
         course.current_round += 1
         db.session.commit()
         
         print(f"✅ 进入下一轮: {course.current_round}")
+        
+        # 获取更新后的学生数据
+        students = Student.query.filter_by(class_id=course.class_id, status='active').all()
+        students_data = {}
+        
+        for student in students:
+            submissions = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                course_id=course_id
+            ).all()
+            
+            total_score = 0
+            total_rounds = len(set(sub.round_number for sub in submissions))
+            correct_rounds = 0
+            
+            for sub in submissions:
+                if sub.is_correct:
+                    round_obj = CourseRound.query.filter_by(course_id=course_id, round_number=sub.round_number).first()
+                    if round_obj:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1
+                    correct_rounds += 1
+            
+            students_data[student.name] = {
+                'name': student.name,
+                'id': student.id,
+                'score': total_score,
+                'total_rounds': total_rounds,
+                'correct_rounds': correct_rounds,
+                'expression': 'neutral',
+                'animation': 'none',
+                'avatar_color': '#4ecdc4',
+                'last_answer': '',
+                'last_answer_time': 0
+            }
+        
         return jsonify({
             'success': True, 
             'round': course.current_round,
             'round_number': course.current_round,
-            'current_round': course.current_round
+            'current_round': course.current_round,
+            'students': students_data
         })
         
     except Exception as e:
