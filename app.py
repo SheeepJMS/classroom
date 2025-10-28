@@ -946,9 +946,6 @@ def judge_answers():
                             historical_score += round_obj.question_score
                         else:
                             historical_score += 1
-                    # 减去扣分（penalty_score）
-                    if sub.penalty_score:
-                        historical_score -= sub.penalty_score
             
             # 历史正确轮次数（同一轮次只算一次）
             historical_correct_rounds = len([r for r in historical_rounds if 
@@ -1088,9 +1085,6 @@ def next_round():
                         total_score += round_obj.question_score
                     else:
                         total_score += 1
-                # 减去扣分（penalty_score）
-                if sub.penalty_score:
-                    total_score -= sub.penalty_score
             
             # total_rounds: 课程的总轮次数（包括未参与的轮次）
             # correct_rounds: 正确答题的轮次数（同一轮次只算一次）
@@ -1176,15 +1170,25 @@ def mark_behavior():
         if not student:
             return jsonify({'success': False, 'message': '学生不存在'}), 404
         
-        # 获取当前轮次的提交记录
+        # 获取或创建当前轮次的提交记录
         submission = StudentSubmission.query.filter_by(
             student_id=student.id,
             course_id=course_id,
             round_number=course.current_round
         ).first()
         
+        # 如果学生没有提交记录，创建一个空的提交记录（用于记录行为）
         if not submission:
-            return jsonify({'success': False, 'message': '学生当前轮次没有提交记录'}), 400
+            submission = StudentSubmission(
+                id=str(uuid.uuid4()),
+                student_id=student.id,
+                course_id=course_id,
+                round_number=course.current_round,
+                answer='',  # 空答案，表示未提交
+                answer_time=0.0,
+                is_correct=False
+            )
+            db.session.add(submission)
         
         # 更新行为计数
         if behavior == 'guess':
@@ -1196,13 +1200,13 @@ def mark_behavior():
         elif behavior == 'distracted':
             submission.distracted_count += 1
         
-        # 扣2分（不影响准确率，只是总分减少）
-        submission.penalty_score += 2
+        # 标记该题得分为0（无论答案是否正确）
+        submission.is_correct = False
         
         db.session.commit()
         
-        print(f"✅ 学生 {student_name} 行为标记: {behavior}, 扣2分")
-        return jsonify({'success': True, 'message': '行为已记录'})
+        print(f"✅ 学生 {student_name} 行为标记: {behavior}, 该题得分为0")
+        return jsonify({'success': True, 'message': '行为已记录，该题得分为0'})
         
     except Exception as e:
         print(f"❌ 标记行为失败: {str(e)}")

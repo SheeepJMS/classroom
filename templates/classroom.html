@@ -532,7 +532,7 @@ function createStudentCard(student) {
         <div class="student-result" id="result-${student.name}" style="display: none;">
             <span class="result-text"></span>
         </div>
-        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: flex; flex-direction: column; gap: 5px; margin-top: 10px;">
+        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 5px; margin-top: 10px; flex-wrap: wrap;">
             <button class="btn btn-sm" style="background-color: #ff9800; color: white; border: none;" onclick="markBehavior('${student.name}', 'guess')" title="猜题">
                 <i class="fas fa-dice"></i> Guess (${student.guess_count || 0})
             </button>
@@ -694,6 +694,17 @@ function startClass() {
         correctAnswerInput.style.display = 'flex';
         console.log('正确答案输入框已显示');
     }
+    
+    // 显示行为按钮
+    Object.values(classroomData.students).forEach(student => {
+        if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+            return;
+        }
+        const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
+        if (behaviorButtons) {
+            behaviorButtons.style.display = 'flex';
+        }
+    });
     
     // 禁用分数调整按钮
     const scoreMinusBtn = document.getElementById('scoreMinusBtn');
@@ -1046,6 +1057,8 @@ function showAnswerResults(correctAnswer) {
             if (behaviorButtons) {
                 behaviorButtons.style.display = 'none';
             }
+        }
+    }
             
             const statsDiv = document.getElementById(`stats-${student.name}`);
             console.log(`学生 ${student.name} 的统计数据元素:`, statsDiv);
@@ -1353,6 +1366,7 @@ function nextRound() {
                 }
                 if (behaviorButtons) {
                     behaviorButtons.style.display = 'flex';
+                    behaviorButtons.style.flexDirection = 'row';
                 }
                 // 清空输入框
                 if (answerInput) {
@@ -1445,10 +1459,10 @@ function changeScore(delta) {
 // 记录学生行为
 function markBehavior(studentName, behavior) {
     const messages = {
-        'guess': '确定要标记学生为"猜题"吗？将扣2分！',
-        'copy': '确定要标记学生为"抄袭"吗？将扣2分！',
-        'noisy': '确定要标记学生为"吵闹"吗？将扣2分！',
-        'distracted': '确定要标记学生为"分心"吗？将扣2分！'
+        'guess': '确定要标记学生为"猜题"吗？该题得分为0！',
+        'copy': '确定要标记学生为"抄袭"吗？该题得分为0！',
+        'noisy': '确定要标记学生为"吵闹"吗？该题得分为0！',
+        'distracted': '确定要标记学生为"分心"吗？该题得分为0！'
     };
     
     if (confirm(messages[behavior])) {
@@ -1470,22 +1484,15 @@ function markBehavior(studentName, behavior) {
                 // 更新本地数据
                 if (classroomData.students[studentName]) {
                     classroomData.students[studentName][behavior + '_count'] = (classroomData.students[studentName][behavior + '_count'] || 0) + 1;
-                    classroomData.students[studentName].score = (classroomData.students[studentName].score || 0) - 2;
                     
                     // 更新按钮显示
                     const button = document.querySelector(`#behavior-buttons-${studentName} button[onclick*="${behavior}"]`);
                     if (button) {
                         button.innerHTML = button.innerHTML.replace(/\(\d+\)/, `(${classroomData.students[studentName][behavior + '_count']})`);
                     }
-                    
-                    // 更新分数显示
-                    const scoreElement = document.querySelector(`[data-student="${studentName}"] .stat-value`);
-                    if (scoreElement && classroomData.students[studentName]) {
-                        scoreElement.textContent = classroomData.students[studentName].score;
-                    }
                 }
                 
-                alert('已记录！该学生扣2分');
+                alert('已记录！该轮次得分为0');
             } else {
                 alert('操作失败：' + (data.message || '未知错误'));
             }

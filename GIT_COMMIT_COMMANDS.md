@@ -1,22 +1,28 @@
 # Git 提交命令
 
 ```bash
-git add app.py templates/class_detail.html
-git commit -m "修复Jinja2模板错误：使用is defined而不是getattr"
+git add app.py templates/classroom.html
+git commit -m "简化行为按钮：点击后该题得分为0，不再扣分"
 git push origin main
 ```
 
 ## 修复内容
 
-### 问题
-- 错误：`'getattr' is undefined`
-- 原因：Jinja2 模板不支持 Python 的 `getattr` 函数
-
-### 解决方案
-- 在Python代码中：确保所有学生对象都有这些属性
-- 在Jinja2模板中：使用 `is defined` 来检查属性是否存在
-- 语法：`{{ student.total_score if student.total_score is defined else 0 }}`
+### 简化逻辑
+- **移除扣分逻辑**：不再使用 penalty_score 扣2分
+- **直接设为错题**：点击任何行为按钮后，`is_correct = False`
+- **该题得分为0**：在评判时不会加分，也不会计入正确轮次
 
 ### 修改
-- 从把手：`{{ getattr(student, 'total_score', 0) }}`
-- 改为：`{{ student.total_score if student.total_score is defined else 0 }}`
+1. **后端 (`mark_behavior`)**：
+   - 移除 `submission.penalty_score += 2`
+   - 添加 `submission.is_correct = False`
+   - 提示信息改为"该题得分为0"
+
+2. **前端提示**：
+   - 将"将扣2分"改为"该题得分为0"
+   - 移除扣分相关的UI更新
+
+3. **分数计算**：
+   - 移除所有 penalty_score 处理
+   - 只依据 is_correct 判断
