@@ -1192,13 +1192,13 @@ def mark_behavior():
         
         # 更新行为计数
         if behavior == 'guess':
-            submission.guess_count += 1
+            submission.guess_count = (submission.guess_count or 0) + 1
         elif behavior == 'copy':
-            submission.copy_count += 1
+            submission.copy_count = (submission.copy_count or 0) + 1
         elif behavior == 'noisy':
-            submission.noisy_count += 1
+            submission.noisy_count = (submission.noisy_count or 0) + 1
         elif behavior == 'distracted':
-            submission.distracted_count += 1
+            submission.distracted_count = (submission.distracted_count or 0) + 1
         
         # 标记该题得分为0（无论答案是否正确）
         submission.is_correct = False
