@@ -1,24 +1,22 @@
 # Git 提交命令
 
 ```bash
-git add app.py templates/classroom.html templates/class_detail.html
-git commit -m "修复模板语法错误：简化hasattr表达式"
+git add app.py templates/class_detail.html
+git commit -m "修复Jinja2模板错误：使用is defined而不是getattr"
 git push origin main
 ```
 
 ## 修复内容
 
 ### 问题
-- 错误：`'hasattr' is undefined`
-- 原因：在 Jinja2 模板中使用了复杂的 `hasattr` 嵌套表达式
+- 错误：`'getattr' is undefined`
+- 原因：Jinja2 模板不支持 Python 的 `getattr` 函数
 
 ### 解决方案
-- 将复杂的 `hasattr` 嵌套表达式改为使用 `getattr(student, 'field', default_value)` 
-- 使用 Jinja2 的 `{% set %}` 设置变量，简化表达式
-- 将过长的三元表达式拆分成多行，更易读
+- 在Python代码中：确保所有学生对象都有这些属性
+- 在Jinja2模板中：使用 `is defined` 来检查属性是否存在
+- 语法：`{{ student.total_score if student.total_score is defined else 0 }}`
 
-### 修改的表达式
-- 从：`{{ student.total_score if hasattr(student, 'total_score') else 0 }}`
-- 改为：`{{ getattr(student, 'total_score', 0) }}`
-
-- 将复杂的 ATTENDANCE 计算拆分成变量定义
+### 修改
+- 从把手：`{{ getattr(student, 'total_score', 0) }}`
+- 改为：`{{ student.total_score if student.total_score is defined else 0 }}`

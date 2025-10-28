@@ -302,9 +302,19 @@ def class_management(class_id):
                     if attendance and attendance.is_absent:
                         absences_count += 1
             
-            student.total_score = total_score
-            student.courses_count = courses_count
-            student.absences_count = absences_count
+            # 为学生对象添加动态属性（如果字段不存在）
+            if not hasattr(student, 'total_score'):
+                student.total_score = total_score
+            else:
+                student.total_score = total_score
+            if not hasattr(student, 'courses_count'):
+                student.courses_count = courses_count
+            else:
+                student.courses_count = courses_count
+            if not hasattr(student, 'absences_count'):
+                student.absences_count = absences_count
+            else:
+                student.absences_count = absences_count
         
         # 获取课程列表
         courses = Course.query.filter_by(class_id=class_id).order_by(Course.created_at.desc()).all()

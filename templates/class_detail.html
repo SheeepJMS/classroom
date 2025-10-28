@@ -505,10 +505,10 @@
                         <div class="student-avatar">{% if student.status == 'absent' %}😴{% else %}😊{% endif %}</div>
                         <div class="student-name">{{ student.name }}</div>
                     <div class="student-stats">
-                        TOTAL: {{ getattr(student, 'total_score', 0) }}<br>
-                        COURSES: {{ getattr(student, 'courses_count', 0) }}<br>
-                        ATTENDANCE: {% set courses = getattr(student, 'courses_count', 0) %}{% set absences = getattr(student, 'absences_count', 0) %}{{ (100 if courses == 0 and absences == 0 else ((courses / (courses + absences) * 100) | round) if courses + absences > 0 else 100) }}%<br>
-                        ABSENCES: {{ getattr(student, 'absences_count', 0) }}
+                        TOTAL: {{ student.total_score if student.total_score is defined else 0 }}<br>
+                        COURSES: {{ student.courses_count if student.courses_count is defined else 0 }}<br>
+                        ATTENDANCE: {% set courses = student.courses_count if student.courses_count is defined else 0 %}{% set absences = student.absences_count if student.absences_count is defined else 0 %}{{ (100 if courses == 0 and absences == 0 else ((courses / (courses + absences) * 100) | round) if courses + absences > 0 else 100) }}%<br>
+                        ABSENCES: {{ student.absences_count if student.absences_count is defined else 0 }}
                     </div>
                         <div class="student-actions">
                             <a href="/student_report_center/{{ student.id }}" class="btn btn-primary btn-sm mb-2" title="报告中心">
