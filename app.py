@@ -563,6 +563,37 @@ def generate_student_report(student_id):
             rounds = CourseRound.query.filter_by(course_id=course.id).all()
             class_total_rounds = len(rounds)
             # 构造学生每轮的提交视图，按round对齐
+            # 速度等级计算函数（每题）
+            def get_speed_level_per_question(t_student: float, t_class_avg: float) -> str:
+                try:
+                    if not t_class_avg or t_class_avg <= 0:
+                        return ''
+                    # 最低时间保护，防止误触
+                    if t_student is None:
+                        t_student = 0
+                    if t_student < 1.5:
+                        t_student = 1.5
+                    # 大题：全班平均时间很长时，使用绝对区间
+                    if t_class_avg > 25:
+                        if t_student <= 0.8 * t_class_avg:
+                            return '快'
+                        elif t_student <= 1.2 * t_class_avg:
+                            return '正常'
+                        else:
+                            return '稍慢'
+                    # 常规题：用比例判定
+                    ratio = t_student / t_class_avg
+                    if ratio <= 0.6:
+                        return '很快'
+                    elif ratio <= 1.0:
+                        return '快'
+                    elif ratio <= 1.4:
+                        return '稍慢'
+                    else:
+                        return '很慢'
+                except Exception:
+                    return ''
+
             for r in rounds:
                 rs = next((s for s in submissions if s.round_number == r.round_number), None)
                 # 识别该轮违规类型（优先级：猜题>抄题>打闹>走神）
@@ -581,13 +612,20 @@ def generate_student_report(student_id):
                     participated_rounds += 1
                     is_correct = bool(rs.is_correct)
                     q_score = r.question_score if r and r.question_score else 1
+                    # 本题班级平均时间（只计算有作答的同学）
+                    round_class_times = [s.answer_time for s in class_submissions if s.round_number == r.round_number and s.answer_time is not None and (s.answer is not None and str(s.answer).strip() != '')]
+                    import statistics
+                    t_class_avg = statistics.mean(round_class_times) if round_class_times else 0
+                    t_student = rs.answer_time or 0
+                    speed_level = get_speed_level_per_question(t_student, t_class_avg)
                     student_submissions_view.append({
                         'round': r.round_number,
                         'answer': rs.answer,
                         'is_correct': is_correct,
                         'question_score': q_score,
                         'answer_time': rs.answer_time or 0,
-                        'violation_type': violation_type
+                        'violation_type': violation_type,
+                        'speed_level': speed_level
                     })
                 else:
                     student_submissions_view.append({
@@ -596,7 +634,8 @@ def generate_student_report(student_id):
                         'is_correct': False,
                         'question_score': r.question_score if r and r.question_score else 1,
                         'answer_time': 0,
-                        'violation_type': violation_type
+                        'violation_type': violation_type,
+                        'speed_level': ''
                     })
             total_possible_score = sum((r.question_score or 1) for r in rounds)
             active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
@@ -658,6 +697,9 @@ def generate_student_report(student_id):
                 else:
                     acc=0; part=0; avg_t=0
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
+
+        # 参与率：参与轮次 / 课程总轮次（供评语使用）
+        participation_rate = round((participated_rounds / class_total_rounds) * 100) if class_total_rounds > 0 else 0
 
         # 生成个性化反馈（优先排名，其次参与率，再看正确率；60%优秀、40%不错、20%以下偏低）
         def build_feedback():
@@ -727,9 +769,6 @@ def generate_student_report(student_id):
             return ' '.join(parts)
 
         feedback_text = build_feedback()
-
-        # 参与率：参与轮次 / 课程总轮次
-        participation_rate = round((participated_rounds / class_total_rounds) * 100) if class_total_rounds > 0 else 0
 
         # 移动端/微信优先渲染竖屏模板
         ua = (request.headers.get('User-Agent') or '').lower()

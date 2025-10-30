@@ -101,6 +101,10 @@
             {% elif qs == 2 %}{% set diff = '简单' %}
             {% else %}{% set diff = '基础' %}{% endif %}
             <span class="badge bg-secondary">{{ diff }}</span>
+            {# 速度标签 #}
+            {% if round_submission.speed_level %}
+              <span class="badge bg-info text-dark">{{ round_submission.speed_level }}</span>
+            {% endif %}
             <div class="progress flex-grow-1" style="height:6px;">
               <div class="progress-bar bg-info" style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
             </div>
