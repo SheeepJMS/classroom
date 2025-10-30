@@ -359,7 +359,8 @@ def class_management(class_id):
                 if g.goal_date:
                     dleft = max((g.goal_date - date.today()).days, 0)
                     wleft = dleft // 7
-                    lessons_left = len([c for c in courses if not c.is_active])
+                    # 每7天一节课的估算课次
+                    lessons_left = wleft
                     goal_progress = {'days_left': dleft, 'weeks_left': wleft, 'lessons_left': lessons_left}
 
         # 将排序后的课程数据添加到class_obj（创建一个简单的对象包装器）
@@ -827,9 +828,8 @@ def generate_student_report(student_id):
                     if g.goal_date:
                         from datetime import date
                         days_to_competition = max((g.goal_date - date.today()).days, 0)
-                    # 赛前上课节数：统计该班所有课程中在竞赛日前的未统计节数（近似）
-                    all_cls_courses = Course.query.filter_by(class_id=cls.id).all()
-                    classes_before_competition = len([c for c in all_cls_courses if not getattr(c, 'ended_at', None) or (g.goal_date and getattr(c, 'created_at', None) and c.created_at.date() <= g.goal_date)])
+                        # 每7天一节课估算
+                        classes_before_competition = days_to_competition // 7
 
         return render_template(template_name,
                              student=student_view,
