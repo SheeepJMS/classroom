@@ -594,6 +594,9 @@ def generate_student_report(student_id):
                 except Exception:
                     return ''
 
+            # 全班提交（需在使用前定义，避免未绑定错误）
+            class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
+
             for r in rounds:
                 rs = next((s for s in submissions if s.round_number == r.round_number), None)
                 # 识别该轮违规类型（优先级：猜题>抄题>打闹>走神）
@@ -646,9 +649,6 @@ def generate_student_report(student_id):
                 if sub.is_correct:
                     r = next((rr for rr in rounds if rr.round_number == sub.round_number), None)
                     student_total_score += (r.question_score if r and r.question_score else 1)
-
-            # 全班提交
-            class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
 
             # 班级平均准确率/参与率/分数
             # 按学生聚合
