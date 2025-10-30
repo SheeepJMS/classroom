@@ -770,6 +770,7 @@ body.report-page .alert-success div {
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
+    align-items: start; /* 确保所有卡片从顶部开始对齐 */
 }
 
 .student-card {
@@ -781,12 +782,12 @@ body.report-page .alert-success div {
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     border: 1px solid rgba(0, 0, 0, 0.1);
     position: relative;
-    overflow: visible;
+    overflow: hidden; /* 改为 hidden 防止内容溢出重叠 */
     min-height: 160px;
-    max-height: 250px;
+    /* 移除 max-height 限制，让卡片根据内容自然增长 */
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    justify-content: flex-start; /* 改为 flex-start，确保内容从上开始排列 */
     color: #333333;
     backdrop-filter: blur(8px);
 }

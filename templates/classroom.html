@@ -457,6 +457,12 @@ function updateStudentsDisplay(keepStates = false) {
                     console.log(`学生 ${student.name} Answer更新为:`, student.last_answer || '-');
                 }
                 
+                // 确保在答题环节（round_active为true）时，统计数据始终隐藏
+                if (classroomData.round_active) {
+                    statsDiv.style.display = 'none';
+                    statsDiv.style.visibility = 'hidden';
+                }
+                
                 // 更新表情
                 updateStudentExpression(student.name, student.expression);
                 
@@ -701,14 +707,19 @@ function startClass() {
         console.log('正确答案输入框已显示');
     }
     
-    // 显示行为按钮
+    // 显示行为按钮，隐藏统计数据 - 立即执行，确保在答题环节开始前就隐藏
     Object.values(classroomData.students).forEach(student => {
         if (!student || !student.name || student.name === 'undefined' || student.name === '') {
             return;
         }
         const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
+        const statsDiv = document.getElementById(`stats-${student.name}`);
         if (behaviorButtons) {
             behaviorButtons.style.display = 'flex';
+        }
+        if (statsDiv) {
+            statsDiv.style.display = 'none';
+            statsDiv.style.visibility = 'hidden';
         }
     });
     
@@ -777,6 +788,22 @@ function startClass() {
                 console.log('学生数据:', classroomData.students);
                 changeAllStudentsToFocused();
                 console.log('学生表情已更新为专注状态');
+                
+                // 再次确保统计数据隐藏（防止在异步操作后统计数据被重新显示）
+                Object.values(classroomData.students).forEach(student => {
+                    if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+                        return;
+                    }
+                    const statsDiv = document.getElementById(`stats-${student.name}`);
+                    const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
+                    if (statsDiv) {
+                        statsDiv.style.display = 'none';
+                        statsDiv.style.visibility = 'hidden';
+                    }
+                    if (behaviorButtons) {
+                        behaviorButtons.style.display = 'flex';
+                    }
+                });
             }, 100);
         } else {
             throw new Error(data.message || '开始答题失败');
@@ -1030,6 +1057,23 @@ function showAnswerResults(correctAnswer) {
     console.log('showAnswerResults函数被调用，正确答案:', correctAnswer);
     console.log('当前学生数据:', classroomData.students);
     
+    // 先收集所有被punished的学生状态（在DOM更新之前）
+    const punishedStudents = new Set();
+    Object.values(classroomData.students).forEach(student => {
+        if (!student || !student.name || student.name === 'undefined' || student.name === '') {
+            return;
+        }
+        const punishedDiv = document.getElementById(`punished-${student.name}`);
+        if (punishedDiv && (
+            punishedDiv.style.display === 'block' || 
+            window.getComputedStyle(punishedDiv).display === 'block' ||
+            punishedDiv.offsetHeight > 0
+        )) {
+            punishedStudents.add(student.name);
+            console.log(`学生 ${student.name} 被标记为punished`);
+        }
+    });
+    
     Object.values(classroomData.students).forEach(student => {
         // 过滤掉无效的学生数据
         if (!student || !student.name || student.name === 'undefined' || student.name === '') {
@@ -1118,8 +1162,30 @@ function showAnswerResults(correctAnswer) {
                     studentCard.classList.add('correct-bounce-animation');
                 }
             } else if (student.expression === 'angry') {
-                resultText.innerHTML = '<span class="result-icon">✗</span><span class="result-label">Wrong</span>';
-                resultText.className = 'result-text wrong-result';
+                // 检查学生是否被punished - 使用之前保存的punished状态
+                const isPunished = punishedStudents.has(student.name);
+                const punishedDiv = document.getElementById(`punished-${student.name}`);
+                
+                if (isPunished) {
+                    // 被punished时，隐藏WRONG结果，只显示PUNISHED状态
+                    resultDiv.style.display = 'none';
+                    // 确保punished状态显示
+                    if (punishedDiv) {
+                        punishedDiv.style.display = 'block';
+                        punishedDiv.style.visibility = 'visible';
+                    }
+                    console.log(`学生 ${student.name} 被punished，隐藏WRONG结果，显示PUNISHED状态`);
+                } else {
+                    // 没有被punished，显示WRONG结果，隐藏PUNISHED状态
+                    resultText.innerHTML = '<span class="result-icon">✗</span><span class="result-label">Wrong</span>';
+                    resultText.className = 'result-text wrong-result';
+                    resultDiv.style.display = 'block';
+                    // 确保punished状态隐藏
+                    if (punishedDiv) {
+                        punishedDiv.style.display = 'none';
+                    }
+                    console.log(`学生 ${student.name} 没有被punished，显示WRONG结果`);
+                }
             } else if (student.expression === 'embarrassed') {
                 resultText.innerHTML = '<span class="result-icon">○</span><span class="result-label">No Answer</span>';
                 resultText.className = 'result-text no-answer-result';

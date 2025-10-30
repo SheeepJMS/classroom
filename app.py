@@ -362,6 +362,90 @@ def reports():
         print(f"❌ 加载报告页面失败: {str(e)}")
         return jsonify({'error': f'加载报告页面失败: {str(e)}'}), 500
 
+# 课程报告页面
+@app.route('/reports/<course_id>')
+def course_reports(course_id):
+    """特定课程的报告页面"""
+    try:
+        # 获取课程
+        course = Course.query.filter_by(id=course_id).first()
+        if not course:
+            return jsonify({'error': '课程不存在'}), 404
+        
+        # 获取班级
+        class_obj = Class.query.filter_by(id=course.class_id).first()
+        if not class_obj:
+            return jsonify({'error': '班级不存在'}), 404
+        
+        # 获取该班级的所有学生（排除请假学生）
+        students = Student.query.filter_by(class_id=course.class_id, status='active').all()
+        
+        # 构建学生数据字典
+        students_data = {}
+        for student in students:
+            # 获取该学生在当前课程的所有提交记录
+            submissions = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                course_id=course.id
+            ).all()
+            
+            # 计算该课程中的统计数据
+            total_score = 0
+            total_rounds = 0
+            correct_rounds = 0
+            
+            for sub in submissions:
+                if sub.is_correct:
+                    # 获取该轮次的分数
+                    round_obj = CourseRound.query.filter_by(
+                        course_id=course.id,
+                        round_number=sub.round_number
+                    ).first()
+                    if round_obj:
+                        total_score += round_obj.question_score
+                    else:
+                        total_score += 1
+                    correct_rounds += 1
+                total_rounds = max(total_rounds, sub.round_number)
+            
+            # 计算实际参与的轮次数
+            unique_rounds = len(set(sub.round_number for sub in submissions))
+            if unique_rounds > 0:
+                total_rounds = unique_rounds
+            
+            students_data[student.id] = {
+                'id': student.id,
+                'name': student.name,
+                'score': total_score,
+                'total_rounds': total_rounds,
+                'correct_rounds': correct_rounds,
+                'expression': 'neutral',
+                'animation': 'none',
+                'avatar_color': student.avatar_color or '#4ecdc4',
+                'last_answer': '',
+                'last_answer_time': 0
+            }
+        
+        # 构建课程数据（用于模板）
+        classroom_data = {
+            'id': course.id,
+            'name': course.name,
+            'class_id': course.class_id,
+            'current_round': course.current_round,
+            'students': students_data
+        }
+        
+        return render_template('reports.html',
+                             students=students_data,
+                             classroom_data=classroom_data,
+                             course_id=course_id,
+                             course=course,
+                             class_obj=class_obj)
+    except Exception as e:
+        print(f"❌ 加载课程报告页面失败: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'加载课程报告页面失败: {str(e)}'}), 500
+
 # 学生报告页面
 @app.route('/student_report/<student_id>')
 def student_report(student_id):
