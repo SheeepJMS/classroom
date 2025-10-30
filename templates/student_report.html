@@ -278,32 +278,48 @@
                                     </h6>
                                 </div>
                                 <div class="card-body p-3">
-                                    <div class="list-group list-group-flush">
-                                        {% for round_num in range(1, class_total_rounds + 1) %}
-                                        <div class="list-group-item px-0 py-2">
-                                            <div class="d-flex align-items-center">
-                                                <span class="fw-bold me-1" style="font-size: 0.8rem;">第{{ round_num }}轮</span>
-                                                {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
-                                                {% if round_submission and round_submission.answer and round_submission.answer.strip() %}
-                                                    <span class="badge bg-primary me-1" style="font-size: 0.7rem;">参与</span>
-                                                    <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }} me-1" style="font-size: 0.7rem;">
-                                                        {{ '✓' if round_submission.is_correct else '✗' }}
-                                                    </span>
-                                                    <span class="badge bg-warning me-1" style="font-size: 0.7rem;">
-                                                        {{ round_submission.question_score }}分
-                                                    </span>
-                                                    <div class="progress flex-grow-1 me-1" style="height: 6px;">
-                                                        <div class="progress-bar bg-info" 
-                                                             style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
-                                                    </div>
-                                                    <small class="text-muted" style="font-size: 0.7rem;">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
-                                                {% else %}
-                                                    <span class="badge bg-secondary me-1" style="font-size: 0.7rem;">未参与</span>
-                                                {% endif %}
+                                        <div class="list-group list-group-flush">
+                                            {% for round_num in range(1, class_total_rounds + 1) %}
+                                            {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
+                                            <div class="list-group-item px-0 py-2">
+                                                <div class="d-flex align-items-center gap-1">
+                                                    <span class="fw-bold me-1" style="font-size: 0.8rem;">第{{ round_num }}轮</span>
+
+                                                    {# 违规优先显示 #}
+                                                    {% if round_submission and round_submission.violation_type %}
+                                                        <span class="badge bg-danger" style="font-size: 0.7rem;">{{ round_submission.violation_type }}</span>
+                                                    {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+                                                        <span class="badge bg-primary" style="font-size: 0.7rem;">参与</span>
+                                                        <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}" style="font-size: 0.7rem;">{{ '✓' if round_submission.is_correct else '✗' }}</span>
+                                                        <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">{{ round_submission.question_score }}分</span>
+
+                                                        {# 难度 #}
+                                                        {% set qs = round_submission.question_score or 1 %}
+                                                        {% set diff = '基础' %}
+                                                        {% if qs >= 6 %}{% set diff = '极难' %}
+                                                        {% elif qs == 5 %}{% set diff = '很难' %}
+                                                        {% elif qs == 4 %}{% set diff = '较难' %}
+                                                        {% elif qs == 3 %}{% set diff = '中等' %}
+                                                        {% elif qs == 2 %}{% set diff = '简单' %}
+                                                        {% else %}{% set diff = '基础' %}{% endif %}
+                                                        <span class="badge bg-secondary" style="font-size: 0.7rem;">{{ diff }}</span>
+
+                                                        {# 速度（后端未提供时安全降级） #}
+                                                        {% if round_submission.speed_level is defined and round_submission.speed_level %}
+                                                            <span class="badge bg-info text-dark" style="font-size: 0.7rem;">{{ round_submission.speed_level }}</span>
+                                                        {% endif %}
+
+                                                        <div class="progress flex-grow-1 me-1" style="height: 6px;">
+                                                            <div class="progress-bar bg-info" style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
+                                                        </div>
+                                                        <small class="text-muted" style="font-size: 0.7rem;">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
+                                                    {% else %}
+                                                        <span class="badge bg-secondary" style="font-size: 0.7rem;">未参与</span>
+                                                    {% endif %}
+                                                </div>
                                             </div>
+                                            {% endfor %}
                                         </div>
-                                        {% endfor %}
-                                    </div>
                                 </div>
                             </div>
                         </div>

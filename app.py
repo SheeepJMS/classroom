@@ -522,10 +522,10 @@ def generate_student_report(student_id):
 
         # 统计行为总次数（本课程）
         behavior_totals = {
-            'guess': sum((s.guess_count or 0) for s in submissions),
-            'copy': sum((s.copy_count or 0) for s in submissions),
-            'noisy': sum((s.noisy_count or 0) for s in submissions),
-            'distracted': sum((s.distracted_count or 0) for s in submissions),
+            'guess_count': sum((s.guess_count or 0) for s in submissions),
+            'copy_count': sum((s.copy_count or 0) for s in submissions),
+            'noisy_count': sum((s.noisy_count or 0) for s in submissions),
+            'distracted_count': sum((s.distracted_count or 0) for s in submissions),
         }
 
         # 基础学生信息（带 avatar_color 兼容）
@@ -757,14 +757,28 @@ def generate_student_report(student_id):
             else:
                 parts.append('本次正确率偏低，建议从基础知识点和例题入手，逐步建立信心！')
 
-            # 可选：用时修饰
-            if avg_response_time:
+            # 用时修饰：与班级平均比对，保持与题目“速度等级”口径一致
+            if avg_response_time and class_avg_response_time:
+                try:
+                    ratio = avg_response_time / class_avg_response_time if class_avg_response_time > 0 else 1
+                except Exception:
+                    ratio = 1
+                if ratio <= 0.6:
+                    parts.append('反应速度很快，思维敏捷！')
+                elif ratio <= 1.0:
+                    parts.append('反应速度较快，节奏良好！')
+                elif ratio <= 1.4:
+                    parts.append('思考节奏略慢，可在熟练题型上提速！')
+                else:
+                    parts.append('本次节奏偏慢，建议控制用时，先拿稳会做题！')
+            elif avg_response_time:
+                # 兜底：没有班均时长时用绝对阈值
                 if avg_response_time <= 10:
-                    parts.append('反应速度快，思维敏捷！')
+                    parts.append('反应速度较快，节奏良好！')
                 elif avg_response_time <= 20:
                     parts.append('思考节奏合理，保持稳定输出！')
                 else:
-                    parts.append('思考较为细致，建议把握时间，先保证会做题目的正确率！')
+                    parts.append('本次节奏偏慢，建议控制用时，先拿稳会做题！')
 
             return ' '.join(parts)
 
