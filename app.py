@@ -611,6 +611,17 @@ def generate_student_report(student_id):
                     acc=0; part=0; avg_t=0
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
 
+        # 生成简要个性化反馈
+        feedback_text = '本次课程参与积极，请继续保持良好状态。'
+        if accuracy >= 90:
+            feedback_text = '表现非常优秀，正确率很高，继续冲刺满分！'
+        elif accuracy >= 70:
+            feedback_text = '整体表现良好，建议复盘错题，提高稳定性。'
+        elif total_rounds == 0:
+            feedback_text = '本次未参与作答，建议下次按时参与练习。'
+        else:
+            feedback_text = '需要加强练习，建议回看课堂要点并完成巩固题。'
+
         return render_template('student_report.html',
                              student=student_view,
                              student_name=student.name,
@@ -621,6 +632,7 @@ def generate_student_report(student_id):
                              total_rounds=total_rounds,
                              correct_rounds=correct_rounds,
                              accuracy=accuracy,
+                             personalized_feedback={'focus_feedback': feedback_text},
                              class_avg_accuracy=class_avg_accuracy,
                              participation_rate=100 if total_rounds>0 else 0,
                              class_avg_participation=class_avg_participation,
