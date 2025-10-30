@@ -995,6 +995,48 @@ def create_competition_goal():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'创建竞赛目标失败: {str(e)}'}), 500
 
+# 获取所有可用竞赛目标（活跃）
+@app.route('/api/get_competition_goals', methods=['GET'])
+def get_competition_goals():
+    try:
+        goals = CompetitionGoal.query.filter_by(is_active=True).order_by(CompetitionGoal.created_date.desc()).all()
+        goal_views = [{
+            'id': g.id,
+            'title': g.title,
+            'description': g.description,
+            'goal_date': g.goal_date.isoformat() if g.goal_date else None
+        } for g in goals]
+        return jsonify({'success': True, 'goals': goal_views})
+    except Exception as e:
+        print(f"❌ 加载竞赛目标失败: {str(e)}")
+        return jsonify({'success': False, 'message': f'加载竞赛目标失败: {str(e)}'}), 500
+
+# 将竞赛目标分配（绑定）到班级
+@app.route('/api/assign_goal_to_class', methods=['POST'])
+def assign_goal_to_class():
+    try:
+        data = request.get_json() or {}
+        class_id = (data.get('class_id') or '').strip()
+        goal_id = (data.get('goal_id') or '').strip()
+        if not class_id or not goal_id:
+            return jsonify({'success': False, 'message': 'class_id 和 goal_id 必填'}), 400
+
+        class_obj = Class.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+        goal = CompetitionGoal.query.filter_by(id=goal_id).first()
+        if not goal:
+            return jsonify({'success': False, 'message': '竞赛目标不存在'}), 404
+
+        class_obj.competition_goal_id = goal.id
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"❌ 分配竞赛目标失败: {str(e)}")
+        if db.session:
+            db.session.rollback()
+        return jsonify({'success': False, 'message': f'分配竞赛目标失败: {str(e)}'}), 500
+
 # 结束竞赛目标
 @app.route('/api/end_goal/<goal_id>', methods=['POST'])
 def end_goal(goal_id):
