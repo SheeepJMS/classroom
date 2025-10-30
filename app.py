@@ -236,7 +236,7 @@ def index():
         
         return render_template('homepage.html',
                              classes=classes,
-                             goals=goals,
+                             competition_goals=goals,
                              total_students=total_students)
     except Exception as e:
         print(f"❌ 加载首页失败: {str(e)}")
@@ -1781,10 +1781,18 @@ def ceremony(course_id):
         # 获取班级信息
         class_obj = Class.query.filter_by(id=course.class_id).first()
         
+        course_view = {
+            'id': course.id,
+            'class_id': course.class_id,
+            'name': getattr(course, 'name', ''),
+            'created_at': getattr(course, 'created_at', None).strftime('%Y-%m-%d %H:%M:%S') if getattr(course, 'created_at', None) else None,
+            'ended_at': getattr(course, 'ended_at', None).strftime('%Y-%m-%d %H:%M:%S') if getattr(course, 'ended_at', None) else None
+        }
+        class_view = {'id': class_obj.id, 'name': class_obj.name} if class_obj else {'id': course.class_id}
         return render_template('ceremony.html', 
-                             course=course, 
+                             course=course_view, 
                              student_scores=student_scores,
-                             classroom_data=class_obj if class_obj else {'id': course.class_id})
+                             classroom_data=class_view)
         
     except Exception as e:
         print(f"❌ 加载领奖台失败: {str(e)}")

@@ -671,7 +671,7 @@ body.report-page .alert-success div {
 /* 学生管理区域 */
 .students-management-area {
     flex: 1;
-    padding: 2rem 0;
+    padding: 1rem 0 0.5rem; /* 减少上下内边距，缩小底部留白 */
     background: linear-gradient(135deg, rgba(255, 255, 255, 0.95), rgba(227, 242, 253, 0.7));
     border-radius: 20px;
     margin: 0 1rem;
@@ -765,8 +765,8 @@ body.report-page .alert-success div {
 .students-grid {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 1.5rem;
-    margin-bottom: 2rem;
+    gap: 1.2rem;
+    margin-bottom: 0.5rem; /* 减少网格底部间距 */
     max-width: 1200px;
     margin-left: auto;
     margin-right: auto;
