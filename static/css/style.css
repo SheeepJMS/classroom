@@ -776,14 +776,14 @@ body.report-page .alert-success div {
 .student-card {
     background: rgba(255, 255, 255, 0.95); /* 恢复白色背景 */
     border-radius: 12px;
-    padding: 12px;
+    padding: 10px; /* 从12px减少到10px，减少整体内边距 */
     text-align: center;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
     border: 1px solid rgba(0, 0, 0, 0.1);
     position: relative;
     overflow: hidden; /* 改为 hidden 防止内容溢出重叠 */
-    min-height: 160px;
+    min-height: auto; /* 移除固定最小高度，让卡片根据内容自适应 */
     /* 移除 max-height 限制，让卡片根据内容自然增长 */
     display: flex;
     flex-direction: column;
@@ -812,7 +812,7 @@ body.report-page .alert-success div {
     width: 70px;
     height: 70px;
     border-radius: 50%;
-    margin: 0 auto 1rem;
+    margin: 0 auto 0.5rem; /* 从1rem减少到0.5rem，减少头像底部间距 */
     display: flex;
     align-items: center;
     justify-content: center;
@@ -837,14 +837,14 @@ body.report-page .alert-success div {
     font-size: 1.1rem;
     font-weight: bold;
     color: #2c3e50 !important; /* 深蓝灰色，在白色背景上更清楚 */
-    margin-bottom: 0.5rem;
+    margin-bottom: 0.3rem; /* 从0.5rem减少到0.3rem，减少名字底部间距 */
     text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8); /* 白色阴影增强对比 */
 }
 
 .student-input-group {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0; /* 从1rem改为0，移除输入组底部间距 */
     height: 40px;
     align-items: center;
 }

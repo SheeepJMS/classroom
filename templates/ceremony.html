@@ -92,7 +92,7 @@
 
     <!-- 控制按钮 -->
     <div class="ceremony-controls">
-        <button class="btn btn-success btn-lg" onclick="location.href='/reports/' + classId">
+        <button class="btn btn-success btn-lg" onclick="viewReports()">
             <i class="fas fa-chart-bar me-2"></i>查看报告
         </button>
         <button class="btn btn-warning btn-lg" onclick="location.href='/'">
@@ -103,11 +103,33 @@
 
 <script>
 let studentScores = {{ student_scores | tojson }};
-let classId = '{{ course.class_id }}';
+let courseId = '{{ course.id if course else "" }}';
+let classId = '{{ course.class_id if course else "" }}';
+
+// 调试输出
+console.log('课程ID (courseId):', courseId);
+console.log('班级ID (classId):', classId);
+{% if course %}
+console.log('课程对象:', {{ course | tojson }});
+{% else %}
+console.log('课程对象: null');
+{% endif %}
+
+// 查看报告函数
+function viewReports() {
+    console.log('viewReports被调用，courseId:', courseId);
+    if (courseId && courseId.trim() !== '') {
+        window.location.href = '/reports/' + courseId;
+    } else {
+        console.error('课程ID不存在或为空');
+        alert('无法获取课程ID，请重试');
+    }
+}
 
 // 初始化颁奖典礼
 document.addEventListener('DOMContentLoaded', function() {
     console.log('学生分数数据:', studentScores);
+    console.log('课程ID检查:', courseId);
     setupCeremony();
 });
 

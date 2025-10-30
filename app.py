@@ -317,11 +317,42 @@ def class_management(class_id):
             else:
                 student.absences_count = absences_count
         
-        # 获取课程列表
-        courses = Course.query.filter_by(class_id=class_id).order_by(Course.created_at.desc()).all()
+        # 获取课程列表（按时间降序，最新的在前）
+        # 如果有结束时间，按结束时间排序；否则按创建时间排序
+        from sqlalchemy import case
+        courses = Course.query.filter_by(class_id=class_id).order_by(
+            case(
+                (Course.ended_at.isnot(None), Course.ended_at),
+                else_=Course.created_at
+            ).desc(),
+            Course.created_at.desc()  # 作为次要排序条件
+        ).all()
+        
+        # 为class_obj添加排序后的课程列表（转换为字典格式供模板使用）
+        courses_data = []
+        for course in courses:
+            # 确定显示时间：有结束时间显示结束时间，否则显示创建时间
+            display_time = course.ended_at if course.ended_at else course.created_at
+            courses_data.append({
+                'id': course.id,
+                'name': course.name,
+                'created_at': course.created_at,
+                'created_date': display_time.strftime('%Y-%m-%d %H:%M:%S') if display_time else '',
+                'current_round': course.current_round,
+                'is_active': course.is_active
+            })
+        
+        # 将排序后的课程数据添加到class_obj（创建一个简单的对象包装器）
+        class_data_dict = {
+            'id': class_obj.id,
+            'name': class_obj.name,
+            'description': class_obj.description,
+            'created_date': class_obj.created_date.strftime('%Y-%m-%d') if class_obj.created_date else '',
+            'courses': courses_data  # 已排序的课程列表
+        }
         
         return render_template('class_detail.html', 
-                             class_data=class_obj, 
+                             class_data=class_data_dict, 
                              class_obj=class_obj,
                              class_id=class_id,
                              students=students,
@@ -472,6 +503,106 @@ def student_report(student_id):
     except Exception as e:
         print(f"❌ 加载学生报告失败: {str(e)}")
         return jsonify({'error': f'加载学生报告失败: {str(e)}'}), 500
+
+# 学生报告中心页面
+@app.route('/student_report_center/<student_id>')
+def student_report_center(student_id):
+    """学生报告中心页面 - 移动端优化"""
+    try:
+        # 获取学生信息
+        student = Student.query.filter_by(id=student_id).first()
+        if not student:
+            return jsonify({'error': '学生不存在'}), 404
+        
+        # 获取班级信息
+        class_obj = Class.query.filter_by(id=student.class_id).first()
+        
+        # 获取该学生班级的所有课程（按创建时间降序）
+        courses = Course.query.filter_by(class_id=student.class_id).order_by(Course.created_at.desc()).all()
+        
+        # 构建课程数据
+        courses_data = []
+        for course in courses:
+            # 获取该学生在该课程的所有提交记录
+            submissions = StudentSubmission.query.filter_by(
+                student_id=student.id,
+                course_id=course.id
+            ).all()
+            
+            if submissions:
+                # 计算统计数据
+                total_rounds = len(set(sub.round_number for sub in submissions))
+                correct_rounds = sum(1 for s in submissions if s.is_correct)
+                accuracy = (correct_rounds / len(submissions) * 100) if len(submissions) > 0 else 0
+                
+                # 计算总分
+                total_score = 0
+                for s in submissions:
+                    if s.is_correct:
+                        round_obj = CourseRound.query.filter_by(
+                            course_id=course.id,
+                            round_number=s.round_number
+                        ).first()
+                        if round_obj:
+                            total_score += round_obj.question_score
+                        else:
+                            total_score += 1
+                
+                # 计算参与率（基于轮次数）
+                all_rounds = CourseRound.query.filter_by(course_id=course.id).count()
+                participation_rate = (total_rounds / all_rounds * 100) if all_rounds > 0 else 100
+                
+                # 计算排名
+                all_students = Student.query.filter_by(class_id=student.class_id, status='active').all()
+                student_scores = {}
+                for class_student in all_students:
+                    class_submissions = StudentSubmission.query.filter_by(
+                        student_id=class_student.id,
+                        course_id=course.id
+                    ).all()
+                    
+                    class_score = 0
+                    for s in class_submissions:
+                        if s.is_correct:
+                            round_obj = CourseRound.query.filter_by(
+                                course_id=course.id,
+                                round_number=s.round_number
+                            ).first()
+                            if round_obj:
+                                class_score += round_obj.question_score
+                            else:
+                                class_score += 1
+                    student_scores[class_student.id] = class_score
+                
+                # 计算排名
+                sorted_scores = sorted(student_scores.values(), reverse=True)
+                try:
+                    rank = sorted_scores.index(total_score) + 1
+                except ValueError:
+                    rank = len(sorted_scores) + 1
+                
+                courses_data.append({
+                    'course': course,
+                    'date': course.created_at.strftime('%Y年%m月%d日') if course.created_at else '',
+                    'course_name': course.name,
+                    'participation_rate': round(participation_rate, 1),
+                    'accuracy': round(accuracy, 1),
+                    'score': total_score,
+                    'rank': rank,
+                    'total_students': len(all_students)
+                })
+        
+        return render_template(
+            'student_report_center.html',
+            student=student,
+            class_obj=class_obj,
+            courses_data=courses_data,
+            current_date=datetime.now().strftime('%Y年%m月%d日')
+        )
+    except Exception as e:
+        print(f"❌ 加载学生报告中心失败: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'加载学生报告中心失败: {str(e)}'}), 500
 
 # ==================== API路由 ====================
 

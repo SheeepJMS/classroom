@@ -457,11 +457,15 @@ function updateStudentsDisplay(keepStates = false) {
                     console.log(`学生 ${student.name} Answer更新为:`, student.last_answer || '-');
                 }
                 
-                // 确保在答题环节（round_active为true）时，统计数据始终隐藏
+                // 只有在答题环节（round_active为true）时，才隐藏统计数据
+                // BINGO后（round_active为false）应该显示统计数据，所以不隐藏
                 if (classroomData.round_active) {
+                    // 答题环节：隐藏统计数据
                     statsDiv.style.display = 'none';
                     statsDiv.style.visibility = 'hidden';
                 }
+                // round_active为false时（BINGO后），不修改统计数据的显示状态
+                // 让showAnswerResults函数来控制显示
                 
                 // 更新表情
                 updateStudentExpression(student.name, student.expression);
@@ -912,12 +916,14 @@ function stopTimer() {
                     console.log('更新后的学生数据:', classroomData.students);
                     console.log('评判后的轮次:', classroomData.current_round);
                     
-                    // 更新学生显示和状态
-                    updateStudentsDisplay(false);  // 不使用keepStates，强制更新
+                    // 更新轮次状态
                     updateRoundStatus();
                     
-                    // 显示答题结果 - 在updateStudentsDisplay之后调用
+                    // 先显示答题结果和统计数据（BINGO后必须显示）
                     showAnswerResults(correctAnswer);
+                    
+                    // 然后更新学生显示（但不覆盖统计数据，因为round_active已经是false）
+                    updateStudentsDisplay(false);  // 不使用keepStates，强制更新
                     
                     // 显示正确答案
                     showCorrectAnswer(correctAnswer);
@@ -1114,7 +1120,9 @@ function showAnswerResults(correctAnswer) {
             
             if (statsDiv) {
                 console.log(`学生 ${student.name} 的stats元素存在，当前display:`, statsDiv.style.display);
+                // 强制显示统计数据（BINGO后必须显示）
                 statsDiv.style.display = 'block';
+                statsDiv.style.visibility = 'visible';
                 console.log(`学生 ${student.name} 的统计数据已显示，新display:`, statsDiv.style.display);
                 
                 // 更新统计数据内容
