@@ -84,6 +84,8 @@
         .chart-title { font-size: 20px; font-weight: 600; color: #2c3e50; margin-bottom: 12px; text-align: center; }
         
         .chart-container { position: relative; height: 200px; }
+        .chart-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .chart-canvas { display: block; }
         
         /* 课程列表 */
         .courses-section {
@@ -268,8 +270,8 @@
         
         <!-- 合并的学习趋势图表 -->
         <div class="chart-section">
-            <div class="chart-container">
-                <canvas id="combinedChart"></canvas>
+            <div class="chart-container chart-scroll" id="chartWrapper">
+                <canvas id="combinedChart" class="chart-canvas"></canvas>
             </div>
         </div>
         
@@ -334,15 +336,22 @@
     
     <script>
         // 合并的趋势图 - 参与率和正确率用不同颜色
-        const combinedCtx = document.getElementById('combinedChart').getContext('2d');
+        const canvasEl = document.getElementById('combinedChart');
+        const wrapperEl = document.getElementById('chartWrapper');
+        // 根据课程数量动态设置画布宽度，过多时可左右滑动
+        const labelsData = [
+            {% for course_data in courses_data %}
+            '{{ course_data.course_name.split(" ")[1] if course_data.course_name.split(" ")|length > 1 else course_data.course_name }}'{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+        const minPerLabel = 70; // 每个课程名的最小像素宽度
+        const computedWidth = Math.max(labelsData.length * minPerLabel, wrapperEl.clientWidth || 320);
+        canvasEl.width = computedWidth; // 触发横向滚动
+        const combinedCtx = canvasEl.getContext('2d');
         const combinedChart = new Chart(combinedCtx, {
             type: 'line',
             data: {
-                labels: [
-                    {% for course_data in courses_data %}
-                    '{{ course_data.course_name.split(" ")[1] if course_data.course_name.split(" ")|length > 1 else course_data.course_name }}'{% if not loop.last %},{% endif %}
-                    {% endfor %}
-                ],
+                labels: labelsData,
                 datasets: [{
                     label: '参与率 (%)',
                     data: [
@@ -402,10 +411,10 @@
                     },
                     x: {
                         ticks: {
-                            autoSkip: true,
-                            maxTicksLimit: 4,
-                            maxRotation: 0,
-                            font: { size: 12 }
+                            autoSkip: false,
+                            maxRotation: 45,
+                            minRotation: 45,
+                            font: { size: 11, style: 'italic' }
                         },
                         grid: { display: false }
                     }
