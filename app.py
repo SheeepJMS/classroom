@@ -547,9 +547,11 @@ def generate_student_report(student_id):
         total_possible_score = 0
         class_avg_score = 0
         class_round_stats = []
+        class_total_rounds = 0
 
         if course:
             rounds = CourseRound.query.filter_by(course_id=course.id).all()
+            class_total_rounds = len(rounds)
             total_possible_score = sum((r.question_score or 1) for r in rounds)
             active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
             active_count = len(active_students) if active_students else 1
@@ -641,7 +643,8 @@ def generate_student_report(student_id):
                              student_total_score=student_total_score,
                              total_possible_score=total_possible_score if total_possible_score>0 else 1,
                              class_avg_score=class_avg_score,
-                             class_round_stats=class_round_stats)
+                             class_round_stats=class_round_stats,
+                             class_total_rounds=class_total_rounds)
     except Exception as e:
         print(f"❌ 生成学生报告失败: {str(e)}")
         traceback.print_exc()
