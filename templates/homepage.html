@@ -719,15 +719,15 @@
                             <div class="class-stats">
                                 <div class="stat-item">
                                 <span class="stat-label">学生数:</span>
-                                    <span class="stat-value">{{ class_data.student_count if hasattr(class_data, 'student_count') else 0 }}</span>
+                                    <span class="stat-value">{{ class_data.student_count }}</span>
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">课程数:</span>
-                                    <span class="stat-value">{{ class_data.course_count if hasattr(class_data, 'course_count') else 0 }}</span>
+                                    <span class="stat-value">{{ class_data.course_count }}</span>
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">创建时间:</span>
-                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d') if class_data.created_date and hasattr(class_data.created_date, 'strftime') else '未知' }}</span>
+                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d') if class_data.created_date else '未知' }}</span>
                                 </div>
                             </div>
                             
@@ -831,15 +831,15 @@
                         <div class="class-stats">
                             <div class="stat-item">
                                 <span class="stat-label">学生数:</span>
-                                <span class="stat-value">{{ class_data.student_count if hasattr(class_data, 'student_count') else (class_data.students|length if class_data.students else 0) }}</span>
+                                <span class="stat-value">{{ class_data.student_count }}</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">课程数:</span>
-                                <span class="stat-value">{{ class_data.course_count if hasattr(class_data, 'course_count') else (class_data.courses|length if class_data.courses else 0) }}</span>
+                                <span class="stat-value">{{ class_data.course_count }}</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">结束时间:</span>
-                                <span class="stat-value">{{ class_data.ended_date.strftime('%Y-%m-%d') if class_data.ended_date and hasattr(class_data.ended_date, 'strftime') else (class_data.ended_date if class_data.ended_date else '未知') }}</span>
+                                <span class="stat-value">{{ class_data.ended_date.strftime('%Y-%m-%d') if class_data.ended_date else '未知' }}</span>
                             </div>
                         </div>
                         {% if class_data.competition_goal_id %}
