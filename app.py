@@ -452,7 +452,7 @@ def course_reports(course_id):
                 'correct_rounds': correct_rounds,
                 'expression': 'neutral',
                 'animation': 'none',
-                'avatar_color': student.avatar_color or '#4ecdc4',
+                'avatar_color': getattr(student, 'avatar_color', '#4ecdc4'),
                 'last_answer': '',
                 'last_answer_time': 0
             }
@@ -503,6 +503,38 @@ def student_report(student_id):
     except Exception as e:
         print(f"❌ 加载学生报告失败: {str(e)}")
         return jsonify({'error': f'加载学生报告失败: {str(e)}'}), 500
+
+# 兼容旧链接：/generate_student_report/<student_id>?course_id=...
+@app.route('/generate_student_report/<student_id>')
+def generate_student_report(student_id):
+    """生成（查看）学生在某课程中的报告，兼容旧URL。"""
+    try:
+        course_id = request.args.get('course_id')
+        student = Student.query.filter_by(id=student_id).first()
+        if not student:
+            return jsonify({'error': '学生不存在'}), 404
+
+        # 根据是否传入 course_id 过滤提交记录
+        query = StudentSubmission.query.filter_by(student_id=student_id)
+        if course_id:
+            query = query.filter_by(course_id=course_id)
+        submissions = query.order_by(StudentSubmission.created_at.desc()).all()
+
+        # 统计（与 student_report 保持一致）
+        total_score = sum(sub.answer_time for sub in submissions if sub.is_correct)
+        total_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions))
+        correct_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions if sub.is_correct))
+
+        return render_template('student_report.html',
+                             student=student,
+                             submissions=submissions,
+                             total_score=total_score,
+                             total_rounds=total_rounds,
+                             correct_rounds=correct_rounds)
+    except Exception as e:
+        print(f"❌ 生成学生报告失败: {str(e)}")
+        traceback.print_exc()
+        return jsonify({'error': f'生成学生报告失败: {str(e)}'}), 500
 
 # 学生报告中心页面
 @app.route('/student_report_center/<student_id>')
