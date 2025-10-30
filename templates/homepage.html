@@ -700,7 +700,6 @@
                 
                 <div class="classes-grid" id="classesGrid">
                     {% for class_data in classes %}
-                {% if not class_data.ended_date %}
                     <div class="class-card" data-class-id="{{ class_data.id }}">
                         <div class="class-card-header">
                             <h3 class="class-name">{{ class_data.name }}</h3>
@@ -720,15 +719,15 @@
                             <div class="class-stats">
                                 <div class="stat-item">
                                 <span class="stat-label">学生数:</span>
-                                    <span class="stat-value">{{ class_data.student_count }}</span>
+                                    <span class="stat-value">{{ class_data.student_count if hasattr(class_data, 'student_count') else 0 }}</span>
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">课程数:</span>
-                                    <span class="stat-value">{{ class_data.course_count }}</span>
+                                    <span class="stat-value">{{ class_data.course_count if hasattr(class_data, 'course_count') else 0 }}</span>
                                 </div>
                                 <div class="stat-item">
                                 <span class="stat-label">创建时间:</span>
-                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d') if class_data.created_date and class_data.created_date != 'unknown' else '未知' }}</span>
+                                    <span class="stat-value">{{ class_data.created_date.strftime('%Y-%m-%d') if class_data.created_date and hasattr(class_data.created_date, 'strftime') else '未知' }}</span>
                                 </div>
                             </div>
                             
@@ -740,7 +739,6 @@
                         </div>
                         {% endif %}
                     </div>
-                {% endif %}
                     {% endfor %}
                     
                     {% if not classes %}
@@ -833,15 +831,15 @@
                         <div class="class-stats">
                             <div class="stat-item">
                                 <span class="stat-label">学生数:</span>
-                                <span class="stat-value">{{ class_data.students|length }}</span>
+                                <span class="stat-value">{{ class_data.student_count if hasattr(class_data, 'student_count') else (class_data.students|length if class_data.students else 0) }}</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">课程数:</span>
-                                <span class="stat-value">{{ class_data.courses|length }}</span>
+                                <span class="stat-value">{{ class_data.course_count if hasattr(class_data, 'course_count') else (class_data.courses|length if class_data.courses else 0) }}</span>
                             </div>
                             <div class="stat-item">
                                 <span class="stat-label">结束时间:</span>
-                                <span class="stat-value">{{ class_data.ended_date or '未知' }}</span>
+                                <span class="stat-value">{{ class_data.ended_date.strftime('%Y-%m-%d') if class_data.ended_date and hasattr(class_data.ended_date, 'strftime') else (class_data.ended_date if class_data.ended_date else '未知') }}</span>
                             </div>
                         </div>
                         {% if class_data.competition_goal_id %}
@@ -1240,12 +1238,13 @@ function assignGoal(goalId) {
 // 结束竞赛目标
 function endGoal(goalId) {
     if (confirm('确定要结束这个竞赛目标吗？竞赛目标将被移动到历史竞赛目标中。')) {
-        fetch(`/api/end_competition_goal/${goalId}`, {
+        fetch(`/api/end_goal/${goalId}`, {
             method: 'POST'
         })
         .then(response => response.json())
         .then(data => {
             if (data.success) {
+                alert('竞赛目标已结束！');
                 location.reload();
             } else {
                 alert(data.message || '结束竞赛目标失败');

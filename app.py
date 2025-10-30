@@ -228,16 +228,38 @@ def index():
         # 获取所有活跃班级
         classes = Class.query.filter_by(is_active=True).order_by(Class.created_date.desc()).all()
         
+        # 获取所有非活跃班级（历史班级）
+        inactive_classes = Class.query.filter_by(is_active=False).order_by(Class.ended_date.desc()).all()
+        
         # 获取所有活跃竞赛目标
         goals = CompetitionGoal.query.filter_by(is_active=True).order_by(CompetitionGoal.created_date.desc()).all()
+        
+        # 获取所有非活跃竞赛目标
+        inactive_goals = CompetitionGoal.query.filter_by(is_active=False).order_by(CompetitionGoal.created_date.desc()).all()
         
         # 计算总学生数量
         total_students = Student.query.count()
         
+        # 为每个班级添加统计数据
+        for class_obj in classes:
+            class_obj.student_count = len(class_obj.students)
+            class_obj.course_count = len(class_obj.courses)
+        
+        # 为历史班级添加统计数据
+        for class_obj in inactive_classes:
+            class_obj.student_count = len(class_obj.students)
+            class_obj.course_count = len(class_obj.courses)
+        
+        # 构建classes_json用于前端JavaScript
+        classes_json = {class_obj.id: {'id': class_obj.id, 'name': class_obj.name} for class_obj in classes}
+        
         return render_template('homepage.html',
                              classes=classes,
+                             inactive_classes=inactive_classes,
                              competition_goals=goals,
-                             total_students=total_students)
+                             inactive_competition_goals=inactive_goals,
+                             total_students=total_students,
+                             classes_json=classes_json)
     except Exception as e:
         print(f"❌ 加载首页失败: {str(e)}")
         traceback.print_exc()
@@ -1013,6 +1035,27 @@ def end_class(class_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束班级失败: {str(e)}'}), 500
 
+# 删除班级
+@app.route('/api/delete_class/<class_id>', methods=['POST'])
+def delete_class(class_id):
+    """删除班级"""
+    try:
+        class_obj = Class.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+        
+        db.session.delete(class_obj)
+        db.session.commit()
+        
+        print(f"✅ 班级已删除: {class_obj.name}")
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"❌ 删除班级失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除班级失败: {str(e)}'}), 500
+
 # 创建竞赛目标
 @app.route('/api/create_competition_goal', methods=['POST'])
 def create_competition_goal():
@@ -1102,6 +1145,27 @@ def end_goal(goal_id):
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束竞赛目标失败: {str(e)}'}), 500
+
+# 删除竞赛目标
+@app.route('/api/delete_competition_goal/<goal_id>', methods=['DELETE'])
+def delete_competition_goal(goal_id):
+    """删除竞赛目标"""
+    try:
+        goal = CompetitionGoal.query.filter_by(id=goal_id).first()
+        if not goal:
+            return jsonify({'success': False, 'message': '竞赛目标不存在'}), 404
+        
+        db.session.delete(goal)
+        db.session.commit()
+        
+        print(f"✅ 竞赛目标已删除: {goal.title}")
+        return jsonify({'success': True})
+        
+    except Exception as e:
+        print(f"❌ 删除竞赛目标失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除竞赛目标失败: {str(e)}'}), 500
 
 # 绑定竞赛目标
 @app.route('/api/bind_goal', methods=['POST'])
