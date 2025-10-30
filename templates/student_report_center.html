@@ -65,8 +65,8 @@
         }
         
         .course-title {
-            font-size: 50px;
-            font-weight: 600;
+            font-size: 22px;
+            font-weight: 700;
             color: #2c3e50;
             margin-bottom: 0;
         }
@@ -75,46 +75,31 @@
         .chart-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            margin: 15px 20px;
+            margin: 12px 12px;
             border-radius: 15px;
-            padding: 20px;
+            padding: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
         
-        .chart-title {
-            font-size: 50px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 50px;
-            text-align: center;
-        }
+        .chart-title { font-size: 20px; font-weight: 600; color: #2c3e50; margin-bottom: 12px; text-align: center; }
         
-        .chart-container {
-            position: relative;
-            height: 200px;
-        }
+        .chart-container { position: relative; height: 200px; }
         
         /* 课程列表 */
         .courses-section {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
-            margin: 15px 20px;
+            margin: 12px 12px 20px 12px;
             border-radius: 15px;
-            padding: 20px;
+            padding: 12px;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
         }
         
-        .section-title {
-            font-size: 55px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 60px;
-            text-align: center;
-        }
+        .section-title { font-size: 22px; font-weight: 700; color: #2c3e50; margin-bottom: 12px; text-align: center; }
         
         .course-item {
-            padding: 25px 20px;
-            margin-bottom: 20px;
+            padding: 14px 12px;
+            margin-bottom: 12px;
             background: rgba(255, 255, 255, 0.5);
             border: 2px solid rgba(102, 126, 234, 0.15);
             border-radius: 15px;
@@ -131,67 +116,24 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.1);
         }
         
-        .course-header-row {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 20px;
-        }
+        .course-header-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; gap: 8px; }
         
-        .course-info {
-            flex: 1;
-        }
+        .course-info { flex: 1; min-width: 0; }
         
-        .course-name {
-            font-size: 50px;
-            font-weight: 600;
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
+        .course-name { font-size: 18px; font-weight: 700; color: #2c3e50; margin-bottom: 4px; word-break: break-word; overflow-wrap: anywhere; }
         
-        .course-date {
-            font-size: 40px;
-            color: #6c757d;
-            margin-bottom: 40px;
-        }
+        .course-date { font-size: 14px; color: #6c757d; margin-bottom: 8px; }
         
         /* 指标网格 - 2x2显示所有指标 */
-        .metrics-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-            align-items: center;
-        }
+        .metrics-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-items: center; }
         
-        .metric-item {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border-radius: 12px;
-            justify-content: center;
-        }
+        .metric-item { display: flex; align-items: center; gap: 10px; padding: 10px; background: #f8f9fa; border-radius: 12px; justify-content: center; }
         
-        .metric-icon {
-            font-size: 45px;
-            color: #667eea;
-        }
+        .metric-icon { font-size: 20px; color: #667eea; }
         
-        .metric-content {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
+        .metric-content { display: flex; flex-direction: column; align-items: center; }
         
-        .metric-value {
-            font-size: 45px;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 10px;
-            padding: 8px 16px;
-            border-radius: 10px;
-        }
+        .metric-value { font-size: 18px; font-weight: 700; color: white; margin-bottom: 6px; padding: 6px 10px; border-radius: 8px; }
         
         /* 不同指标的背景色 */
         .metric-item:nth-child(1) .metric-value {
@@ -217,19 +159,9 @@
             box-shadow: 0 2px 10px rgba(238, 9, 121, 0.3);
         }
         
-        .metric-label {
-            font-size: 35px;
-            color: #6c757d;
-        }
+        .metric-label { font-size: 12px; color: #6c757d; }
         
-        .rank-badge {
-            display: inline-block;
-            padding: 10px 20px;
-            border-radius: 12px;
-            font-size: 35px;
-            font-weight: 600;
-            margin-top: 10px;
-        }
+        .rank-badge { display: inline-block; padding: 6px 10px; border-radius: 10px; font-size: 12px; font-weight: 700; margin-top: 6px; }
         
         .rank-1 { background: linear-gradient(45deg, #ffd700, #ffed4e); color: #8b6914; }
         .rank-2 { background: linear-gradient(45deg, #c0c0c0, #e8e8e8); color: #666; }
@@ -237,20 +169,7 @@
         .rank-other { background: #e9ecef; color: #6c757d; }
         
         /* 课堂详情按钮 */
-        .detail-button {
-            background: linear-gradient(45deg, #667eea, #764ba2);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            padding: 15px 25px;
-            font-size: 35px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
-            flex-shrink: 0;
-            margin-left: 20px;
-        }
+        .detail-button { background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none; border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3); flex-shrink: 0; }
         
         .detail-button:hover {
             transform: translateY(-2px);
@@ -286,6 +205,9 @@
         }
         
         /* 响应式设计 */
+        @media (max-width: 768px) {
+            .metrics-row { grid-template-columns: repeat(2, 1fr); }
+        }
         @media (max-width: 480px) {
             .course-header {
                 padding: 15px;
@@ -298,9 +220,7 @@
                 font-size: 20px;
             }
             
-            .course-title {
-                font-size: 40px;
-            }
+            .course-title { font-size: 20px; }
             
             .student-avatar {
                 width: 100px;
@@ -309,57 +229,29 @@
                 margin-bottom: 15px;
             }
             
-            .chart-section, .courses-section {
-                margin: 10px 15px;
-                padding: 20px;
-            }
+            .chart-section, .courses-section { margin: 8px 8px; padding: 10px; }
             
-            .chart-title, .section-title {
-                font-size: 40px;
-            }
+            .chart-title, .section-title { font-size: 18px; }
             
-            .chart-container {
-                height: 200px;
-            }
+            .chart-container { height: 180px; }
             
-            .course-name {
-                font-size: 40px;
-            }
+            .course-name { font-size: 18px; }
             
-            .course-date {
-                font-size: 32px;
-            }
+            .course-date { font-size: 14px; }
             
-            .metrics-row {
-                gap: 15px;
-            }
+            .metrics-row { gap: 10px; }
             
-            .metric-item {
-                padding: 12px 15px;
-            }
+            .metric-item { padding: 10px; }
             
-            .metric-icon {
-                font-size: 36px;
-            }
+            .metric-icon { font-size: 18px; }
             
-            .metric-value {
-                font-size: 36px;
-            }
+            .metric-value { font-size: 16px; }
             
-            .metric-label {
-                font-size: 28px;
-            }
+            .metric-label { font-size: 12px; }
             
-            .rank-badge {
-                font-size: 28px;
-                padding: 8px 16px;
-            }
+            .rank-badge { font-size: 12px; padding: 6px 10px; }
             
-            .detail-button {
-                font-size: 28px;
-                padding: 12px 20px;
-                margin-left: 15px;
-            }
+            .detail-button { font-size: 14px; padding: 8px 12px; }
         }
     </style>
 </head>

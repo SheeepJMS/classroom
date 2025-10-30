@@ -520,17 +520,116 @@ def generate_student_report(student_id):
             query = query.filter_by(course_id=course_id)
         submissions = query.order_by(StudentSubmission.created_at.desc()).all()
 
-        # 统计（与 student_report 保持一致）
-        total_score = sum(sub.answer_time for sub in submissions if sub.is_correct)
+        # 基础学生信息（带 avatar_color 兼容）
+        student_view = {
+            'id': student.id,
+            'name': student.name,
+            'avatar_color': getattr(student, 'avatar_color', '#ff6b6b')
+        }
+
+        # 统计
         total_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions))
         correct_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions if sub.is_correct))
+        accuracy = round((correct_rounds / total_rounds) * 100) if total_rounds > 0 else 0
+
+        # 课程信息与班级数据
+        course = Course.query.filter_by(id=course_id).first() if course_id else None
+        course_data = {
+            'name': course.name if course else '数学竞赛课堂'
+        }
+
+        # 课程回合与班级统计
+        class_avg_accuracy = 0
+        class_avg_participation = 0
+        avg_response_time = 0
+        class_avg_response_time = 0
+        student_total_score = 0
+        total_possible_score = 0
+        class_avg_score = 0
+        class_round_stats = []
+
+        if course:
+            rounds = CourseRound.query.filter_by(course_id=course.id).all()
+            total_possible_score = sum((r.question_score or 1) for r in rounds)
+            active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
+            active_count = len(active_students) if active_students else 1
+
+            # 学生总分
+            for sub in submissions:
+                if sub.is_correct:
+                    r = next((rr for rr in rounds if rr.round_number == sub.round_number), None)
+                    student_total_score += (r.question_score if r and r.question_score else 1)
+
+            # 全班提交
+            class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
+
+            # 班级平均准确率/参与率/分数
+            # 按学生聚合
+            from collections import defaultdict
+            student_correct = defaultdict(int)
+            student_total = defaultdict(int)
+            student_scores = defaultdict(int)
+
+            for s in class_submissions:
+                student_total[s.student_id] += 1
+                if s.is_correct:
+                    student_correct[s.student_id] += 1
+                    r = next((rr for rr in rounds if rr.round_number == s.round_number), None)
+                    student_scores[s.student_id] += (r.question_score if r and r.question_score else 1)
+
+            # 平均准确率
+            if student_total:
+                acc_list = []
+                for sid,total in student_total.items():
+                    acc_list.append((student_correct[sid]/total)*100 if total>0 else 0)
+                class_avg_accuracy = round(sum(acc_list)/len(acc_list)) if acc_list else 0
+                class_avg_score = round(sum(student_scores.values())/len(student_scores)) if student_scores else 0
+
+            # 参与率（参与过任意回合的学生比）
+            participated = len(set(s.student_id for s in class_submissions))
+            class_avg_participation = round((participated/active_count)*100) if active_count>0 else 0
+
+            # 响应时间
+            import statistics
+            st_times = [s.answer_time for s in submissions if s.answer_time is not None]
+            avg_response_time = round(statistics.mean(st_times),1) if st_times else 0
+            class_times = [s.answer_time for s in class_submissions if s.answer_time is not None]
+            class_avg_response_time = round(statistics.mean(class_times),1) if class_times else 0
+
+            # 按轮统计
+            round_nums = sorted(set(r.round_number for r in rounds))
+            for rn in round_nums:
+                rs = [s for s in class_submissions if s.round_number==rn]
+                if rs:
+                    correct = sum(1 for s in rs if s.is_correct)
+                    participants = len(set(s.student_id for s in rs))
+                    acc = (correct/participants)*100 if participants>0 else 0
+                    part = (participants/active_count)*100 if active_count>0 else 0
+                    times = [s.answer_time for s in rs if s.answer_time is not None]
+                    avg_t = round(statistics.mean(times),1) if times else 0
+                else:
+                    acc=0; part=0; avg_t=0
+                class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
 
         return render_template('student_report.html',
-                             student=student,
+                             student=student_view,
+                             student_name=student.name,
+                             current_date=datetime.now().strftime('%Y-%m-%d'),
+                             course_data=course_data,
                              submissions=submissions,
-                             total_score=total_score,
+                             total_score=student_total_score,
                              total_rounds=total_rounds,
-                             correct_rounds=correct_rounds)
+                             correct_rounds=correct_rounds,
+                             accuracy=accuracy,
+                             class_avg_accuracy=class_avg_accuracy,
+                             participation_rate=100 if total_rounds>0 else 0,
+                             class_avg_participation=class_avg_participation,
+                             avg_response_time=avg_response_time,
+                             class_avg_response_time=class_avg_response_time,
+                             student_total_score=student_total_score,
+                             total_possible_score=total_possible_score if total_possible_score>0 else 1,
+                             class_avg_score=class_avg_score,
+                             class_round_stats=class_round_stats)
     except Exception as e:
         print(f"❌ 生成学生报告失败: {str(e)}")
         traceback.print_exc()
