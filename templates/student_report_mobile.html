@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+
+{% block title %}{{ student_name }} - 报告详情{% endblock %}
+
+{% block content %}
+<div class="container py-2" style="max-width: 560px;">
+  <!-- 顶部卡片 -->
+  <div class="card shadow-sm mb-2">
+    <div class="card-body d-flex align-items-center gap-3">
+      <div style="width:56px;height:56px;border-radius:50%;background: {{ student.avatar_color or '#4ecdc4' }};display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;">😊</div>
+      <div class="flex-grow-1">
+        <div class="fw-bold">{{ student_name }}</div>
+        <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{ current_date }}</small>
+      </div>
+      <a class="btn btn-sm btn-outline-primary" href="/reports"><i class="fas fa-list me-1"></i>返回列表</a>
+    </div>
+  </div>
+
+  <!-- 核心指标 -->
+  <div class="row g-2 mb-2">
+    <div class="col-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body p-2">
+          <div class="small text-muted">得分</div>
+          <div class="h5 mb-0">{{ student_total_score }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body p-2">
+          <div class="small text-muted">正确率</div>
+          <div class="h5 mb-0">{{ accuracy }}%</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="card text-center shadow-sm">
+        <div class="card-body p-2">
+          <div class="small text-muted">参与率</div>
+          <div class="h5 mb-0">{{ participation_rate }}%</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 个性化反馈 -->
+  {% if personalized_feedback %}
+  <div class="card border-info mb-2 shadow-sm">
+    <div class="card-body p-2">
+      <i class="fas fa-comment-dots text-info me-1"></i>
+      <small>{{ personalized_feedback.focus_feedback }}</small>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- 每轮参与记录（竖向） -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header py-2 bg-light"><strong><i class="fas fa-history me-1"></i>学习参与记录</strong></div>
+    <div class="list-group list-group-flush">
+      {% for round_num in range(1, class_total_rounds + 1) %}
+      {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
+      <div class="list-group-item py-2">
+        <div class="d-flex align-items-center gap-2">
+          <span class="fw-bold">第{{ round_num }}轮</span>
+          {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+            <span class="badge bg-primary">参与</span>
+            <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
+            <span class="badge bg-warning text-dark">{{ round_submission.question_score }}分</span>
+            <div class="progress flex-grow-1" style="height:6px;">
+              <div class="progress-bar bg-info" style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
+            </div>
+            <small class="text-muted">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
+          {% else %}
+            <span class="badge bg-secondary">未参与</span>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- 班级趋势（精简版） -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header py-2 bg-light"><strong><i class="fas fa-chart-line me-1"></i>班级整体趋势</strong></div>
+    <div class="card-body p-2">
+      <canvas id="trendChartMobile" height="160"></canvas>
+    </div>
+  </div>
+
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const classRoundStats = {{ class_round_stats|tojson }};
+const trendCtx = document.getElementById('trendChartMobile').getContext('2d');
+new Chart(trendCtx, {
+  type: 'line',
+  data: {
+    labels: classRoundStats.map(s => `第${s.round}轮`),
+    datasets: [{
+      label: '得分率(%)',
+      data: classRoundStats.map(s => s.accuracy),
+      borderColor: 'rgb(75, 192, 192)',
+      backgroundColor: 'rgba(75, 192, 192, 0.15)',
+      tension: .3
+    },{
+      label: '参与率(%)',
+      data: classRoundStats.map(s => s.participation_rate),
+      borderColor: 'rgb(255, 99, 132)',
+      backgroundColor: 'rgba(255, 99, 132, 0.15)',
+      tension: .3
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { position: 'top' } },
+    scales: { y: { beginAtZero: true, max: 100 } }
+  }
+});
+</script>
+{% endblock %}
+
+

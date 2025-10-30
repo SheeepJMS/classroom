@@ -549,9 +549,33 @@ def generate_student_report(student_id):
         class_round_stats = []
         class_total_rounds = 0
 
+        participated_rounds = 0
+        student_submissions_view = []
         if course:
             rounds = CourseRound.query.filter_by(course_id=course.id).all()
             class_total_rounds = len(rounds)
+            # 构造学生每轮的提交视图，按round对齐
+            for r in rounds:
+                rs = next((s for s in submissions if s.round_number == r.round_number), None)
+                if rs and (rs.answer is not None and str(rs.answer).strip() != ''):
+                    participated_rounds += 1
+                    is_correct = bool(rs.is_correct)
+                    q_score = r.question_score if r and r.question_score else 1
+                    student_submissions_view.append({
+                        'round': r.round_number,
+                        'answer': rs.answer,
+                        'is_correct': is_correct,
+                        'question_score': q_score,
+                        'answer_time': rs.answer_time or 0
+                    })
+                else:
+                    student_submissions_view.append({
+                        'round': r.round_number,
+                        'answer': '',
+                        'is_correct': False,
+                        'question_score': r.question_score if r and r.question_score else 1,
+                        'answer_time': 0
+                    })
             total_possible_score = sum((r.question_score or 1) for r in rounds)
             active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
             active_count = len(active_students) if active_students else 1
@@ -624,19 +648,29 @@ def generate_student_report(student_id):
         else:
             feedback_text = '需要加强练习，建议回看课堂要点并完成巩固题。'
 
-        return render_template('student_report.html',
+        # 参与率：参与轮次 / 课程总轮次
+        participation_rate = round((participated_rounds / class_total_rounds) * 100) if class_total_rounds > 0 else 0
+
+        # 移动端/微信优先渲染竖屏模板
+        ua = (request.headers.get('User-Agent') or '').lower()
+        prefer_mobile = any(k in ua for k in ['micromessenger', 'iphone', 'android', 'mobile'])
+
+        template_name = 'student_report_mobile.html' if prefer_mobile else 'student_report.html'
+
+        return render_template(template_name,
                              student=student_view,
                              student_name=student.name,
                              current_date=datetime.now().strftime('%Y-%m-%d'),
                              course_data=course_data,
                              submissions=submissions,
+                             student_submissions=student_submissions_view,
                              total_score=student_total_score,
                              total_rounds=total_rounds,
                              correct_rounds=correct_rounds,
                              accuracy=accuracy,
                              personalized_feedback={'focus_feedback': feedback_text},
                              class_avg_accuracy=class_avg_accuracy,
-                             participation_rate=100 if total_rounds>0 else 0,
+                             participation_rate=participation_rate,
                              class_avg_participation=class_avg_participation,
                              avg_response_time=avg_response_time,
                              class_avg_response_time=class_avg_response_time,
