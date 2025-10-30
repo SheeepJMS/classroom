@@ -912,9 +912,12 @@ def student_report_center(student_id):
             
             if submissions:
                 # 计算统计数据
+                # 实际参与的轮次数（去重）
                 total_rounds = len(set(sub.round_number for sub in submissions))
-                correct_rounds = sum(1 for s in submissions if s.is_correct)
-                accuracy = (correct_rounds / len(submissions) * 100) if len(submissions) > 0 else 0
+                # 正确答题的轮次数（去重，只计算每个轮次至少答对一次）
+                correct_rounds = len(set(s.round_number for s in submissions if s.is_correct))
+                # 计算准确率：正确轮次 / 参与轮次
+                accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
                 
                 # 计算总分
                 total_score = 0
@@ -955,12 +958,11 @@ def student_report_center(student_id):
                                 class_score += 1
                     student_scores[class_student.id] = class_score
                 
-                # 计算排名
-                sorted_scores = sorted(student_scores.values(), reverse=True)
-                try:
-                    rank = sorted_scores.index(total_score) + 1
-                except ValueError:
-                    rank = len(sorted_scores) + 1
+                # 计算排名 - 正确的方法是统计比当前学生分数高的学生数
+                # 如果有n个学生分数更高，当前学生排名就是n+1
+                # 例如：分数 [100, 90, 90, 80]，80分的学生排名是4
+                higher_count = sum(1 for score in student_scores.values() if score > total_score)
+                rank = higher_count + 1
                 
                 courses_data.append({
                     'course': course,
