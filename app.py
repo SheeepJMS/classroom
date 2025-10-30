@@ -342,6 +342,26 @@ def class_management(class_id):
                 'is_active': course.is_active
             })
         
+        # 竞赛目标信息
+        goal = None
+        goal_progress = None
+        if class_obj.competition_goal_id:
+            g = CompetitionGoal.query.filter_by(id=class_obj.competition_goal_id).first()
+            if g:
+                goal = {
+                    'id': g.id,
+                    'title': g.title,
+                    'description': g.description or '',
+                    'goal_date': g.goal_date.strftime('%Y-%m-%d') if g.goal_date else None
+                }
+                # 进度（剩余天/周/估算课次）
+                from datetime import date
+                if g.goal_date:
+                    dleft = max((g.goal_date - date.today()).days, 0)
+                    wleft = dleft // 7
+                    lessons_left = len([c for c in courses if not c.is_active])
+                    goal_progress = {'days_left': dleft, 'weeks_left': wleft, 'lessons_left': lessons_left}
+
         # 将排序后的课程数据添加到class_obj（创建一个简单的对象包装器）
         class_data_dict = {
             'id': class_obj.id,
@@ -356,7 +376,9 @@ def class_management(class_id):
                              class_obj=class_obj,
                              class_id=class_id,
                              students=students,
-                             courses=courses)
+                             courses=courses,
+                             goal=goal,
+                             goal_progress=goal_progress)
     except Exception as e:
         print(f"❌ 加载班级管理页面失败: {str(e)}")
         return jsonify({'error': f'加载班级管理页面失败: {str(e)}'}), 500
@@ -790,6 +812,25 @@ def generate_student_report(student_id):
 
         template_name = 'student_report_mobile.html' if prefer_mobile else 'student_report.html'
 
+        # 竞赛目标信息（供报告显示）
+        competition_goal_name = None
+        competition_goal_date = None
+        days_to_competition = None
+        classes_before_competition = None
+        if course:
+            cls = Class.query.filter_by(id=course.class_id).first()
+            if cls and cls.competition_goal_id:
+                g = CompetitionGoal.query.filter_by(id=cls.competition_goal_id).first()
+                if g:
+                    competition_goal_name = g.title
+                    competition_goal_date = g.goal_date.strftime('%Y-%m-%d') if g.goal_date else None
+                    if g.goal_date:
+                        from datetime import date
+                        days_to_competition = max((g.goal_date - date.today()).days, 0)
+                    # 赛前上课节数：统计该班所有课程中在竞赛日前的未统计节数（近似）
+                    all_cls_courses = Course.query.filter_by(class_id=cls.id).all()
+                    classes_before_competition = len([c for c in all_cls_courses if not getattr(c, 'ended_at', None) or (g.goal_date and getattr(c, 'created_at', None) and c.created_at.date() <= g.goal_date)])
+
         return render_template(template_name,
                              student=student_view,
                              student_name=student.name,
@@ -812,7 +853,11 @@ def generate_student_report(student_id):
                              class_avg_score=class_avg_score,
                              class_round_stats=class_round_stats,
                              class_total_rounds=class_total_rounds,
-                             behavior_totals=behavior_totals)
+                                 behavior_totals=behavior_totals,
+                                 competition_goal_name=competition_goal_name,
+                                 competition_goal_date=competition_goal_date,
+                                 days_to_competition=days_to_competition,
+                                 classes_before_competition=classes_before_competition)
     except Exception as e:
         print(f"❌ 生成学生报告失败: {str(e)}")
         traceback.print_exc()
