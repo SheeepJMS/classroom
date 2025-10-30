@@ -520,6 +520,14 @@ def generate_student_report(student_id):
             query = query.filter_by(course_id=course_id)
         submissions = query.order_by(StudentSubmission.created_at.desc()).all()
 
+        # 统计行为总次数（本课程）
+        behavior_totals = {
+            'guess': sum((s.guess_count or 0) for s in submissions),
+            'copy': sum((s.copy_count or 0) for s in submissions),
+            'noisy': sum((s.noisy_count or 0) for s in submissions),
+            'distracted': sum((s.distracted_count or 0) for s in submissions),
+        }
+
         # 基础学生信息（带 avatar_color 兼容）
         student_view = {
             'id': student.id,
@@ -557,6 +565,18 @@ def generate_student_report(student_id):
             # 构造学生每轮的提交视图，按round对齐
             for r in rounds:
                 rs = next((s for s in submissions if s.round_number == r.round_number), None)
+                # 识别该轮违规类型（优先级：猜题>抄题>打闹>走神）
+                violation_type = None
+                if rs:
+                    if (rs.guess_count or 0) > 0:
+                        violation_type = '猜题'
+                    elif (rs.copy_count or 0) > 0:
+                        violation_type = '抄题'
+                    elif (rs.noisy_count or 0) > 0:
+                        violation_type = '打闹'
+                    elif (rs.distracted_count or 0) > 0:
+                        violation_type = '走神'
+
                 if rs and (rs.answer is not None and str(rs.answer).strip() != ''):
                     participated_rounds += 1
                     is_correct = bool(rs.is_correct)
@@ -566,7 +586,8 @@ def generate_student_report(student_id):
                         'answer': rs.answer,
                         'is_correct': is_correct,
                         'question_score': q_score,
-                        'answer_time': rs.answer_time or 0
+                        'answer_time': rs.answer_time or 0,
+                        'violation_type': violation_type
                     })
                 else:
                     student_submissions_view.append({
@@ -574,7 +595,8 @@ def generate_student_report(student_id):
                         'answer': '',
                         'is_correct': False,
                         'question_score': r.question_score if r and r.question_score else 1,
-                        'answer_time': 0
+                        'answer_time': 0,
+                        'violation_type': violation_type
                     })
             total_possible_score = sum((r.question_score or 1) for r in rounds)
             active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
@@ -637,16 +659,74 @@ def generate_student_report(student_id):
                     acc=0; part=0; avg_t=0
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
 
-        # 生成简要个性化反馈
-        feedback_text = '本次课程参与积极，请继续保持良好状态。'
-        if accuracy >= 90:
-            feedback_text = '表现非常优秀，正确率很高，继续冲刺满分！'
-        elif accuracy >= 70:
-            feedback_text = '整体表现良好，建议复盘错题，提高稳定性。'
-        elif total_rounds == 0:
-            feedback_text = '本次未参与作答，建议下次按时参与练习。'
-        else:
-            feedback_text = '需要加强练习，建议回看课堂要点并完成巩固题。'
+        # 生成个性化反馈（优先排名，其次参与率，再看正确率；60%优秀、40%不错、20%以下偏低）
+        def build_feedback():
+            # 无数据或未参与
+            if class_total_rounds == 0 or participation_rate == 0:
+                return '本次未参与作答，建议下次按时参与练习；先建立连续参与习惯！'
+
+            parts = []
+
+            # 排名主评语（用班级得分排名或百分位）
+            rank_text = ''
+            if course:
+                # 计算排名
+                rank = None
+                percentile = None
+                try:
+                    sorted_scores = sorted(student_scores.values(), reverse=True)
+                    rank = sorted_scores.index(student_total_score) + 1 if sorted_scores else None
+                    percentile = round(((rank - 1) / len(sorted_scores)) * 100, 1) if rank and len(sorted_scores) else None
+                except Exception:
+                    rank = None
+
+                if percentile is not None:
+                    if percentile <= 5:
+                        rank_text = '表现卓越，稳居榜首，持续保持！'
+                    elif percentile <= 15:
+                        rank_text = '表现非常出色，稳定在前列，继续冲刺！'
+                    elif percentile <= 30:
+                        rank_text = '表现优秀，稳居班级前列，继续发力！'
+                    elif percentile <= 70:
+                        rank_text = '表现良好，稳步提升中，坚持复盘可更进一步！'
+                    else:
+                        rank_text = '具备潜力，建议先稳住基础，逐步追赶班级节奏！'
+                else:
+                    rank_text = '表现良好，稳步提升中，坚持复盘可更进一步！'
+            parts.append(rank_text)
+
+            # 参与率修饰
+            if participation_rate >= 90:
+                parts.append('课堂投入度很高，保持积极参与！')
+            elif participation_rate >= 70:
+                parts.append('参与比较稳定，再多坚持几轮会更好！')
+            elif participation_rate >= 40:
+                parts.append('参与度一般，建议按时作答每一轮，形成稳定节奏！')
+            else:
+                parts.append('本次参与偏少，优先提升参与率，完整参与每一轮尤为重要！')
+
+            # 正确率修饰（60/40/20）
+            if accuracy >= 60:
+                parts.append('正确率已达优秀水平，继续冲刺更高分！')
+            elif accuracy >= 40:
+                parts.append('正确率不错，建议复盘错题，巩固易错点！')
+            elif accuracy >= 20:
+                parts.append('正确率有提升空间，建议先夯实基础题的稳定性！')
+            else:
+                parts.append('本次正确率偏低，建议从基础知识点和例题入手，逐步建立信心！')
+
+            # 可选：用时修饰
+            if avg_response_time:
+                if avg_response_time <= 10:
+                    parts.append('反应速度快，思维敏捷！')
+                elif avg_response_time <= 20:
+                    parts.append('思考节奏合理，保持稳定输出！')
+                else:
+                    parts.append('思考较为细致，建议把握时间，先保证会做题目的正确率！')
+
+            return ' '.join(parts)
+
+        feedback_text = build_feedback()
 
         # 参与率：参与轮次 / 课程总轮次
         participation_rate = round((participated_rounds / class_total_rounds) * 100) if class_total_rounds > 0 else 0
@@ -678,7 +758,8 @@ def generate_student_report(student_id):
                              total_possible_score=total_possible_score if total_possible_score>0 else 1,
                              class_avg_score=class_avg_score,
                              class_round_stats=class_round_stats,
-                             class_total_rounds=class_total_rounds)
+                             class_total_rounds=class_total_rounds,
+                             behavior_totals=behavior_totals)
     except Exception as e:
         print(f"❌ 生成学生报告失败: {str(e)}")
         traceback.print_exc()

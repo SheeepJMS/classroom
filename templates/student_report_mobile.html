@@ -4,22 +4,26 @@
 
 {% block content %}
 <div class="container py-2" style="max-width: 560px;">
+  <!-- 页面标题 -->
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <h5 class="m-0">{{ student_name }} - 报告详情</h5>
+    <a class="btn btn-sm btn-outline-primary" href="/reports"><i class="fas fa-list me-1"></i>返回列表</a>
+  </div>
   <!-- 顶部卡片 -->
   <div class="card shadow-sm mb-2">
     <div class="card-body d-flex align-items-center gap-3">
       <div style="width:56px;height:56px;border-radius:50%;background: {{ student.avatar_color or '#4ecdc4' }};display:flex;align-items:center;justify-content:center;font-size:26px;color:#fff;">😊</div>
       <div class="flex-grow-1">
-        <div class="fw-bold">{{ student_name }}</div>
+        <div class="fw-bold">{{ course_data.name }}</div>
         <small class="text-muted"><i class="fas fa-calendar me-1"></i>{{ current_date }}</small>
       </div>
-      <a class="btn btn-sm btn-outline-primary" href="/reports"><i class="fas fa-list me-1"></i>返回列表</a>
     </div>
   </div>
 
   <!-- 核心指标 -->
   <div class="row g-2 mb-2">
     <div class="col-4">
-      <div class="card text-center shadow-sm">
+      <div class="card text-center shadow-sm" style="background: linear-gradient(135deg,#FFF3CD,#FFE8A1);">
         <div class="card-body p-2">
           <div class="small text-muted">得分</div>
           <div class="h5 mb-0">{{ student_total_score }}</div>
@@ -27,7 +31,7 @@
       </div>
     </div>
     <div class="col-4">
-      <div class="card text-center shadow-sm">
+      <div class="card text-center shadow-sm" style="background: linear-gradient(135deg,#D1E7DD,#A3CFBB);">
         <div class="card-body p-2">
           <div class="small text-muted">正确率</div>
           <div class="h5 mb-0">{{ accuracy }}%</div>
@@ -35,12 +39,22 @@
       </div>
     </div>
     <div class="col-4">
-      <div class="card text-center shadow-sm">
+      <div class="card text-center shadow-sm" style="background: linear-gradient(135deg,#CCE5FF,#99CCFF);">
         <div class="card-body p-2">
           <div class="small text-muted">参与率</div>
           <div class="h5 mb-0">{{ participation_rate }}%</div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- 行为统计（猜题/抄题/打闹/走神） -->
+  <div class="card shadow-sm mb-2">
+    <div class="card-body p-2 d-flex justify-content-between text-center">
+      <div class="flex-fill"><small class="text-muted">猜题</small><div class="fw-bold text-danger">{{ behavior_totals.guess }}</div></div>
+      <div class="flex-fill"><small class="text-muted">抄题</small><div class="fw-bold text-danger">{{ behavior_totals.copy }}</div></div>
+      <div class="flex-fill"><small class="text-muted">打闹</small><div class="fw-bold text-danger">{{ behavior_totals.noisy }}</div></div>
+      <div class="flex-fill"><small class="text-muted">走神</small><div class="fw-bold text-danger">{{ behavior_totals.distracted }}</div></div>
     </div>
   </div>
 
@@ -54,6 +68,14 @@
   </div>
   {% endif %}
 
+  <!-- 班级趋势（精简版）提前显示 -->
+  <div class="card shadow-sm mb-3">
+    <div class="card-header py-2 bg-light"><strong><i class="fas fa-chart-line me-1"></i>班级整体趋势</strong></div>
+    <div class="card-body p-2">
+      <canvas id="trendChartMobile" height="160"></canvas>
+    </div>
+  </div>
+
   <!-- 每轮参与记录（竖向） -->
   <div class="card shadow-sm mb-3">
     <div class="card-header py-2 bg-light"><strong><i class="fas fa-history me-1"></i>学习参与记录</strong></div>
@@ -63,10 +85,22 @@
       <div class="list-group-item py-2">
         <div class="d-flex align-items-center gap-2">
           <span class="fw-bold">第{{ round_num }}轮</span>
-          {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+          {% if round_submission and round_submission.violation_type %}
+            <span class="badge bg-danger">{{ round_submission.violation_type }}</span>
+          {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
             <span class="badge bg-primary">参与</span>
             <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
             <span class="badge bg-warning text-dark">{{ round_submission.question_score }}分</span>
+            {# 难度标签 #}
+            {% set qs = round_submission.question_score or 1 %}
+            {% set diff = '基础' %}
+            {% if qs >= 6 %}{% set diff = '极难' %}
+            {% elif qs == 5 %}{% set diff = '很难' %}
+            {% elif qs == 4 %}{% set diff = '较难' %}
+            {% elif qs == 3 %}{% set diff = '中等' %}
+            {% elif qs == 2 %}{% set diff = '简单' %}
+            {% else %}{% set diff = '基础' %}{% endif %}
+            <span class="badge bg-secondary">{{ diff }}</span>
             <div class="progress flex-grow-1" style="height:6px;">
               <div class="progress-bar bg-info" style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
             </div>
@@ -77,14 +111,6 @@
         </div>
       </div>
       {% endfor %}
-    </div>
-  </div>
-
-  <!-- 班级趋势（精简版） -->
-  <div class="card shadow-sm mb-3">
-    <div class="card-header py-2 bg-light"><strong><i class="fas fa-chart-line me-1"></i>班级整体趋势</strong></div>
-    <div class="card-body p-2">
-      <canvas id="trendChartMobile" height="160"></canvas>
     </div>
   </div>
 
