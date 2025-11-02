@@ -99,3 +99,5 @@ git reset --soft HEAD~1
 # 完全撤销最后一次提交和更改
 git reset --hard HEAD~1
 ```
+
+

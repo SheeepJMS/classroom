@@ -62,3 +62,5 @@ git add app.py templates/homepage.html *.md && git commit -m "fix: 修复历史�
 2. Jinja2 模板不再使用 Python 的 `hasattr()` 函数
 3. 排名计算支持相同分数的情况
 4. 正确率基于轮次而非提交次数计算
+
+

@@ -237,8 +237,8 @@ def index():
         # 获取所有非活跃竞赛目标
         inactive_goals = CompetitionGoal.query.filter_by(is_active=False).order_by(CompetitionGoal.created_date.desc()).all()
         
-        # 计算总学生数量
-        total_students = Student.query.count()
+        # 计算总学生数量（仅统计未结束/活跃班级中的学生）
+        total_students = db.session.query(Student).join(Class, Student.class_id == Class.id).filter(Class.is_active == True).count()
         
         # 为每个班级添加统计数据
         for class_obj in classes:
@@ -698,22 +698,26 @@ def generate_student_report(student_id):
             # 班级平均准确率/参与率/分数
             # 按学生聚合
             from collections import defaultdict
-            student_correct = defaultdict(int)
-            student_total = defaultdict(int)
+            # 改为按轮次统计（去重），避免多次提交同一轮次时重复计数
+            student_correct_rounds = defaultdict(set)
+            student_total_rounds = defaultdict(set)
             student_scores = defaultdict(int)
 
             for s in class_submissions:
-                student_total[s.student_id] += 1
+                # 使用round_number作为集合，自动去重
+                student_total_rounds[s.student_id].add(s.round_number)
                 if s.is_correct:
-                    student_correct[s.student_id] += 1
+                    student_correct_rounds[s.student_id].add(s.round_number)
                     r = next((rr for rr in rounds if rr.round_number == s.round_number), None)
                     student_scores[s.student_id] += (r.question_score if r and r.question_score else 1)
 
-            # 平均准确率
-            if student_total:
+            # 平均准确率 - 按轮次计算
+            if student_total_rounds:
                 acc_list = []
-                for sid,total in student_total.items():
-                    acc_list.append((student_correct[sid]/total)*100 if total>0 else 0)
+                for sid in student_total_rounds.keys():
+                    total_r = len(student_total_rounds[sid])
+                    correct_r = len(student_correct_rounds[sid])
+                    acc_list.append((correct_r/total_r)*100 if total_r>0 else 0)
                 class_avg_accuracy = round(sum(acc_list)/len(acc_list)) if acc_list else 0
                 class_avg_score = round(sum(student_scores.values())/len(student_scores)) if student_scores else 0
 
@@ -733,9 +737,13 @@ def generate_student_report(student_id):
             for rn in round_nums:
                 rs = [s for s in class_submissions if s.round_number==rn]
                 if rs:
-                    correct = sum(1 for s in rs if s.is_correct)
-                    participants = len(set(s.student_id for s in rs))
-                    acc = (correct/participants)*100 if participants>0 else 0
+                    # 按学生去重，统计有多少学生答对了这一轮
+                    students_who_participated = set(s.student_id for s in rs)
+                    students_who_correct = set(s.student_id for s in rs if s.is_correct)
+                    # 准确率 = 答对的学生数 / 参与的学生数
+                    participants = len(students_who_participated)
+                    correct_count = len(students_who_correct)
+                    acc = (correct_count/participants)*100 if participants>0 else 0
                     part = (participants/active_count)*100 if active_count>0 else 0
                     times = [s.answer_time for s in rs if s.answer_time is not None]
                     avg_t = round(statistics.mean(times),1) if times else 0
@@ -757,13 +765,14 @@ def generate_student_report(student_id):
             # 排名主评语（用班级得分排名或百分位）
             rank_text = ''
             if course:
-                # 计算排名
+                # 计算排名 - 使用与student_report_center一致的逻辑
                 rank = None
                 percentile = None
                 try:
-                    sorted_scores = sorted(student_scores.values(), reverse=True)
-                    rank = sorted_scores.index(student_total_score) + 1 if sorted_scores else None
-                    percentile = round(((rank - 1) / len(sorted_scores)) * 100, 1) if rank and len(sorted_scores) else None
+                    # 统计比当前学生分数高的学生数
+                    higher_count = sum(1 for score in student_scores.values() if score > student_total_score)
+                    rank = higher_count + 1 if student_scores else None
+                    percentile = round(((rank - 1) / len(student_scores)) * 100, 1) if rank and len(student_scores) else None
                 except Exception:
                     rank = None
 

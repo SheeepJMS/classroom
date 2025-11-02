@@ -167,8 +167,8 @@ def index():
         # 获取所有活跃竞赛目标
         goals = CompetitionGoal.query.filter_by(is_active=True).order_by(CompetitionGoal.created_date.desc()).all()
         
-        # 计算总学生数量
-        total_students = Student.query.count()
+        # 计算总学生数量（仅统计未结束/活跃班级中的学生）
+        total_students = db.session.query(Student).join(Class, Student.class_id == Class.id).filter(Class.is_active == True).count()
         
         return render_template('homepage.html',
                              classes=classes,

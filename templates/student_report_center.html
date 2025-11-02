@@ -39,16 +39,6 @@
             margin-bottom: 30px;
         }
         
-        .back-btn {
-            position: absolute;
-            left: 20px;
-            top: 20px;
-            background: none;
-            border: none;
-            font-size: 24px;
-            color: #6c757d;
-            cursor: pointer;
-        }
         
         .student-avatar {
             width: 125px;
@@ -216,12 +206,6 @@
                 margin-bottom: 20px;
             }
             
-            .back-btn {
-                left: 15px;
-                top: 15px;
-                font-size: 20px;
-            }
-            
             .course-title { font-size: 20px; }
             
             .student-avatar {
@@ -261,9 +245,6 @@
     <div class="container">
         <!-- 顶部课堂信息 - 包含头像 -->
         <div class="course-header">
-            <button class="back-btn" onclick="history.back()">
-                <i class="fas fa-arrow-left"></i>
-            </button>
             <div class="student-avatar">😊</div>
             <div class="course-title">{{ student.name }} - 报告中心</div>
         </div>
