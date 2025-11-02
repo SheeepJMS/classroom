@@ -736,19 +736,22 @@ def generate_student_report(student_id):
             round_nums = sorted(set(r.round_number for r in rounds))
             for rn in round_nums:
                 rs = [s for s in class_submissions if s.round_number==rn]
+                # 按学生去重，统计有多少学生答对了这一轮
+                students_who_participated = set(s.student_id for s in rs)
+                students_who_correct = set(s.student_id for s in rs if s.is_correct)
+                # 准确率 = 答对的学生数 / 班级总学生数（未参与的学生算作错误）
+                correct_count = len(students_who_correct)
+                # active_count 是班级总活跃学生数，包括未参与的
+                acc = (correct_count/active_count)*100 if active_count>0 else 0
+                # 参与率 = 参与的学生数 / 班级总学生数
+                participants = len(students_who_participated)
+                part = (participants/active_count)*100 if active_count>0 else 0
+                # 平均答题时间（只计算参与的学生）
                 if rs:
-                    # 按学生去重，统计有多少学生答对了这一轮
-                    students_who_participated = set(s.student_id for s in rs)
-                    students_who_correct = set(s.student_id for s in rs if s.is_correct)
-                    # 准确率 = 答对的学生数 / 参与的学生数
-                    participants = len(students_who_participated)
-                    correct_count = len(students_who_correct)
-                    acc = (correct_count/participants)*100 if participants>0 else 0
-                    part = (participants/active_count)*100 if active_count>0 else 0
                     times = [s.answer_time for s in rs if s.answer_time is not None]
                     avg_t = round(statistics.mean(times),1) if times else 0
                 else:
-                    acc=0; part=0; avg_t=0
+                    avg_t = 0
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
 
         # 参与率：参与轮次 / 课程总轮次（供评语使用）
