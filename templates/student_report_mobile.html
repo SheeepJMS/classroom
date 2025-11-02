@@ -4,27 +4,41 @@
 
 {% block content %}
 <style>
-  /* 学习参与记录网格布局（移动端） */
-  .round-record-grid-mobile {
+  /* 学习参与记录布局（移动端） */
+  .round-record-item-mobile {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .round-record-row1-mobile {
     display: grid;
-    grid-template-columns: 55px 55px 40px 50px 50px 50px 70px 140px 50px;
+    grid-template-columns: 55px 55px 40px 50px 50px 50px 70px;
     gap: 6px;
     align-items: center;
     font-size: 0.85rem;
+    width: 100%;
+    max-width: 100%;
   }
   
-  .round-record-grid-mobile > div {
+  .round-record-row2-mobile {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding-left: 110px; /* 对齐到"参与状态"列：55px(轮次) + 55px(参与状态) */
+    width: 100%;
+    max-width: calc(100% - 110px);
+    overflow-x: hidden;
+  }
+  
+  .round-record-row1-mobile > div,
+  .round-record-row2-mobile > div {
     display: flex;
     align-items: center;
     justify-content: flex-start;
-  }
-  
-  .round-accuracy-bar {
-    justify-content: flex-end !important;
-  }
-  
-  .round-accuracy-text {
-    justify-content: flex-end !important;
   }
   
   /* 透明占位标签 */
@@ -32,21 +46,44 @@
     visibility: hidden;
   }
   
-  .round-record-grid-mobile .badge {
+  .round-accuracy-container-mobile {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: nowrap;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+  
+  .round-accuracy-container-mobile .progress {
+    flex-shrink: 0;
+  }
+  
+  .round-record-item-mobile .badge {
     font-size: 0.7rem;
     padding: 0.2em 0.4em;
   }
   
   @media (max-width: 480px) {
-    .round-record-grid-mobile {
-      grid-template-columns: 50px 50px 35px 45px 45px 45px 65px 120px 45px;
+    .round-record-row1-mobile {
+      grid-template-columns: 50px 50px 35px 45px 45px 45px 65px;
       gap: 4px;
       font-size: 0.8rem;
     }
     
-    .round-record-grid-mobile .badge {
+    .round-record-row2-mobile {
+      padding-left: 100px; /* 50px + 50px */
+      max-width: calc(100% - 100px);
+    }
+    
+    .round-record-item-mobile .badge {
       font-size: 0.65rem;
       padding: 0.15em 0.3em;
+    }
+    
+    .round-accuracy-container-mobile .progress {
+      width: 70px !important;
     }
   }
 </style>
@@ -149,7 +186,7 @@
   <!-- 每轮参与记录（竖向） -->
   <div class="card shadow-sm mb-3">
     <div class="card-header py-2 bg-light"><strong><i class="fas fa-history me-1"></i>学习参与记录</strong></div>
-    <div class="list-group list-group-flush">
+    <div class="list-group list-group-flush" style="overflow-x: hidden;">
       {% for round_num in range(1, class_total_rounds + 1) %}
       {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
       {% set round_stat = class_round_stats|selectattr('round', 'equalto', round_num)|first %}
@@ -166,66 +203,66 @@
       {% elif qs == 3 %}{% set diff = '中等' %}
       {% elif qs == 2 %}{% set diff = '简单' %}
       {% else %}{% set diff = '基础' %}{% endif %}
-      <div class="list-group-item py-2">
-        <div class="round-record-grid-mobile">
-          {# 列1: 轮次号 #}
-          <div class="round-number">
-            <span class="fw-bold">第{{ round_num }}轮</span>
-          </div>
-          {# 列2: 参与状态 #}
-          <div class="round-status">
-            {% if round_submission and round_submission.violation_type %}
-              <span class="badge bg-danger">{{ round_submission.violation_type }}</span>
-            {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
-              <span class="badge bg-primary">参与</span>
-            {% else %}
-              <span class="badge bg-secondary">未参与</span>
-            {% endif %}
-          </div>
-          {# 列3: 正确/错误 #}
-          <div class="round-correct">
-            {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim and not round_submission.violation_type %}
-              <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
-            {% else %}
-              <span class="badge bg-transparent text-transparent">-</span>
-            {% endif %}
-          </div>
-          {# 列4: 得分 #}
-          <div class="round-score">
-            <span class="badge bg-warning text-dark">{{ q_score }}分</span>
-          </div>
-          {# 列5: 难度 #}
-          <div class="round-difficulty">
-            <span class="badge bg-secondary">{{ diff }}</span>
-          </div>
-          {# 列6: 速度 #}
-          <div class="round-speed">
-            {% if round_submission and round_submission.speed_level and round_submission.answer is not none and round_submission.answer|string|trim %}
-              <span class="badge bg-info text-dark">{{ round_submission.speed_level }}</span>
-            {% else %}
-              <span class="badge bg-transparent text-transparent">-</span>
-            {% endif %}
-          </div>
-          {# 列7: 时间 #}
-          <div class="round-time">
-            {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
-              <span class="badge bg-primary text-white">{{ "%.1f"|format(round_submission.answer_time) }}秒</span>
-            {% else %}
-              <span class="badge bg-transparent text-transparent">-</span>
-            {% endif %}
-          </div>
-          {# 列8: 班级准确率条形图（右对齐） #}
-          <div class="round-accuracy-bar">
-            <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: nowrap;">
-              <span class="text-muted small" style="font-size: 0.7rem; white-space: nowrap;">正确率：</span>
-              <div class="progress" style="height:6px; width: 70px; min-width: 70px; flex-shrink: 0;">
-                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%; background-color: #28a745 !important;"></div>
-              </div>
+      <div class="list-group-item py-2" style="overflow-x: hidden; width: 100%; max-width: 100%;">
+        <div class="round-record-item-mobile">
+          {# 第一行：基本信息 #}
+          <div class="round-record-row1-mobile">
+            {# 列1: 轮次号 #}
+            <div class="round-number">
+              <span class="fw-bold">第{{ round_num }}轮</span>
+            </div>
+            {# 列2: 参与状态 #}
+            <div class="round-status">
+              {% if round_submission and round_submission.violation_type %}
+                <span class="badge bg-danger">{{ round_submission.violation_type }}</span>
+              {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+                <span class="badge bg-primary">参与</span>
+              {% else %}
+                <span class="badge bg-secondary">未参与</span>
+              {% endif %}
+            </div>
+            {# 列3: 正确/错误 #}
+            <div class="round-correct">
+              {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim and not round_submission.violation_type %}
+                <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
+              {% else %}
+                <span class="badge bg-transparent text-transparent">-</span>
+              {% endif %}
+            </div>
+            {# 列4: 得分 #}
+            <div class="round-score">
+              <span class="badge bg-warning text-dark">{{ q_score }}分</span>
+            </div>
+            {# 列5: 难度 #}
+            <div class="round-difficulty">
+              <span class="badge bg-secondary">{{ diff }}</span>
+            </div>
+            {# 列6: 速度 #}
+            <div class="round-speed">
+              {% if round_submission and round_submission.speed_level and round_submission.answer is not none and round_submission.answer|string|trim %}
+                <span class="badge bg-info text-dark">{{ round_submission.speed_level }}</span>
+              {% else %}
+                <span class="badge bg-transparent text-transparent">-</span>
+              {% endif %}
+            </div>
+            {# 列7: 时间 #}
+            <div class="round-time">
+              {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+                <span class="badge bg-primary text-white">{{ "%.1f"|format(round_submission.answer_time) }}秒</span>
+              {% else %}
+                <span class="badge bg-transparent text-transparent">-</span>
+              {% endif %}
             </div>
           </div>
-          {# 列9: 准确率百分比 #}
-          <div class="round-accuracy-text">
-            <small class="text-muted">{{ "%.1f"|format(round_accuracy) }}%</small>
+          {# 第二行：正确率（与参与状态对齐） #}
+          <div class="round-record-row2-mobile">
+            <div class="round-accuracy-container-mobile">
+              <span class="text-muted small" style="font-size: 0.7rem;">正确率：</span>
+              <div class="progress" style="height:6px; width: 80px; flex-shrink: 0;">
+                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%; background-color: #28a745 !important;"></div>
+              </div>
+              <small class="text-muted" style="font-size: 0.7rem;">{{ "%.1f"|format(round_accuracy) }}%</small>
+            </div>
           </div>
         </div>
       </div>

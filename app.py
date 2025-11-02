@@ -13,6 +13,7 @@ from datetime import datetime
 import traceback
 import uuid
 import random
+import statistics
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -606,7 +607,7 @@ def generate_student_report(student_id):
         student_submissions_view = []
         if course:
             rounds = CourseRound.query.filter_by(course_id=course.id).all()
-            class_total_rounds = len(rounds)
+            all_rounds_count = len(rounds)  # 所有轮次数（包括可能作废的）
             # 构造学生每轮的提交视图，按round对齐
             # 速度等级计算函数（每题）
             def get_speed_level_per_question(t_student: float, t_class_avg: float) -> str:
@@ -641,8 +642,38 @@ def generate_student_report(student_id):
 
             # 全班提交（需在使用前定义，避免未绑定错误）
             class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
+            
+            # 先计算作废轮次（需要先计算，以便后续过滤）
+            invalid_rounds = set()  # 作废轮次集合
+            round_nums = sorted(set(r.round_number for r in rounds))
+            active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
+            active_count = len(active_students) if active_students else 1
+            
+            # 预先计算哪些轮次是作废的
+            for rn in round_nums:
+                rs = [s for s in class_submissions if s.round_number==rn]
+                students_who_participated = set(s.student_id for s in rs)
+                students_who_correct = set(s.student_id for s in rs if s.is_correct)
+                correct_count = len(students_who_correct)
+                acc = (correct_count/active_count)*100 if active_count>0 else 0
+                participants = len(students_who_participated)
+                part = (participants/active_count)*100 if active_count>0 else 0
+                if rs:
+                    times = [s.answer_time for s in rs if s.answer_time is not None]
+                    avg_t = round(statistics.mean(times),1) if times else 0
+                else:
+                    avg_t = 0
+                # 判定无效轮次
+                is_invalid_round = (part == 0 and acc == 0 and avg_t < 10)
+                if is_invalid_round:
+                    invalid_rounds.add(rn)
+                    print(f"⚠️ 轮次 {rn} 作废（参与率{part}%，正确率{acc}%，平均耗时{avg_t}秒）")
 
             for r in rounds:
+                # 跳过作废轮次，不显示在报告中
+                if r.round_number in invalid_rounds:
+                    continue
+                    
                 rs = next((s for s in submissions if s.round_number == r.round_number), None)
                 # 识别该轮违规类型（优先级：猜题>抄题>打闹>走神）
                 violation_type = None
@@ -685,13 +716,12 @@ def generate_student_report(student_id):
                         'violation_type': violation_type,
                         'speed_level': ''
                     })
-            total_possible_score = sum((r.question_score or 1) for r in rounds)
-            active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
-            active_count = len(active_students) if active_students else 1
+            # 只计算有效轮次的总分
+            total_possible_score = sum((r.question_score or 1) for r in rounds if r.round_number not in invalid_rounds)
 
-            # 学生总分
+            # 学生总分（只计算有效轮次）
             for sub in submissions:
-                if sub.is_correct:
+                if sub.is_correct and sub.round_number not in invalid_rounds:
                     r = next((rr for rr in rounds if rr.round_number == sub.round_number), None)
                     student_total_score += (r.question_score if r and r.question_score else 1)
 
@@ -704,6 +734,9 @@ def generate_student_report(student_id):
             student_scores = defaultdict(int)
 
             for s in class_submissions:
+                # 跳过作废轮次，不参与统计
+                if s.round_number in invalid_rounds:
+                    continue
                 # 使用round_number作为集合，自动去重
                 student_total_rounds[s.student_id].add(s.round_number)
                 if s.is_correct:
@@ -732,9 +765,13 @@ def generate_student_report(student_id):
             class_times = [s.answer_time for s in class_submissions if s.answer_time is not None]
             class_avg_response_time = round(statistics.mean(class_times),1) if class_times else 0
 
-            # 按轮统计
-            round_nums = sorted(set(r.round_number for r in rounds))
+            # 按轮统计（只统计有效轮次）
+            valid_rounds_count = 0  # 有效轮次数（排除作废轮次）
             for rn in round_nums:
+                # 跳过作废轮次
+                if rn in invalid_rounds:
+                    continue
+                    
                 rs = [s for s in class_submissions if s.round_number==rn]
                 # 按学生去重，统计有多少学生答对了这一轮
                 students_who_participated = set(s.student_id for s in rs)
@@ -752,10 +789,20 @@ def generate_student_report(student_id):
                     avg_t = round(statistics.mean(times),1) if times else 0
                 else:
                     avg_t = 0
+                
+                # 只统计有效轮次
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
+                valid_rounds_count += 1
 
-        # 参与率：参与轮次 / 课程总轮次（供评语使用）
-        participation_rate = round((participated_rounds / class_total_rounds) * 100) if class_total_rounds > 0 else 0
+        # 参与率：参与轮次 / 有效轮次（排除作废轮次）（供评语使用）
+        # 使用有效轮次数而不是总轮次数，排除作废的轮次
+        if course:
+            # 使用有效轮次数，如果没有有效轮次则使用所有轮次数（避免除零）
+            valid_total_rounds = valid_rounds_count if valid_rounds_count > 0 else all_rounds_count
+            class_total_rounds = valid_rounds_count  # 更新为有效轮次数，供模板使用
+        else:
+            valid_total_rounds = class_total_rounds
+        participation_rate = round((participated_rounds / valid_total_rounds) * 100) if valid_total_rounds > 0 else 0
 
         # 生成个性化反馈（优先排名，其次参与率，再看正确率；60%优秀、40%不错、20%以下偏低）
         def build_feedback():
