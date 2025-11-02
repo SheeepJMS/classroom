@@ -11,17 +11,18 @@
     gap: 6px;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: visible;
   }
   
   .round-record-row1-mobile {
     display: grid;
-    grid-template-columns: 50px 50px 35px 45px 45px 45px 140px;
+    grid-template-columns: 45px 45px 30px 40px 40px 40px minmax(150px, 1fr);
     gap: 4px;
     align-items: center;
     font-size: 0.85rem;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
   }
   
   .round-record-row1-mobile > div {
@@ -38,14 +39,14 @@
     border-radius: 4px;
     font-size: 0.65rem;
     white-space: nowrap;
-    margin-left: auto;
     display: inline-block;
-    min-width: 70px;
+    min-width: 75px;
     text-align: center;
     height: 22px;
     line-height: 14px;
     box-sizing: border-box;
     flex-shrink: 0;
+    flex-grow: 0;
   }
   
   /* 透明占位标签 */
@@ -61,7 +62,7 @@
   
   @media (max-width: 480px) {
     .round-record-row1-mobile {
-      grid-template-columns: 45px 45px 30px 40px 40px 40px 130px;
+      grid-template-columns: 40px 40px 28px 36px 36px 36px minmax(140px, 1fr);
       gap: 3px;
       font-size: 0.8rem;
     }
@@ -74,7 +75,7 @@
     .accuracy-badge {
       font-size: 0.6rem;
       padding: 3px 5px;
-      min-width: 65px;
+      min-width: 70px;
     }
     
     .round-accuracy-container-mobile .progress {
@@ -82,7 +83,7 @@
     }
   }
 </style>
-<div class="container py-2" style="max-width: 560px;">
+<div class="container py-2" style="max-width: 100%; padding-left: 10px; padding-right: 10px;">
   <!-- 页面标题 -->
   <div class="d-flex justify-content-between align-items-center mb-2">
     <h5 class="m-0">{{ student_name }} - 报告详情</h5>
@@ -181,7 +182,7 @@
   <!-- 每轮参与记录（竖向） -->
   <div class="card shadow-sm mb-3">
     <div class="card-header py-2 bg-light"><strong><i class="fas fa-history me-1"></i>学习参与记录</strong></div>
-    <div class="list-group list-group-flush" style="overflow-x: hidden;">
+    <div class="list-group list-group-flush" style="overflow-x: visible;">
       {% for round_num in range(1, class_total_rounds + 1) %}
       {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
       {% set round_stat = class_round_stats|selectattr('round', 'equalto', round_num)|first %}
@@ -198,7 +199,7 @@
       {% elif qs == 3 %}{% set diff = '中等' %}
       {% elif qs == 2 %}{% set diff = '简单' %}
       {% else %}{% set diff = '基础' %}{% endif %}
-      <div class="list-group-item py-2" style="overflow-x: hidden; width: 100%; max-width: 100%;">
+      <div class="list-group-item py-2" style="overflow-x: visible; width: 100%; max-width: 100%;">
         <div class="round-record-item-mobile">
           {# 第一行：基本信息 #}
           <div class="round-record-row1-mobile">
@@ -241,14 +242,14 @@
               {% endif %}
             </div>
             {# 列7: 时间 + 正确率 #}
-            <div class="round-time" style="display: flex; align-items: center; gap: 3px; white-space: nowrap; min-width: 0; overflow: visible;">
+            <div class="round-time" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 150px; overflow: visible; justify-content: flex-start;">
               {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
-                <span class="badge bg-primary text-white" style="flex-shrink: 0; font-size: 0.65rem; padding: 3px 6px;">{{ round_submission.answer_time|int }}秒</span>
-                <span class="accuracy-badge">正确率{{ round_accuracy|int }}%</span>
+                <span class="badge bg-primary text-white" style="flex-shrink: 0; font-size: 0.65rem; padding: 3px 6px; white-space: nowrap;">{{ round_submission.answer_time|int }}秒</span>
+                <span class="accuracy-badge" style="flex-shrink: 0;">正确率{{ round_accuracy|int }}%</span>
               {% else %}
                 <span class="badge bg-transparent text-transparent" style="flex-shrink: 0;">-</span>
                 {% if round_stat %}
-                  <span class="accuracy-badge">正确率{{ round_accuracy|int }}%</span>
+                  <span class="accuracy-badge" style="flex-shrink: 0; margin-left: 0;">正确率{{ round_accuracy|int }}%</span>
                 {% endif %}
               {% endif %}
             </div>
