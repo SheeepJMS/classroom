@@ -589,6 +589,7 @@ def generate_student_report(student_id):
         if course:
             all_rounds = CourseRound.query.filter_by(course_id=course.id).count()
             accuracy = round((correct_rounds / all_rounds) * 100) if all_rounds > 0 else 0
+            total_rounds = all_rounds  # 设置total_rounds用于模板渲染
         else:
             total_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions))
             accuracy = round((correct_rounds / total_rounds) * 100) if total_rounds > 0 else 0
