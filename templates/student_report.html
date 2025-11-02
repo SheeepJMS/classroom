@@ -24,8 +24,8 @@
     }
     
     .report-right {
-        width: 380px;
-        flex-shrink: 0;
+        flex: 1;
+        min-width: 0;
     }
     
     .card {
@@ -207,36 +207,49 @@
                 <div class="list-group list-group-flush">
                     {% for round_num in range(1, class_total_rounds + 1) %}
                     {% set round_submission = student_submissions|selectattr('round', 'equalto', round_num)|first %}
+                    {% set round_stat = class_round_stats|selectattr('round', 'equalto', round_num)|first %}
+                    {% set round_accuracy = round_stat.accuracy if round_stat else 0 %}
+                    {# 获取该轮的分值和难度 - student_submissions_view包含所有轮次信息 #}
+                    {% set round_view = student_submissions_view|selectattr('round', 'equalto', round_num)|first %}
+                    {% set q_score = round_view.question_score if round_view and round_view.question_score else (round_submission.question_score if round_submission and round_submission.question_score else 1) %}
+                    {# 计算难度 #}
+                    {% set qs = q_score %}
+                    {% set diff = '基础' %}
+                    {% if qs >= 6 %}{% set diff = '极难' %}
+                    {% elif qs == 5 %}{% set diff = '很难' %}
+                    {% elif qs == 4 %}{% set diff = '较难' %}
+                    {% elif qs == 3 %}{% set diff = '中等' %}
+                    {% elif qs == 2 %}{% set diff = '简单' %}
+                    {% else %}{% set diff = '基础' %}{% endif %}
                     <div class="list-group-item py-3">
                         <div class="d-flex align-items-center gap-2 flex-wrap">
                             <span class="fw-bold">第{{ round_num }}轮</span>
                             {% if round_submission and round_submission.violation_type %}
                                 <span class="badge bg-danger">{{ round_submission.violation_type }}</span>
+                                <span class="badge bg-warning text-dark">{{ q_score }}分</span>
+                                <span class="badge bg-secondary">{{ diff }}</span>
                             {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
                                 <span class="badge bg-primary">参与</span>
                                 <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
-                                <span class="badge bg-warning text-dark">{{ round_submission.question_score }}分</span>
-                                {# 难度标签 #}
-                                {% set qs = round_submission.question_score or 1 %}
-                                {% set diff = '基础' %}
-                                {% if qs >= 6 %}{% set diff = '极难' %}
-                                {% elif qs == 5 %}{% set diff = '很难' %}
-                                {% elif qs == 4 %}{% set diff = '较难' %}
-                                {% elif qs == 3 %}{% set diff = '中等' %}
-                                {% elif qs == 2 %}{% set diff = '简单' %}
-                                {% else %}{% set diff = '基础' %}{% endif %}
+                                <span class="badge bg-warning text-dark">{{ q_score }}分</span>
                                 <span class="badge bg-secondary">{{ diff }}</span>
                                 {# 速度标签 #}
                                 {% if round_submission.speed_level %}
                                     <span class="badge bg-info text-dark">{{ round_submission.speed_level }}</span>
                                 {% endif %}
-                                <div class="progress flex-grow-1" style="height:8px; min-width: 100px;">
-                                    <div class="progress-bar bg-info" style="width: {{ (round_submission.answer_time / 60 * 100) if round_submission.answer_time <= 60 else 100 }}%"></div>
-                                </div>
-                                <small class="text-muted">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
+                                {# 耗时只显示数字 #}
+                                <small class="text-muted ms-2">{{ "%.1f"|format(round_submission.answer_time) }}秒</small>
                             {% else %}
+                                {# 未参与也要显示分值和难度 #}
                                 <span class="badge bg-secondary">未参与</span>
+                                <span class="badge bg-warning text-dark">{{ q_score }}分</span>
+                                <span class="badge bg-secondary">{{ diff }}</span>
                             {% endif %}
+                            {# 班级准确率条形图 - 所有情况都显示 #}
+                            <div class="progress flex-grow-1" style="height:8px; min-width: 100px;">
+                                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%"></div>
+                            </div>
+                            <small class="text-muted">{{ "%.1f"|format(round_accuracy) }}%</small>
                         </div>
                     </div>
                     {% endfor %}
