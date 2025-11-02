@@ -65,7 +65,7 @@
     /* 学习参与记录网格布局 */
     .round-record-grid {
         display: grid;
-        grid-template-columns: 70px 70px 50px 60px 60px 60px 80px 200px 60px;
+        grid-template-columns: 70px 70px 50px 60px 60px 60px 80px 180px 55px;
         gap: 8px;
         align-items: center;
     }
@@ -111,7 +111,7 @@
         }
         
         .round-record-grid {
-            grid-template-columns: 60px 60px 40px 50px 50px 50px 70px 170px 50px;
+            grid-template-columns: 60px 60px 40px 50px 50px 50px 70px 150px 50px;
             gap: 6px;
             font-size: 0.9rem;
         }
@@ -309,10 +309,10 @@
                             </div>
                             {# 列8: 班级准确率条形图（右对齐） #}
                             <div class="round-accuracy-bar">
-                                <div style="display: flex; align-items: center; gap: 8px; margin-left: auto;">
-                                    <span class="text-muted small">正确率：</span>
-                                    <div class="progress" style="height:8px; max-width: 120px;">
-                                        <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%"></div>
+                                <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: nowrap;">
+                                    <span class="text-muted small" style="font-size: 0.85rem; white-space: nowrap;">正确率：</span>
+                                    <div class="progress" style="height:8px; width: 80px; min-width: 80px; flex-shrink: 0;">
+                                        <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%; background-color: #28a745 !important;"></div>
                                     </div>
                                 </div>
                             </div>

@@ -7,7 +7,7 @@
   /* 学习参与记录网格布局（移动端） */
   .round-record-grid-mobile {
     display: grid;
-    grid-template-columns: 55px 55px 40px 50px 50px 50px 70px 160px 50px;
+    grid-template-columns: 55px 55px 40px 50px 50px 50px 70px 140px 50px;
     gap: 6px;
     align-items: center;
     font-size: 0.85rem;
@@ -39,7 +39,7 @@
   
   @media (max-width: 480px) {
     .round-record-grid-mobile {
-      grid-template-columns: 50px 50px 35px 45px 45px 45px 65px 140px 45px;
+      grid-template-columns: 50px 50px 35px 45px 45px 45px 65px 120px 45px;
       gap: 4px;
       font-size: 0.8rem;
     }
@@ -216,10 +216,10 @@
           </div>
           {# 列8: 班级准确率条形图（右对齐） #}
           <div class="round-accuracy-bar">
-            <div style="display: flex; align-items: center; gap: 6px; margin-left: auto;">
-              <span class="text-muted small" style="font-size: 0.7rem;">正确率：</span>
-              <div class="progress" style="height:6px; max-width: 100px;">
-                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%"></div>
+            <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; flex-wrap: nowrap;">
+              <span class="text-muted small" style="font-size: 0.7rem; white-space: nowrap;">正确率：</span>
+              <div class="progress" style="height:6px; width: 70px; min-width: 70px; flex-shrink: 0;">
+                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%; background-color: #28a745 !important;"></div>
               </div>
             </div>
           </div>
