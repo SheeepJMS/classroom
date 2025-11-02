@@ -693,7 +693,6 @@ def generate_student_report(student_id):
                     q_score = r.question_score if r and r.question_score else 1
                     # 本题班级平均时间（只计算有作答的同学）
                     round_class_times = [s.answer_time for s in class_submissions if s.round_number == r.round_number and s.answer_time is not None and (s.answer is not None and str(s.answer).strip() != '')]
-                    import statistics
                     t_class_avg = statistics.mean(round_class_times) if round_class_times else 0
                     t_student = rs.answer_time or 0
                     speed_level = get_speed_level_per_question(t_student, t_class_avg)
@@ -759,7 +758,6 @@ def generate_student_report(student_id):
             class_avg_participation = round((participated/active_count)*100) if active_count>0 else 0
 
             # 响应时间
-            import statistics
             st_times = [s.answer_time for s in submissions if s.answer_time is not None]
             avg_response_time = round(statistics.mean(st_times),1) if st_times else 0
             class_times = [s.answer_time for s in class_submissions if s.answer_time is not None]
