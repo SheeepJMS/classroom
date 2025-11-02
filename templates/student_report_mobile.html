@@ -16,26 +16,15 @@
   
   .round-record-row1-mobile {
     display: grid;
-    grid-template-columns: 55px 55px 40px 50px 50px 50px 70px;
-    gap: 6px;
+    grid-template-columns: 50px 50px 35px 45px 45px 45px 110px;
+    gap: 4px;
     align-items: center;
     font-size: 0.85rem;
     width: 100%;
     max-width: 100%;
   }
   
-  .round-record-row2-mobile {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding-left: 110px; /* 对齐到"参与状态"列：55px(轮次) + 55px(参与状态) */
-    width: 100%;
-    max-width: calc(100% - 110px);
-    overflow-x: hidden;
-  }
-  
-  .round-record-row1-mobile > div,
-  .round-record-row2-mobile > div {
+  .round-record-row1-mobile > div {
     display: flex;
     align-items: center;
     justify-content: flex-start;
@@ -46,19 +35,6 @@
     visibility: hidden;
   }
   
-  .round-accuracy-container-mobile {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    flex-wrap: nowrap;
-    width: 100%;
-    max-width: 100%;
-    overflow-x: hidden;
-  }
-  
-  .round-accuracy-container-mobile .progress {
-    flex-shrink: 0;
-  }
   
   .round-record-item-mobile .badge {
     font-size: 0.7rem;
@@ -67,14 +43,9 @@
   
   @media (max-width: 480px) {
     .round-record-row1-mobile {
-      grid-template-columns: 50px 50px 35px 45px 45px 45px 65px;
-      gap: 4px;
+      grid-template-columns: 45px 45px 30px 40px 40px 40px 100px;
+      gap: 3px;
       font-size: 0.8rem;
-    }
-    
-    .round-record-row2-mobile {
-      padding-left: 100px; /* 50px + 50px */
-      max-width: calc(100% - 100px);
     }
     
     .round-record-item-mobile .badge {
@@ -245,23 +216,17 @@
                 <span class="badge bg-transparent text-transparent">-</span>
               {% endif %}
             </div>
-            {# 列7: 时间 #}
-            <div class="round-time">
+            {# 列7: 时间 + 正确率 #}
+            <div class="round-time" style="display: flex; align-items: center; gap: 4px; white-space: nowrap;">
               {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
-                <span class="badge bg-primary text-white">{{ "%.1f"|format(round_submission.answer_time) }}秒</span>
+                <span class="badge bg-primary text-white">{{ round_submission.answer_time|int }}秒</span>
+                <span class="text-muted small" style="font-size: 0.7rem;">正确率{{ round_accuracy|int }}%</span>
               {% else %}
                 <span class="badge bg-transparent text-transparent">-</span>
+                {% if round_stat %}
+                  <span class="text-muted small" style="font-size: 0.7rem;">正确率{{ round_accuracy|int }}%</span>
+                {% endif %}
               {% endif %}
-            </div>
-          </div>
-          {# 第二行：正确率（与参与状态对齐） #}
-          <div class="round-record-row2-mobile">
-            <div class="round-accuracy-container-mobile">
-              <span class="text-muted small" style="font-size: 0.7rem;">正确率：</span>
-              <div class="progress" style="height:6px; width: 80px; flex-shrink: 0;">
-                <div class="progress-bar bg-success" style="width: {{ round_accuracy }}%; background-color: #28a745 !important;"></div>
-              </div>
-              <small class="text-muted" style="font-size: 0.7rem;">{{ "%.1f"|format(round_accuracy) }}%</small>
             </div>
           </div>
         </div>
