@@ -581,13 +581,17 @@ def generate_student_report(student_id):
             'avatar_color': getattr(student, 'avatar_color', '#ff6b6b')
         }
 
-        # 统计
-        total_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions))
-        correct_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions if sub.is_correct))
-        accuracy = round((correct_rounds / total_rounds) * 100) if total_rounds > 0 else 0
-
         # 课程信息与班级数据
         course = Course.query.filter_by(id=course_id).first() if course_id else None
+        
+        # 统计（使用总轮次数，未参与算作错误）
+        correct_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions if sub.is_correct))
+        if course:
+            all_rounds = CourseRound.query.filter_by(course_id=course.id).count()
+            accuracy = round((correct_rounds / all_rounds) * 100) if all_rounds > 0 else 0
+        else:
+            total_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions))
+            accuracy = round((correct_rounds / total_rounds) * 100) if total_rounds > 0 else 0
         course_data = {
             'name': course.name if course else '数学竞赛课堂'
         }
@@ -973,8 +977,9 @@ def student_report_center(student_id):
                 total_rounds = len(set(sub.round_number for sub in submissions))
                 # 正确答题的轮次数（去重，只计算每个轮次至少答对一次）
                 correct_rounds = len(set(s.round_number for s in submissions if s.is_correct))
-                # 计算准确率：正确轮次 / 参与轮次
-                accuracy = (correct_rounds / total_rounds * 100) if total_rounds > 0 else 0
+                # 计算准确率：正确轮次 / 总轮次数（未参与算作错误）
+                all_rounds = CourseRound.query.filter_by(course_id=course.id).count()
+                accuracy = (correct_rounds / all_rounds * 100) if all_rounds > 0 else 0
                 
                 # 计算总分
                 total_score = 0
@@ -990,7 +995,6 @@ def student_report_center(student_id):
                             total_score += 1
                 
                 # 计算参与率（基于轮次数）
-                all_rounds = CourseRound.query.filter_by(course_id=course.id).count()
                 participation_rate = (total_rounds / all_rounds * 100) if all_rounds > 0 else 100
                 
                 # 计算排名
