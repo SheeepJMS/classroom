@@ -31,6 +31,11 @@
     justify-content: flex-start;
   }
   
+  /* 防止轮次号换行 */
+  .round-number {
+    white-space: nowrap;
+  }
+  
   /* 正确率样式 - 绿色背景，右对齐（移动端） */
   .accuracy-badge {
     background-color: #28a745 !important;
@@ -40,7 +45,7 @@
     font-size: 0.65rem;
     white-space: nowrap;
     display: inline-block;
-    min-width: 75px;
+    min-width: 45px;
     text-align: center;
     height: 22px;
     line-height: 14px;
@@ -75,7 +80,7 @@
     .accuracy-badge {
       font-size: 0.6rem;
       padding: 3px 5px;
-      min-width: 70px;
+      min-width: 40px;
     }
     
     .round-accuracy-container-mobile .progress {
@@ -242,14 +247,14 @@
               {% endif %}
             </div>
             {# 列7: 时间 + 正确率 #}
-            <div class="round-time" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 150px; overflow: visible; justify-content: flex-start;">
+            <div class="round-time" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 120px; overflow: hidden; justify-content: flex-start;">
               {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
                 <span class="badge bg-primary text-white" style="flex-shrink: 0; font-size: 0.65rem; padding: 3px 6px; white-space: nowrap;">{{ round_submission.answer_time|int }}秒</span>
-                <span class="accuracy-badge" style="flex-shrink: 0;">正确率{{ round_accuracy|int }}%</span>
+                <span class="accuracy-badge" style="flex-shrink: 0;">{{ round_accuracy|int }}%</span>
               {% else %}
                 <span class="badge bg-transparent text-transparent" style="flex-shrink: 0;">-</span>
                 {% if round_stat %}
-                  <span class="accuracy-badge" style="flex-shrink: 0; margin-left: 0;">正确率{{ round_accuracy|int }}%</span>
+                  <span class="accuracy-badge" style="flex-shrink: 0; margin-left: 0;">{{ round_accuracy|int }}%</span>
                 {% endif %}
               {% endif %}
             </div>

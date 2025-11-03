@@ -89,6 +89,11 @@
         justify-content: flex-start;
     }
     
+    /* 防止轮次号换行 */
+    .round-number {
+        white-space: nowrap;
+    }
+    
     /* 正确率样式 - 绿色背景，右对齐 */
     .accuracy-badge {
         background-color: #28a745 !important;
@@ -99,11 +104,12 @@
         white-space: nowrap;
         margin-left: auto;
         display: inline-block;
-        min-width: 65px;
+        min-width: 50px;
         text-align: center;
         height: 24px;
         line-height: 16px;
         box-sizing: border-box;
+        flex-shrink: 0;
     }
     
     /* 透明占位标签 */
@@ -336,11 +342,11 @@
                                 <div class="round-time" style="display: flex; align-items: center; gap: 6px; white-space: nowrap;">
                                     {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
                                         <span class="badge bg-primary text-white">{{ round_submission.answer_time|int }}秒</span>
-                                        <span class="accuracy-badge">正确率{{ round_accuracy|int }}%</span>
+                                        <span class="accuracy-badge">{{ round_accuracy|int }}%</span>
                                     {% else %}
                                         <span class="badge bg-transparent text-transparent">-</span>
                                         {% if round_stat %}
-                                            <span class="accuracy-badge">正确率{{ round_accuracy|int }}%</span>
+                                            <span class="accuracy-badge">{{ round_accuracy|int }}%</span>
                                         {% endif %}
                                     {% endif %}
                                 </div>

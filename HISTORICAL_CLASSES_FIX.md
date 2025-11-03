@@ -147,3 +147,4 @@ fetch(`/api/end_goal/${goalId}`, {  // 之前是 `/api/end_competition_goal/${go
 3. 班级关系（学生、课程）使用级联删除，删除班级会同时删除相关数据
 
 
+
