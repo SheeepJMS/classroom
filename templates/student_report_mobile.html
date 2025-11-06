@@ -16,7 +16,7 @@
   
   .round-record-row1-mobile {
     display: grid;
-    grid-template-columns: 50px 45px 30px 40px 40px 40px minmax(150px, 1fr);
+    grid-template-columns: 50px 45px 30px 40px 40px 40px 110px;
     gap: 4px;
     align-items: center;
     font-size: 0.85rem;
@@ -31,11 +31,11 @@
     justify-content: flex-start;
   }
   
-  /* 最后一列（时间+正确率）右对齐 */
+  /* 最后一列（时间+正确率）左对齐 */
   .round-time {
     display: flex !important;
     align-items: center !important;
-    justify-content: flex-end !important;
+    justify-content: flex-start !important;
     gap: 4px;
     flex-wrap: nowrap;
   }
@@ -45,7 +45,7 @@
     white-space: nowrap !important;
   }
   
-  /* 正确率样式 - 绿色背景，固定宽度右对齐（移动端） */
+  /* 正确率样式 - 绿色背景，固定宽度（移动端） */
   .accuracy-badge {
     background-color: #28a745 !important;
     color: white !important;
@@ -76,7 +76,7 @@
   
   @media (max-width: 480px) {
     .round-record-row1-mobile {
-      grid-template-columns: 45px 40px 28px 36px 36px 36px minmax(140px, 1fr);
+      grid-template-columns: 45px 40px 28px 36px 36px 36px 100px;
       gap: 3px;
       font-size: 0.8rem;
     }
@@ -256,7 +256,7 @@
               {% endif %}
             </div>
             {# 列7: 时间 + 正确率 #}
-            <div class="round-time" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap; min-width: 150px; overflow: visible;">
+            <div class="round-time">
               {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
                 <span class="badge bg-primary text-white" style="flex-shrink: 0; font-size: 0.65rem; padding: 3px 6px; white-space: nowrap;">{{ round_submission.answer_time|int }}秒</span>
                 <span class="accuracy-badge">{{ round_accuracy|int }}%</span>
