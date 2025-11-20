@@ -287,11 +287,8 @@ def class_management(class_id):
         if not class_obj:
             return jsonify({'error': '班级不存在'}), 404
         
-        # 获取学生列表（按状态分组）
-        all_students = Student.query.filter_by(class_id=class_id).all()
-        active_students = [s for s in all_students if s.status == 'active']
-        absent_students = [s for s in all_students if s.status == 'absent']
-        students = active_students + absent_students  # 活跃学生在前面
+        # 获取学生列表（只显示活跃学生，不显示请假学生）
+        students = Student.query.filter_by(class_id=class_id, status='active').all()
         
         # 为学生添加统计数据
         all_courses = Course.query.filter_by(class_id=class_id).all()
@@ -532,6 +529,10 @@ def student_report(student_id):
         if not student:
             return jsonify({'error': '学生不存在'}), 404
         
+        # 检查学生状态：请假学生无法查看报告
+        if student.status == 'absent':
+            return jsonify({'error': '请假状态的学生无法查看报告'}), 403
+        
         # 获取学生的所有提交记录
         submissions = StudentSubmission.query.filter_by(student_id=student_id).order_by(StudentSubmission.created_at.desc()).all()
         
@@ -559,6 +560,10 @@ def generate_student_report(student_id):
         student = Student.query.filter_by(id=student_id).first()
         if not student:
             return jsonify({'error': '学生不存在'}), 404
+        
+        # 检查学生状态：请假学生无法查看报告
+        if student.status == 'absent':
+            return jsonify({'error': '请假状态的学生无法查看报告'}), 403
 
         # 根据是否传入 course_id 过滤提交记录
         query = StudentSubmission.query.filter_by(student_id=student_id)
@@ -645,14 +650,19 @@ def generate_student_report(student_id):
                 except Exception:
                     return ''
 
+            # 获取活跃学生ID集合（用于过滤请假学生）
+            active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
+            active_student_ids = {s.id for s in active_students}
+            active_count = len(active_students) if active_students else 1
+            
             # 全班提交（需在使用前定义，避免未绑定错误）
-            class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
+            # 只包含活跃学生的提交记录，排除请假学生，确保请假学生不参与数据计算
+            all_class_submissions = StudentSubmission.query.filter_by(course_id=course.id).all()
+            class_submissions = [s for s in all_class_submissions if s.student_id in active_student_ids]
             
             # 先计算作废轮次（需要先计算，以便后续过滤）
             invalid_rounds = set()  # 作废轮次集合
             round_nums = sorted(set(r.round_number for r in rounds))
-            active_students = Student.query.filter_by(class_id=course.class_id, status='active').all()
-            active_count = len(active_students) if active_students else 1
             
             # 预先计算哪些轮次是作废的
             for rn in round_nums:
@@ -957,6 +967,10 @@ def student_report_center(student_id):
         if not student:
             return jsonify({'error': '学生不存在'}), 404
         
+        # 检查学生状态：请假学生无法查看报告
+        if student.status == 'absent':
+            return jsonify({'error': '请假状态的学生无法查看报告'}), 403
+        
         # 获取班级信息
         class_obj = Class.query.filter_by(id=student.class_id).first()
         
@@ -1255,6 +1269,34 @@ def bind_goal():
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'绑定竞赛目标失败: {str(e)}'}), 500
+
+# 取消班级的竞赛目标
+@app.route('/api/remove_goal_from_class', methods=['POST'])
+def remove_goal_from_class():
+    """取消班级的竞赛目标"""
+    try:
+        data = request.get_json()
+        class_id = data.get('class_id')
+        
+        if not class_id:
+            return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
+        
+        class_obj = Class.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+        
+        # 将竞赛目标ID设置为None，取消绑定
+        class_obj.competition_goal_id = None
+        db.session.commit()
+        
+        print(f"✅ 已取消班级 {class_obj.name} 的竞赛目标")
+        return jsonify({'success': True, 'message': '竞赛目标已取消'})
+        
+    except Exception as e:
+        print(f"❌ 取消竞赛目标失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'取消竞赛目标失败: {str(e)}'}), 500
 
 # 添加学生
 @app.route('/add_student', methods=['POST'])
@@ -1566,6 +1608,10 @@ def submit_student_answer():
         student = Student.query.filter_by(name=student_name, class_id=course.class_id).first()
         if not student:
             return jsonify({'success': False, 'message': '学生不存在'}), 400
+        
+        # 检查学生状态：请假学生无法提交答案
+        if student.status == 'absent':
+            return jsonify({'success': False, 'message': '请假状态的学生无法参与答题'}), 403
         
         # 检查是否已提交
         existing = StudentSubmission.query.filter_by(

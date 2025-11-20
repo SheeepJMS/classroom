@@ -148,3 +148,4 @@ fetch(`/api/end_goal/${goalId}`, {  // 之前是 `/api/end_competition_goal/${go
 
 
 
+

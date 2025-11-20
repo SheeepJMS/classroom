@@ -447,7 +447,12 @@
                     <i class="fas fa-trophy"></i>
                     Competition Goal
                 </h3>
-                <span class="goal-status">ACTIVE</span>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span class="goal-status">ACTIVE</span>
+                    <button class="btn btn-sm btn-danger" onclick="removeGoalFromClass()" title="取消竞赛目标" style="padding: 4px 8px; font-size: 12px;">
+                        <i class="fas fa-times"></i> 取消
+                    </button>
+                </div>
             </div>
             <div class="goal-content">
                 <div class="goal-info">
@@ -855,6 +860,35 @@ function loadCompetitionGoals() {
         console.error('Error loading goals:', error);
         document.getElementById('goalsList').innerHTML = '<p>加载竞赛目标失败</p>';
     });
+}
+
+// 取消班级的竞赛目标
+function removeGoalFromClass() {
+    if (confirm('确定要取消这个竞赛目标吗？')) {
+        fetch('/api/remove_goal_from_class', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                class_id: '{{ class_data.id }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('竞赛目标已取消！');
+                // 刷新页面以移除竞赛目标卡片
+                window.location.reload();
+            } else {
+                alert('取消失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('取消竞赛目标时发生错误');
+        });
+    }
 }
 </script>
 
