@@ -287,8 +287,12 @@ def class_management(class_id):
         if not class_obj:
             return jsonify({'error': '班级不存在'}), 404
         
-        # 获取学生列表（只显示活跃学生，不显示请假学生）
-        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        # 获取学生列表（班级管理页面显示所有学生，包括请假学生，方便恢复）
+        # 按状态分组：活跃学生在前面，请假学生在后面
+        all_students = Student.query.filter_by(class_id=class_id).all()
+        active_students = [s for s in all_students if s.status == 'active']
+        absent_students = [s for s in all_students if s.status == 'absent']
+        students = active_students + absent_students  # 活跃学生在前面
         
         # 为学生添加统计数据
         all_courses = Course.query.filter_by(class_id=class_id).all()
