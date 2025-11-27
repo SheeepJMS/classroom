@@ -1752,20 +1752,33 @@ def judge_answers():
             last_answer_time = 0
             current_round_score = 0
             is_current_correct = False
+            is_punished = False
             
             if submission:
-                # 判断当前轮次答案是否正确
-                print(f"📝 学生 {student.name} 轮次 {course.current_round} 答案: '{submission.answer}' vs 正确答案: '{correct_answer}'")
-                is_current_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
-                # 更新数据库中的is_correct状态
-                submission.is_correct = is_current_correct
-                print(f"{'✅ 正确' if is_current_correct else '❌ 错误'}: {is_current_correct}")
+                # 检查学生是否被punished（有penalty_score）
+                is_punished = submission.penalty_score and submission.penalty_score > 0
                 
-                if is_current_correct:
-                    current_round_score = question_score
-                    expression = 'smile'
-                else:
+                if is_punished:
+                    # 被punished的学生直接扣3分，无论答案是否正确
+                    current_round_score = -3
                     expression = 'angry'
+                    is_current_correct = False
+                    print(f"⚠️ 学生 {student.name} 被punished，扣3分")
+                    # 确保is_correct为False
+                    submission.is_correct = False
+                else:
+                    # 判断当前轮次答案是否正确
+                    print(f"📝 学生 {student.name} 轮次 {course.current_round} 答案: '{submission.answer}' vs 正确答案: '{correct_answer}'")
+                    is_current_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
+                    # 更新数据库中的is_correct状态
+                    submission.is_correct = is_current_correct
+                    print(f"{'✅ 正确' if is_current_correct else '❌ 错误'}: {is_current_correct}")
+                    
+                    if is_current_correct:
+                        current_round_score = question_score
+                        expression = 'smile'
+                    else:
+                        expression = 'angry'
                 
                 last_answer = submission.answer
                 last_answer_time = submission.answer_time
@@ -1773,14 +1786,18 @@ def judge_answers():
                 print(f"⚠️ 学生 {student.name} 在轮次 {course.current_round} 没有提交答案")
                 expression = 'embarrassed'
             
-            # 计算总分数和轮次
+            # 计算总分数和轮次（扣分可能导致分数为负）
             total_score = historical_score + current_round_score
             # total_rounds: 课程的总轮次数（包括未参与的轮次），用于计算准确率
             # 准确率 = 正确轮次数 / 课程总轮次数
             total_rounds = course.current_round  # 使用当前课程的总轮次
             if submission:
-                # 有提交记录，正确轮次增加
-                correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
+                # 被punished的学生不算正确轮次
+                if is_punished:
+                    correct_rounds = historical_correct_rounds
+                else:
+                    # 有提交记录，正确轮次增加
+                    correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
             else:
                 # 没有提交记录，正确轮次不变（未作答算作错误）
                 correct_rounds = historical_correct_rounds
@@ -1937,6 +1954,41 @@ def end_course(course_id):
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束课程失败: {str(e)}'}), 500
 
+# 删除学生
+@app.route('/api/delete_student', methods=['POST'])
+def delete_student():
+    """删除学生"""
+    try:
+        data = request.get_json()
+        student_name = data.get('student_name', '').strip()
+        class_id = data.get('class_id')
+        
+        # 如果没提供class_id，尝试从header获取
+        if not class_id:
+            class_id = request.headers.get('X-Class-ID')
+        
+        if not student_name or not class_id:
+            return jsonify({'success': False, 'message': '参数不完整'}), 400
+        
+        # 查找学生
+        student = Student.query.filter_by(name=student_name, class_id=class_id).first()
+        if not student:
+            return jsonify({'success': False, 'message': '学生不存在'}), 404
+        
+        # 删除学生
+        db.session.delete(student)
+        db.session.commit()
+        
+        print(f"✅ 学生已删除: {student_name}")
+        return jsonify({'success': True, 'message': f'学生 {student_name} 已删除'})
+        
+    except Exception as e:
+        print(f"❌ 删除学生失败: {str(e)}")
+        traceback.print_exc()
+        if db.session:
+            db.session.rollback()
+        return jsonify({'success': False, 'message': f'删除失败: {str(e)}'}), 500
+
 # 标记学生行为
 @app.route('/api/mark_behavior', methods=['POST'])
 def mark_behavior():
@@ -1995,13 +2047,15 @@ def mark_behavior():
         elif behavior == 'distracted':
             submission.distracted_count = (submission.distracted_count or 0) + 1
         
-        # 标记该题得分为0（无论答案是否正确）
+        # 标记该题得分为0（无论答案是否正确），并设置扣分标记
         submission.is_correct = False
+        # 设置penalty_score为3，表示被惩罚扣3分
+        submission.penalty_score = 3
         
         db.session.commit()
         
-        print(f"✅ 学生 {student_name} 行为标记: {behavior}, 该题得分为0")
-        return jsonify({'success': True, 'message': '行为已记录，该题得分为0'})
+        print(f"✅ 学生 {student_name} 行为标记: {behavior}, 该题得分为0，扣3分")
+        return jsonify({'success': True, 'message': '行为已记录，该题得分为0，扣3分'})
         
     except Exception as e:
         print(f"❌ 标记行为失败: {str(e)}")
@@ -2019,8 +2073,8 @@ def ceremony(course_id):
         if not course:
             return jsonify({'error': '课程不存在'}), 404
         
-        # 计算每个学生的总分
-        students = Student.query.filter_by(class_id=course.class_id).all()
+        # 计算每个学生的总分（过滤掉请假的学生）
+        students = Student.query.filter_by(class_id=course.class_id, status='active').all()
         student_scores = []
         
         for student in students:

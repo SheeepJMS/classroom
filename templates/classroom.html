@@ -531,7 +531,12 @@ function createStudentCard(student) {
         <div class="student-avatar" style="background-color: ${student.avatar_color}">
             <span class="student-emoji">${emoji}</span>
         </div>
-        <div class="student-name">${student.name}</div>
+        <div class="student-name" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>${student.name}</span>
+            <button class="btn btn-sm btn-danger delete-student-btn" data-student="${student.name}" onclick="deleteStudent('${student.name}')" style="display: none; padding: 2px 6px; font-size: 10px;" title="删除学生">
+                <i class="fas fa-trash"></i>
+            </button>
+        </div>
         <div class="student-input-group" id="input-group-${student.name}">
             <input type="text" class="form-control student-answer-input" placeholder="Answer" data-student="${student.name}">
             <button class="btn btn-sm btn-outline-primary submit-btn" data-student="${student.name}">
@@ -712,18 +717,24 @@ function startClass() {
     }
     
     // 显示行为按钮，隐藏统计数据 - 立即执行，确保在答题环节开始前就隐藏
+    // 同时显示删除按钮（正在上课时可以删除学生）
     Object.values(classroomData.students).forEach(student => {
         if (!student || !student.name || student.name === 'undefined' || student.name === '') {
             return;
         }
         const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
         const statsDiv = document.getElementById(`stats-${student.name}`);
+        const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
         if (behaviorButtons) {
             behaviorButtons.style.display = 'flex';
         }
         if (statsDiv) {
             statsDiv.style.display = 'none';
             statsDiv.style.visibility = 'hidden';
+        }
+        // 显示删除按钮（正在上课时可以删除）
+        if (deleteBtn) {
+            deleteBtn.style.display = 'inline-block';
         }
     });
     
@@ -1114,6 +1125,12 @@ function showAnswerResults(correctAnswer) {
                 behaviorButtons.style.display = 'none';
             }
             
+            // 隐藏删除按钮（BINGO后，round_active为false）
+            const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
+            if (deleteBtn) {
+                deleteBtn.style.display = 'none';
+            }
+            
             const statsDiv = document.getElementById(`stats-${student.name}`);
             console.log(`学生 ${student.name} 的统计数据元素:`, statsDiv);
             console.log(`学生 ${student.name} 的DOM结构:`, document.querySelector(`[data-student="${student.name}"]`));
@@ -1454,6 +1471,12 @@ function nextRound() {
                     punishedDiv.style.display = 'none';
                 }
                 
+                // 隐藏删除按钮（下一轮开始时，round_active为false）
+                const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
+                if (deleteBtn) {
+                    deleteBtn.style.display = 'none';
+                }
+                
                 // 清空输入框
                 if (answerInput) {
                     answerInput.value = '';
@@ -1599,6 +1622,52 @@ function markBehavior(studentName, behavior) {
         .catch(error => {
             console.error('Error:', error);
             alert('操作失败，请重试');
+        });
+    }
+}
+
+// 删除学生
+function deleteStudent(studentName) {
+    if (confirm(`确定要删除学生 "${studentName}" 吗？`)) {
+        fetch('/api/delete_student', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Class-ID': '{{ class_obj.id }}'
+            },
+            body: JSON.stringify({
+                student_name: studentName,
+                class_id: '{{ class_obj.id }}'
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 从本地数据中删除学生
+                if (classroomData.students && classroomData.students[studentName]) {
+                    delete classroomData.students[studentName];
+                }
+                
+                // 从页面中删除学生卡片
+                const studentCard = document.querySelector(`[data-student="${studentName}"]`);
+                if (studentCard) {
+                    studentCard.remove();
+                }
+                
+                // 更新学生计数
+                const studentCount = document.getElementById('studentCount');
+                if (studentCount) {
+                    studentCount.textContent = Object.keys(classroomData.students || {}).length;
+                }
+                
+                alert('学生已删除');
+            } else {
+                alert('删除失败：' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('删除失败，请重试');
         });
     }
 }
