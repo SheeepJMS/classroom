@@ -136,8 +136,24 @@ document.addEventListener('DOMContentLoaded', function() {
 // 设置颁奖典礼
 function setupCeremony() {
     console.log('开始设置颁奖典礼，学生数据:', studentScores);
-    const students = studentScores || [];
+    let students = studentScores || [];
     console.log('学生数组:', students);
+    
+    // 从localStorage读取隐藏学生列表并过滤
+    const hiddenStudentsKey = `hidden_students_${courseId}`;
+    const hiddenStudentsJson = localStorage.getItem(hiddenStudentsKey);
+    if (hiddenStudentsJson) {
+        try {
+            const hiddenStudents = JSON.parse(hiddenStudentsJson);
+            console.log('隐藏学生列表:', hiddenStudents);
+            students = students.filter(student => !hiddenStudents.includes(student.name));
+            console.log('过滤后的学生数组:', students);
+            // 清理localStorage（可选）
+            // localStorage.removeItem(hiddenStudentsKey);
+        } catch (e) {
+            console.error('解析隐藏学生列表失败:', e);
+        }
+    }
     
     if (students.length === 0) {
         console.log('没有学生数据，显示提示信息');
