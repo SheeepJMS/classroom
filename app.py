@@ -978,8 +978,8 @@ def student_report_center(student_id):
         # 获取班级信息
         class_obj = Class.query.filter_by(id=student.class_id).first()
         
-        # 获取该学生班级的所有课程（按创建时间降序）
-        courses = Course.query.filter_by(class_id=student.class_id).order_by(Course.created_at.desc()).all()
+        # 获取该学生班级的所有课程（按创建时间升序，最旧的在前，最新的在后，这样图表中最新在右侧）
+        courses = Course.query.filter_by(class_id=student.class_id).order_by(Course.created_at.asc()).all()
         
         # 构建课程数据
         courses_data = []
