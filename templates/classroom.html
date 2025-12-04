@@ -176,6 +176,12 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Loaded classroom data:', data);
             classroomData = data;
             
+            // 确保 current_round 被正确初始化
+            if (!classroomData.current_round && classroomData.current_round !== 0) {
+                classroomData.current_round = 1;
+                console.log('初始化 current_round 为 1');
+            }
+            
             // 如果API返回的学生数据为空或不存在，使用后端模板变量初始化
             if (!classroomData.students || Object.keys(classroomData.students || {}).length === 0) {
                 console.log('API返回的学生数据为空，尝试从后端模板变量初始化');
@@ -215,6 +221,21 @@ document.addEventListener('DOMContentLoaded', function() {
                 classroomData.students = {};
             }
             
+            // 确保 current_round 存在，如果不存在则从模板变量或默认值初始化
+            if (classroomData.current_round === undefined || classroomData.current_round === null) {
+                {% if course %}
+                classroomData.current_round = {{ course.current_round if course.current_round else 1 }};
+                {% else %}
+                classroomData.current_round = 1;
+                {% endif %}
+                console.log('从模板变量初始化 current_round 为:', classroomData.current_round);
+            }
+            
+            // 确保 round_active 存在
+            if (classroomData.round_active === undefined || classroomData.round_active === null) {
+                classroomData.round_active = false;
+            }
+            
             // 不要强制重置轮次状态，保持服务器返回的状态
             // classroomData.round_active = false;  // 移除这行
             // classroomData.current_answers = {};   // 移除这行
@@ -222,6 +243,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // classroomData.start_time = null;      // 移除这行
             
             console.log('About to call updateStudentsDisplay, students count:', Object.keys(classroomData.students || {}).length);
+            console.log('Current round:', classroomData.current_round);
             
             // 更新学生计数
             const visibleStudents = getVisibleStudents();
@@ -237,6 +259,27 @@ document.addEventListener('DOMContentLoaded', function() {
         .catch(error => {
             console.error('Error loading classroom data:', error);
             console.log('Calling updateStudentsDisplay from catch block');
+            
+            // 初始化 classroomData 对象（如果不存在）
+            if (!classroomData || typeof classroomData !== 'object') {
+                classroomData = {};
+            }
+            
+            // 初始化 current_round
+            if (!classroomData.current_round) {
+                {% if course %}
+                classroomData.current_round = {{ course.current_round if course.current_round else 1 }};
+                {% else %}
+                classroomData.current_round = 1;
+                {% endif %}
+                console.log('在错误处理中初始化 current_round 为:', classroomData.current_round);
+            }
+            
+            // 初始化 round_active
+            if (classroomData.round_active === undefined) {
+                classroomData.round_active = false;
+            }
+            
             // 在错误情况下也尝试从模板变量初始化
             if (!classroomData.students || Object.keys(classroomData.students || {}).length === 0) {
                 console.log('API请求失败，尝试从后端模板变量初始化学生数据');
@@ -267,6 +310,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         classroomData.students[student.name] = student;
                     });
                 }
+            }
+            
+            // 确保 students 对象存在
+            if (!classroomData.students) {
+                classroomData.students = {};
             }
             
             // 更新学生计数
@@ -1649,11 +1697,24 @@ function updateRoundStatus() {
     try {
         const roundNumber = document.getElementById('roundNumber');
         
+        // 确保 current_round 有值
+        if (!classroomData.current_round && classroomData.current_round !== 0) {
+            {% if course %}
+            classroomData.current_round = {{ course.current_round if course.current_round else 1 }};
+            {% else %}
+            classroomData.current_round = 1;
+            {% endif %}
+            console.log('updateRoundStatus - 初始化 current_round 为:', classroomData.current_round);
+        }
+        
         console.log('updateRoundStatus - 当前轮次:', classroomData.current_round);
         
         if (roundNumber) {
-            console.log('updateRoundStatus - 更新轮次显示为:', classroomData.current_round);
-            roundNumber.textContent = classroomData.current_round;
+            const roundValue = classroomData.current_round || 1;
+            console.log('updateRoundStatus - 更新轮次显示为:', roundValue);
+            roundNumber.textContent = roundValue;
+        } else {
+            console.error('找不到 roundNumber 元素');
         }
         
         // 更新删除按钮的显示状态

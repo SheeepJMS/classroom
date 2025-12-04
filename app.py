@@ -172,6 +172,9 @@ class CourseAttendance(db.Model):
     student_id = db.Column(db.String(36), db.ForeignKey('students.id'), nullable=False)
     is_absent = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # 备用字段 - 用于未来扩展
+    extra_data = db.Column(db.Text)  # JSON格式存储额外数据，如隐藏状态等
 
 # ==================== 初始化数据库 ====================
 
