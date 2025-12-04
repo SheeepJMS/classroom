@@ -274,22 +274,35 @@ function addStudent() {
     })
     .then(response => response.json())
     .then(data => {
-        if (data.success) {
+        if (data.success && data.student) {
             // 更新课堂数据
             if (!classroomData.students) {
                 classroomData.students = {};
             }
             classroomData.students[data.student.name] = data.student;
-            updateStudentsDisplay();
+            
+            // 立即创建并显示新学生卡片
+            const studentsGrid = document.getElementById('studentsGrid');
+            if (studentsGrid) {
+                const studentCard = createStudentCard(data.student);
+                studentsGrid.appendChild(studentCard);
+            }
+            
+            // 更新学生计数
             document.getElementById('studentNameInput').value = '';
-            document.getElementById('studentCount').textContent = Object.keys(classroomData.students).length;
+            const visibleCount = getVisibleStudents().length;
+            document.getElementById('studentCount').textContent = visibleCount;
+            
+            console.log('✅ 学生已添加并立即显示:', data.student.name);
         } else {
-            alert(data.error || data.message || 'Failed to add student');
+            const errorMsg = data.error || data.message || 'Failed to add student';
+            console.error('添加学生失败:', errorMsg);
+            alert(errorMsg);
         }
     })
     .catch(error => {
         console.error('Error:', error);
-        alert('Error occurred while adding student');
+        alert('添加学生时发生错误，请重试');
     });
 }
 
@@ -408,6 +421,17 @@ function updateStudentsDisplay(keepStates = false) {
             if (studentCard) {
                 // 确保可见学生的卡片是显示的
                 studentCard.style.display = '';
+                
+                // 更新删除按钮的显示状态（在答题开始前显示，答题中隐藏）
+                const deleteBtn = studentCard.querySelector('.delete-student-btn');
+                if (deleteBtn) {
+                    if (!classroomData.round_active) {
+                        deleteBtn.style.display = 'inline-block';
+                    } else {
+                        deleteBtn.style.display = 'none';
+                    }
+                }
+                
                 // 检查并创建stats元素（如果不存在）
                 let statsDiv = document.getElementById(`stats-${student.name}`);
                 if (!statsDiv) {
@@ -541,8 +565,10 @@ function createStudentCard(student) {
     card.className = cardClass + animationClass;
     card.setAttribute('data-student', student.name);
     card.style.position = 'relative'; // 为删除按钮定位做准备
+    // 删除按钮：在答题开始前（round_active为false）显示，答题中隐藏
+    const deleteBtnDisplay = (!classroomData.round_active) ? 'inline-block' : 'none';
     card.innerHTML = `
-        <button class="btn btn-sm btn-danger delete-student-btn" data-student="${student.name}" onclick="deleteStudent('${student.name}')" style="display: none; position: absolute; top: 5px; right: 5px; padding: 2px 6px; font-size: 10px; z-index: 10;" title="隐藏学生">
+        <button class="btn btn-sm btn-danger delete-student-btn" data-student="${student.name}" onclick="deleteStudent('${student.name}')" style="display: ${deleteBtnDisplay}; position: absolute; top: 5px; right: 5px; padding: 2px 6px; font-size: 10px; z-index: 10;" title="隐藏学生">
             <i class="fas fa-trash"></i>
         </button>
         <div class="student-avatar" style="background-color: ${student.avatar_color}">
@@ -731,7 +757,7 @@ function startClass() {
     }
     
     // 显示行为按钮，隐藏统计数据 - 立即执行，确保在答题环节开始前就隐藏
-    // 同时显示删除按钮（正在上课时可以删除学生）
+    // 隐藏删除按钮（答题进行中不能删除）
     getVisibleStudents().forEach(student => {
         const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
         const statsDiv = document.getElementById(`stats-${student.name}`);
@@ -743,9 +769,9 @@ function startClass() {
             statsDiv.style.display = 'none';
             statsDiv.style.visibility = 'hidden';
         }
-        // 显示删除按钮（正在上课时可以删除）
+        // 隐藏删除按钮（答题进行中不能删除）
         if (deleteBtn) {
-            deleteBtn.style.display = 'inline-block';
+            deleteBtn.style.display = 'none';
         }
     });
     
@@ -1144,10 +1170,10 @@ function showAnswerResults(correctAnswer) {
                 behaviorButtons.style.display = 'none';
             }
             
-            // 隐藏删除按钮（BINGO后，round_active为false）
+            // 显示删除按钮（BINGO后，round_active为false，可以删除）
             const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
-            if (deleteBtn) {
-                deleteBtn.style.display = 'none';
+            if (deleteBtn && !classroomData.round_active) {
+                deleteBtn.style.display = 'inline-block';
             }
             
             const statsDiv = document.getElementById(`stats-${student.name}`);
@@ -1485,10 +1511,16 @@ function nextRound() {
                     punishedDiv.style.display = 'none';
                 }
                 
-                // 隐藏删除按钮（下一轮开始时，round_active为false）
+                // 显示删除按钮（下一题开始前，round_active为false，可以删除）
+                const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
+                if (deleteBtn && !classroomData.round_active) {
+                    deleteBtn.style.display = 'inline-block';
+                }
+                
+                // 显示删除按钮（下一轮开始时，round_active为false，可以删除）
                 const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
                 if (deleteBtn) {
-                    deleteBtn.style.display = 'none';
+                    deleteBtn.style.display = 'inline-block';
                 }
                 
                 // 清空输入框
@@ -1530,11 +1562,38 @@ function updateRoundStatus() {
             roundNumber.textContent = classroomData.current_round;
         }
         
+        // 更新删除按钮的显示状态
+        updateDeleteButtonsVisibility();
+        
         // 不要重新显示BINGO按钮，保持当前状态
         console.log('updateRoundStatus执行完成，不改变BINGO按钮状态');
     } catch (error) {
         console.error('updateRoundStatus错误:', error);
     }
+}
+
+// 更新删除按钮的显示状态
+function updateDeleteButtonsVisibility() {
+    const isRoundActive = classroomData.round_active || false;
+    getVisibleStudents().forEach(student => {
+        const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
+        if (deleteBtn) {
+            // 答题进行中隐藏，其他时候显示
+            deleteBtn.style.display = isRoundActive ? 'none' : 'inline-block';
+        }
+    });
+}
+
+// 更新删除按钮的显示状态
+function updateDeleteButtonsVisibility() {
+    const isRoundActive = classroomData.round_active || false;
+    getVisibleStudents().forEach(student => {
+        const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
+        if (deleteBtn) {
+            // 答题进行中隐藏，其他时候显示
+            deleteBtn.style.display = isRoundActive ? 'none' : 'inline-block';
+        }
+    });
 }
 
 // 重置课堂
@@ -1639,24 +1698,48 @@ function markBehavior(studentName, behavior) {
 // 隐藏学生（不真正删除，只是隐藏）
 function deleteStudent(studentName) {
     if (confirm(`确定要隐藏学生 "${studentName}" 吗？该学生将不参与课堂数据计算和颁奖。`)) {
-        // 标记学生为隐藏状态
-        if (classroomData.students && classroomData.students[studentName]) {
-            classroomData.students[studentName].is_hidden = true;
-        }
-        
-        // 隐藏学生卡片（不删除）
-        const studentCard = document.querySelector(`[data-student="${studentName}"]`);
-        if (studentCard) {
-            studentCard.style.display = 'none';
-        }
-        
-        // 更新学生计数（只计算未隐藏的学生）
-        const studentCount = document.getElementById('studentCount');
-        if (studentCount) {
-            studentCount.textContent = getVisibleStudents().length;
-        }
-        
-        console.log(`学生 ${studentName} 已隐藏`);
+        // 发送请求到服务器保存隐藏状态
+        fetch('/api/hide_student', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Class-ID': '{{ class_obj.id }}'
+            },
+            body: JSON.stringify({
+                student_name: studentName,
+                course_id: '{{ course_id }}',
+                is_hidden: true
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // 标记学生为隐藏状态
+                if (classroomData.students && classroomData.students[studentName]) {
+                    classroomData.students[studentName].is_hidden = true;
+                }
+                
+                // 隐藏学生卡片（不删除）
+                const studentCard = document.querySelector(`[data-student="${studentName}"]`);
+                if (studentCard) {
+                    studentCard.style.display = 'none';
+                }
+                
+                // 更新学生计数（只计算未隐藏的学生）
+                const studentCount = document.getElementById('studentCount');
+                if (studentCount) {
+                    studentCount.textContent = getVisibleStudents().length;
+                }
+                
+                console.log(`学生 ${studentName} 已隐藏`);
+            } else {
+                alert('隐藏学生失败: ' + (data.message || '未知错误'));
+            }
+        })
+        .catch(error => {
+            console.error('隐藏学生失败:', error);
+            alert('隐藏学生时发生错误，请重试');
+        });
     }
 }
 
