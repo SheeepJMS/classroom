@@ -172,9 +172,6 @@ class CourseAttendance(db.Model):
     student_id = db.Column(db.String(36), db.ForeignKey('students.id'), nullable=False)
     is_absent = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
-    # 备用字段 - 用于未来扩展
-    extra_data = db.Column(db.Text)  # JSON格式存储额外数据，如隐藏状态等
 
 # ==================== 初始化数据库 ====================
 
@@ -1565,28 +1562,11 @@ def get_classroom_data():
         # 获取课程
         course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         
-        # 获取学生（排除请假学生）
-        students = Student.query.filter_by(class_id=class_id, status='active').all()
+        # 获取活跃学生（用于答题）
+        active_students = Student.query.filter_by(class_id=class_id, status='active').all()
         students_data = {}
         
-        # 获取所有学生的隐藏状态
-        hidden_students = set()
-        if course:
-            import json
-            attendances = CourseAttendance.query.filter_by(course_id=course.id).all()
-            for att in attendances:
-                if att.extra_data:
-                    try:
-                        extra_data = json.loads(att.extra_data)
-                        if extra_data.get('is_hidden', False):
-                            hidden_students.add(att.student_id)
-                    except:
-                        pass
-        
-        for student in students:
-            # 检查学生是否被隐藏
-            is_hidden = student.id in hidden_students
-            
+        for student in active_students:
             submissions = []
             total_score = 0
             total_rounds = 0
@@ -1615,13 +1595,23 @@ def get_classroom_data():
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'last_answer': '',
-                'last_answer_time': 0,
-                'is_hidden': is_hidden
+                'last_answer_time': 0
+            }
+        
+        # 获取请假学生数据
+        absent_students = Student.query.filter_by(class_id=class_id, status='absent').all()
+        absent_students_data = {}
+        for student in absent_students:
+            absent_students_data[student.name] = {
+                'name': student.name,
+                'id': student.id,
+                'status': 'absent'
             }
         
         result = {
             'success': True,
             'students': students_data,
+            'absent_students': absent_students_data,
             'current_round': course.current_round if course else 1,
             'round_active': False
         }
@@ -1861,20 +1851,6 @@ def judge_answers():
                 # 没有提交记录，正确轮次不变（未作答算作错误）
                 correct_rounds = historical_correct_rounds
             
-            # 检查学生是否被隐藏
-            import json
-            is_hidden = False
-            attendance = CourseAttendance.query.filter_by(
-                course_id=course.id,
-                student_id=student.id
-            ).first()
-            if attendance and attendance.extra_data:
-                try:
-                    extra_data = json.loads(attendance.extra_data)
-                    is_hidden = extra_data.get('is_hidden', False)
-                except:
-                    pass
-            
             students_data[student.name] = {
                 'name': student.name,
                 'id': student.id,
@@ -1885,8 +1861,7 @@ def judge_answers():
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'last_answer': last_answer,
-                'last_answer_time': last_answer_time,
-                'is_hidden': is_hidden
+                'last_answer_time': last_answer_time
             }
         
         db.session.commit()
@@ -1978,20 +1953,6 @@ def next_round():
             correct_rounds = len(set(sub.round_number for sub in submissions if sub.is_correct))
             print(f"  → 总分: {total_score}, 总轮次: {total_rounds}, 正确轮次: {correct_rounds}")
             
-            # 检查学生是否被隐藏
-            import json
-            is_hidden = False
-            attendance = CourseAttendance.query.filter_by(
-                course_id=course_id,
-                student_id=student.id
-            ).first()
-            if attendance and attendance.extra_data:
-                try:
-                    extra_data = json.loads(attendance.extra_data)
-                    is_hidden = extra_data.get('is_hidden', False)
-                except:
-                    pass
-            
             students_data[student.name] = {
                 'name': student.name,
                 'id': student.id,
@@ -2002,8 +1963,7 @@ def next_round():
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'last_answer': '',
-                'last_answer_time': 0,
-                'is_hidden': is_hidden
+                'last_answer_time': 0
             }
         
         return jsonify({
@@ -2042,75 +2002,6 @@ def end_course(course_id):
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束课程失败: {str(e)}'}), 500
-
-# 隐藏/显示学生
-@app.route('/api/hide_student', methods=['POST'])
-def hide_student():
-    """隐藏或显示学生（在课程中）"""
-    try:
-        data = request.get_json()
-        student_name = data.get('student_name', '').strip()
-        course_id = data.get('course_id')
-        is_hidden = data.get('is_hidden', True)
-        
-        # 如果没提供course_id，尝试从class_id获取活跃课程
-        if not course_id:
-            class_id = request.headers.get('X-Class-ID')
-            if class_id:
-                course = Course.query.filter_by(class_id=class_id, is_active=True).first()
-                if course:
-                    course_id = course.id
-        
-        if not student_name or not course_id:
-            return jsonify({'success': False, 'message': '参数不完整'}), 400
-        
-        # 获取课程和学生
-        course = Course.query.filter_by(id=course_id).first()
-        if not course:
-            return jsonify({'success': False, 'message': '课程不存在'}), 404
-        
-        student = Student.query.filter_by(name=student_name, class_id=course.class_id).first()
-        if not student:
-            return jsonify({'success': False, 'message': '学生不存在'}), 404
-        
-        # 查找或创建出勤记录
-        attendance = CourseAttendance.query.filter_by(
-            course_id=course_id,
-            student_id=student.id
-        ).first()
-        
-        if not attendance:
-            attendance = CourseAttendance(
-                id=str(uuid.uuid4()),
-                course_id=course_id,
-                student_id=student.id,
-                is_absent=False
-            )
-            db.session.add(attendance)
-        
-        # 使用extra_data字段存储隐藏状态（JSON格式）
-        import json
-        extra_data = {}
-        if attendance.extra_data:
-            try:
-                extra_data = json.loads(attendance.extra_data)
-            except:
-                extra_data = {}
-        
-        extra_data['is_hidden'] = is_hidden
-        attendance.extra_data = json.dumps(extra_data)
-        
-        db.session.commit()
-        
-        print(f"✅ 学生隐藏状态已更新: {student_name}, is_hidden={is_hidden}")
-        return jsonify({'success': True, 'message': f'学生 {student_name} 已{"隐藏" if is_hidden else "显示"}'})
-        
-    except Exception as e:
-        print(f"❌ 更新学生隐藏状态失败: {str(e)}")
-        traceback.print_exc()
-        if db.session:
-            db.session.rollback()
-        return jsonify({'success': False, 'message': f'更新失败: {str(e)}'}), 500
 
 # 删除学生
 @app.route('/api/delete_student', methods=['POST'])
@@ -2235,23 +2126,7 @@ def ceremony(course_id):
         students = Student.query.filter_by(class_id=course.class_id, status='active').all()
         student_scores = []
         
-        # 获取所有隐藏的学生
-        import json
-        hidden_student_ids = set()
-        attendances = CourseAttendance.query.filter_by(course_id=course_id).all()
-        for att in attendances:
-            if att.extra_data:
-                try:
-                    extra_data = json.loads(att.extra_data)
-                    if extra_data.get('is_hidden', False):
-                        hidden_student_ids.add(att.student_id)
-                except:
-                    pass
-        
         for student in students:
-            # 跳过隐藏的学生
-            if student.id in hidden_student_ids:
-                continue
             
             submissions = StudentSubmission.query.filter_by(student_id=student.id, course_id=course_id).all()
             total_score = 0

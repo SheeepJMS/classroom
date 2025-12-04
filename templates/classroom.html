@@ -130,22 +130,28 @@
         </div>
     </div>
 
-    <!-- 添加学生区域 - 已移至顶部标题栏 -->
-    <!-- <div class="add-student-area" style="display: none;">
+    <!-- 请假学生区域（可收起） -->
+    <div class="absent-students-area" id="absentStudentsArea" style="margin-top: 20px; display: none;">
         <div class="container">
-            <div class="row justify-content-center">
-                <div class="col-md-6">
-                    <div class="add-student-form">
-                        <input type="text" id="studentNameInput" class="form-control" placeholder="Enter student name">
-                        <button id="addStudentBtn" class="btn btn-primary">
-                            <i class="fas fa-plus me-2"></i>+ Add Student
-                        </button>
+            <div class="row">
+                <div class="col-12">
+                    <div class="absent-students-header" style="background-color: #fff3cd; padding: 10px 15px; border-radius: 5px; cursor: pointer; display: flex; justify-content: space-between; align-items: center;" onclick="toggleAbsentStudents()">
+                        <div>
+                            <i class="fas fa-user-slash me-2"></i>
+                            <span>请假学生</span>
+                            <span class="badge bg-warning ms-2" id="absentStudentCount">0</span>
+                        </div>
+                        <i class="fas fa-chevron-down" id="absentStudentsToggleIcon"></i>
                     </div>
-                    <div class="quick-tip">Press Enter to add quickly</div>
+                    <div class="absent-students-content" id="absentStudentsContent" style="display: none; background-color: #f8f9fa; padding: 15px; border-radius: 5px; margin-top: 10px;">
+                        <div class="students-grid" id="absentStudentsGrid">
+                            <!-- 请假学生卡片将在这里显示 -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-    </div> -->
+    </div>
 </div>
 
 <script>
@@ -325,7 +331,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('更新学生计数为:', visibleStudents.length);
             }
             
+            // 确保 absent_students 对象存在
+            if (!classroomData.absent_students) {
+                classroomData.absent_students = {};
+            }
+            
             updateStudentsDisplay();
+            updateAbsentStudentsDisplay();
             updateRoundStatus();
         });
     
@@ -382,12 +394,37 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-// 获取可见学生（过滤掉被隐藏的学生）
+// 获取可见学生（活跃学生，用于答题）
 function getVisibleStudents() {
     if (!classroomData.students) return [];
     return Object.values(classroomData.students).filter(student => 
-        student && student.name && student.name !== 'undefined' && student.name !== '' && !student.is_hidden
+        student && student.name && student.name !== 'undefined' && student.name !== ''
     );
+}
+
+// 获取请假学生
+function getAbsentStudents() {
+    if (!classroomData.absent_students) return [];
+    return Object.values(classroomData.absent_students).filter(student => 
+        student && student.name && student.name !== 'undefined' && student.name !== ''
+    );
+}
+
+// 切换请假学生区域显示/隐藏
+function toggleAbsentStudents() {
+    const content = document.getElementById('absentStudentsContent');
+    const icon = document.getElementById('absentStudentsToggleIcon');
+    if (content) {
+        if (content.style.display === 'none') {
+            content.style.display = 'block';
+            if (icon) icon.classList.remove('fa-chevron-down');
+            if (icon) icon.classList.add('fa-chevron-up');
+        } else {
+            content.style.display = 'none';
+            if (icon) icon.classList.remove('fa-chevron-up');
+            if (icon) icon.classList.add('fa-chevron-down');
+        }
+    }
 }
 
 // 学生管理功能
