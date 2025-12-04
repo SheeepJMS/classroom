@@ -206,8 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     animation: 'none',
                     avatar_color: '#4ecdc4',
                     last_answer: '',
-                    last_answer_time: 0,
-                    is_hidden: false
+                    last_answer_time: 0
                 });
                 {% endif %}
                 {% endfor %}
@@ -225,6 +224,11 @@ document.addEventListener('DOMContentLoaded', function() {
             // 确保 students 对象存在
             if (!classroomData.students) {
                 classroomData.students = {};
+            }
+            
+            // 确保 absent_students 对象存在
+            if (!classroomData.absent_students) {
+                classroomData.absent_students = {};
             }
             
             // 确保 current_round 存在，如果不存在则从模板变量或默认值初始化
@@ -260,6 +264,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             
             updateStudentsDisplay();
+            updateAbsentStudentsDisplay();
             updateRoundStatus();
         })
         .catch(error => {
@@ -286,6 +291,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 classroomData.round_active = false;
             }
             
+            // 初始化 absent_students
+            if (!classroomData.absent_students) {
+                classroomData.absent_students = {};
+            }
+            
             // 在错误情况下也尝试从模板变量初始化
             if (!classroomData.students || Object.keys(classroomData.students || {}).length === 0) {
                 console.log('API请求失败，尝试从后端模板变量初始化学生数据');
@@ -303,8 +313,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     animation: 'none',
                     avatar_color: '#4ecdc4',
                     last_answer: '',
-                    last_answer_time: 0,
-                    is_hidden: false
+                    last_answer_time: 0
                 });
                 {% endif %}
                 {% endfor %}
@@ -589,16 +598,6 @@ function updateStudentsDisplay(keepStates = false) {
         console.log('Updating existing student cards');
         // 如果有现有卡片，只更新统计数据，不重新创建卡片
         // 先隐藏所有被标记为隐藏的学生卡片
-        if (classroomData.students) {
-            Object.values(classroomData.students).forEach(student => {
-                if (student && student.is_hidden) {
-                    const hiddenCard = document.querySelector(`[data-student="${student.name}"]`);
-                    if (hiddenCard) {
-                        hiddenCard.style.display = 'none';
-                    }
-                }
-            });
-        }
         
         // 只处理可见学生
         getVisibleStudents().forEach(student => {
@@ -749,13 +748,7 @@ function createStudentCard(student) {
     
     card.className = cardClass + animationClass;
     card.setAttribute('data-student', student.name);
-    card.style.position = 'relative'; // 为删除按钮定位做准备
-    // 删除按钮：在答题开始前（round_active为false）显示，答题中隐藏
-    const deleteBtnDisplay = (!classroomData.round_active) ? 'inline-block' : 'none';
     card.innerHTML = `
-        <button class="btn btn-sm btn-danger delete-student-btn" data-student="${student.name}" onclick="deleteStudent('${student.name}')" style="display: ${deleteBtnDisplay}; position: absolute; top: 5px; right: 5px; padding: 2px 6px; font-size: 10px; z-index: 10;" title="隐藏学生">
-            <i class="fas fa-trash"></i>
-        </button>
         <div class="student-avatar" style="background-color: ${student.avatar_color}">
             <span class="student-emoji">${emoji}</span>
         </div>
@@ -1138,22 +1131,11 @@ function stopTimer() {
                     console.log('后端返回的轮次结果:', data.round_result);
                     
                     // 保留被隐藏学生的状态
-                    const hiddenStudents = {};
-                    if (classroomData.students) {
-                        Object.keys(classroomData.students).forEach(name => {
-                            if (classroomData.students[name].is_hidden) {
-                                hiddenStudents[name] = true;
-                            }
-                        });
-                    }
-                    
-                    // 更新学生数据，并标记隐藏状态
+                    // 更新学生数据
                     classroomData.students = data.students;
-                    Object.keys(classroomData.students).forEach(name => {
-                        if (hiddenStudents[name]) {
-                            classroomData.students[name].is_hidden = true;
-                        }
-                    });
+                    if (data.absent_students) {
+                        classroomData.absent_students = data.absent_students;
+                    }
                     classroomData.round_active = false;
                     
                     // 不要更新当前轮次，评判完成后应该保持当前轮次不变
@@ -1170,6 +1152,7 @@ function stopTimer() {
                     
                     // 然后更新学生显示（但不覆盖统计数据，因为round_active已经是false）
                     updateStudentsDisplay(false);  // 不使用keepStates，强制更新
+                    updateAbsentStudentsDisplay(); // 更新请假学生显示
                     
                     // 显示正确答案
                     showCorrectAnswer(correctAnswer);
@@ -1875,69 +1858,57 @@ function markBehavior(studentName, behavior) {
     }
 }
 
-// 隐藏学生（不真正删除，只是隐藏）
-function deleteStudent(studentName) {
-    if (confirm(`确定要隐藏学生 "${studentName}" 吗？该学生将不参与课堂数据计算和颁奖。`)) {
-        // 发送请求到服务器保存隐藏状态
-        fetch('/api/hide_student', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Class-ID': '{{ class_obj.id }}'
-            },
-            body: JSON.stringify({
-                student_name: studentName,
-                course_id: '{{ course_id }}',
-                is_hidden: true
-            })
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 标记学生为隐藏状态
-                if (classroomData.students && classroomData.students[studentName]) {
-                    classroomData.students[studentName].is_hidden = true;
-                }
-                
-                // 隐藏学生卡片（不删除）
-                const studentCard = document.querySelector(`[data-student="${studentName}"]`);
-                if (studentCard) {
-                    studentCard.style.display = 'none';
-                }
-                
-                // 更新学生计数（只计算未隐藏的学生）
-                const studentCount = document.getElementById('studentCount');
-                if (studentCount) {
-                    studentCount.textContent = getVisibleStudents().length;
-                }
-                
-                console.log(`学生 ${studentName} 已隐藏`);
-            } else {
-                alert('隐藏学生失败: ' + (data.message || '未知错误'));
-            }
-        })
-        .catch(error => {
-            console.error('隐藏学生失败:', error);
-            alert('隐藏学生时发生错误，请重试');
+// 显示请假学生
+function updateAbsentStudentsDisplay() {
+    const absentStudentsGrid = document.getElementById('absentStudentsGrid');
+    const absentStudentCount = document.getElementById('absentStudentCount');
+    const absentStudentsArea = document.getElementById('absentStudentsArea');
+    
+    if (!absentStudentsGrid) return;
+    
+    const absentStudents = getAbsentStudents();
+    
+    // 更新计数
+    if (absentStudentCount) {
+        absentStudentCount.textContent = absentStudents.length;
+    }
+    
+    // 如果有请假学生，显示区域
+    if (absentStudentsArea) {
+        if (absentStudents.length > 0) {
+            absentStudentsArea.style.display = 'block';
+        } else {
+            absentStudentsArea.style.display = 'none';
+        }
+    }
+    
+    // 清空并重新生成请假学生卡片
+    absentStudentsGrid.innerHTML = '';
+    
+    if (absentStudents.length > 0) {
+        absentStudents.forEach(student => {
+            const card = document.createElement('div');
+            card.className = 'student-card';
+            card.style.opacity = '0.6'; // 请假学生半透明
+            card.innerHTML = `
+                <div class="student-avatar" style="background-color: #ffc107;">
+                    😴
+                </div>
+                <div class="student-name">${student.name}</div>
+                <div class="student-status" style="color: #856404; font-size: 12px; margin-top: 5px;">
+                    <i class="fas fa-user-slash"></i> 请假中
+                </div>
+            `;
+            absentStudentsGrid.appendChild(card);
         });
+    } else {
+        absentStudentsGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">暂无请假学生</p>';
     }
 }
 
 // 课堂结束
 function endClass() {
     if (confirm('确定要结束课堂吗？将进入颁奖典礼！')) {
-        // 保存隐藏学生列表到localStorage
-        const hiddenStudents = [];
-        if (classroomData.students) {
-            Object.values(classroomData.students).forEach(student => {
-                if (student && student.is_hidden) {
-                    hiddenStudents.push(student.name);
-                }
-            });
-        }
-        localStorage.setItem(`hidden_students_${'{{ course_id }}'}`, JSON.stringify(hiddenStudents));
-        console.log('保存隐藏学生列表:', hiddenStudents);
-        
         // 发送结束课程请求
         fetch('/api/end_course/{{ course_id }}', {
             method: 'POST',

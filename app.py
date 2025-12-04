@@ -2122,7 +2122,7 @@ def ceremony(course_id):
         if not course:
             return jsonify({'error': '课程不存在'}), 404
         
-        # 计算每个学生的总分（过滤掉请假的学生和隐藏的学生）
+        # 计算每个学生的总分（只包含活跃学生，请假学生不参与）
         students = Student.query.filter_by(class_id=course.class_id, status='active').all()
         student_scores = []
         
