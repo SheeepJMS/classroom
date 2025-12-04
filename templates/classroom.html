@@ -176,19 +176,107 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('Loaded classroom data:', data);
             classroomData = data;
             
+            // 如果API返回的学生数据为空或不存在，使用后端模板变量初始化
+            if (!classroomData.students || Object.keys(classroomData.students || {}).length === 0) {
+                console.log('API返回的学生数据为空，尝试从后端模板变量初始化');
+                // 从后端模板变量初始化学生数据
+                const templateStudents = [];
+                {% if students %}
+                {% for student in students %}
+                {% if student.status == 'active' %}
+                templateStudents.push({
+                    name: '{{ student.name }}',
+                    id: '{{ student.id }}',
+                    score: 0,
+                    total_rounds: 0,
+                    correct_rounds: 0,
+                    expression: 'neutral',
+                    animation: 'none',
+                    avatar_color: '#4ecdc4',
+                    last_answer: '',
+                    last_answer_time: 0,
+                    is_hidden: false
+                });
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                
+                if (templateStudents.length > 0) {
+                    console.log('从模板变量初始化了 ' + templateStudents.length + ' 个学生');
+                    classroomData.students = {};
+                    templateStudents.forEach(student => {
+                        classroomData.students[student.name] = student;
+                    });
+                }
+            }
+            
+            // 确保 students 对象存在
+            if (!classroomData.students) {
+                classroomData.students = {};
+            }
+            
             // 不要强制重置轮次状态，保持服务器返回的状态
             // classroomData.round_active = false;  // 移除这行
             // classroomData.current_answers = {};   // 移除这行
             // classroomData.answer_times = {};      // 移除这行
             // classroomData.start_time = null;      // 移除这行
             
-            console.log('About to call updateStudentsDisplay');
+            console.log('About to call updateStudentsDisplay, students count:', Object.keys(classroomData.students || {}).length);
+            
+            // 更新学生计数
+            const visibleStudents = getVisibleStudents();
+            const studentCountElement = document.getElementById('studentCount');
+            if (studentCountElement) {
+                studentCountElement.textContent = visibleStudents.length;
+                console.log('更新学生计数为:', visibleStudents.length);
+            }
+            
             updateStudentsDisplay();
             updateRoundStatus();
         })
         .catch(error => {
             console.error('Error loading classroom data:', error);
             console.log('Calling updateStudentsDisplay from catch block');
+            // 在错误情况下也尝试从模板变量初始化
+            if (!classroomData.students || Object.keys(classroomData.students || {}).length === 0) {
+                console.log('API请求失败，尝试从后端模板变量初始化学生数据');
+                const templateStudents = [];
+                {% if students %}
+                {% for student in students %}
+                {% if student.status == 'active' %}
+                templateStudents.push({
+                    name: '{{ student.name }}',
+                    id: '{{ student.id }}',
+                    score: 0,
+                    total_rounds: 0,
+                    correct_rounds: 0,
+                    expression: 'neutral',
+                    animation: 'none',
+                    avatar_color: '#4ecdc4',
+                    last_answer: '',
+                    last_answer_time: 0,
+                    is_hidden: false
+                });
+                {% endif %}
+                {% endfor %}
+                {% endif %}
+                
+                if (templateStudents.length > 0) {
+                    classroomData.students = {};
+                    templateStudents.forEach(student => {
+                        classroomData.students[student.name] = student;
+                    });
+                }
+            }
+            
+            // 更新学生计数
+            const visibleStudents = getVisibleStudents();
+            const studentCountElement = document.getElementById('studentCount');
+            if (studentCountElement) {
+                studentCountElement.textContent = visibleStudents.length;
+                console.log('更新学生计数为:', visibleStudents.length);
+            }
+            
             updateStudentsDisplay();
             updateRoundStatus();
         });
@@ -384,11 +472,18 @@ function updateStudentsDisplay(keepStates = false) {
         }
         
         if (classroomData.students && Object.keys(classroomData.students).length > 0) {
-            getVisibleStudents().forEach(student => {
+            const visibleStudents = getVisibleStudents();
+            visibleStudents.forEach(student => {
                 console.log('Creating card for student:', student.name);
                 const studentCard = createStudentCard(student);
                 studentsGrid.appendChild(studentCard);
             });
+            // 更新学生计数
+            const studentCountElement = document.getElementById('studentCount');
+            if (studentCountElement) {
+                studentCountElement.textContent = visibleStudents.length;
+                console.log('学生卡片创建完成，更新学生计数为:', visibleStudents.length);
+            }
         } else {
             console.log('No students found in classroomData.students:', classroomData.students);
             // 显示提示信息
@@ -399,6 +494,11 @@ function updateStudentsDisplay(keepStates = false) {
                     <p>请先添加学生到课堂中</p>
                 </div>
             `;
+            // 更新学生计数为0
+            const studentCountElement = document.getElementById('studentCount');
+            if (studentCountElement) {
+                studentCountElement.textContent = '0';
+            }
         }
     } else {
         console.log('Updating existing student cards');
@@ -1511,15 +1611,9 @@ function nextRound() {
                     punishedDiv.style.display = 'none';
                 }
                 
-                // 显示删除按钮（下一题开始前，round_active为false，可以删除）
-                const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
-                if (deleteBtn && !classroomData.round_active) {
-                    deleteBtn.style.display = 'inline-block';
-                }
-                
                 // 显示删除按钮（下一轮开始时，round_active为false，可以删除）
                 const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
-                if (deleteBtn) {
+                if (deleteBtn && !classroomData.round_active) {
                     deleteBtn.style.display = 'inline-block';
                 }
                 
@@ -1570,18 +1664,6 @@ function updateRoundStatus() {
     } catch (error) {
         console.error('updateRoundStatus错误:', error);
     }
-}
-
-// 更新删除按钮的显示状态
-function updateDeleteButtonsVisibility() {
-    const isRoundActive = classroomData.round_active || false;
-    getVisibleStudents().forEach(student => {
-        const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
-        if (deleteBtn) {
-            // 答题进行中隐藏，其他时候显示
-            deleteBtn.style.display = isRoundActive ? 'none' : 'inline-block';
-        }
-    });
 }
 
 // 更新删除按钮的显示状态

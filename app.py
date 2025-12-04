@@ -354,12 +354,29 @@ def class_management(class_id):
         
         # 为class_obj添加排序后的课程列表（转换为字典格式供模板使用）
         courses_data = []
+        seen_ids = set()  # 用于去重：基于课程ID，确保每个课程只出现一次
+        
         for course in courses:
+            # 跳过重复的课程ID（理论上不应该有，但为了安全）
+            if course.id in seen_ids:
+                continue
+            seen_ids.add(course.id)
+            
             # 确定显示时间：有结束时间显示结束时间，否则显示创建时间
             display_time = course.ended_at if course.ended_at else course.created_at
+            
+            # 如果课程名称为空或只包含空白字符，使用创建时间作为默认名称
+            if not course.name or not course.name.strip():
+                if display_time:
+                    course_name = f"课堂 {display_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                else:
+                    course_name = "未命名课程"
+            else:
+                course_name = course.name.strip()
+            
             courses_data.append({
                 'id': course.id,
-                'name': course.name,
+                'name': course_name,
                 'created_at': course.created_at,
                 'created_date': display_time.strftime('%Y-%m-%d %H:%M:%S') if display_time else '',
                 'current_round': course.current_round,
@@ -1529,8 +1546,15 @@ def get_classroom_data():
         class_id = request.headers.get('X-Class-ID')
         if not class_id:
             referer = request.headers.get('Referer', '')
+            # 支持从 /classroom/ 或 /course/ URL 中提取 class_id
             if '/classroom/' in referer:
                 class_id = referer.split('/classroom/')[-1].split('?')[0].split('#')[0]
+            elif '/course/' in referer:
+                # 从 course_id 获取对应的 class_id
+                course_id_from_url = referer.split('/course/')[-1].split('?')[0].split('#')[0]
+                course = Course.query.filter_by(id=course_id_from_url).first()
+                if course:
+                    class_id = course.class_id
         
         if not class_id:
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
