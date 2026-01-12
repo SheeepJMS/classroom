@@ -14,6 +14,9 @@ import traceback
 import uuid
 import random
 import statistics
+import time
+from functools import wraps
+from sqlalchemy.exc import OperationalError, DisconnectionError
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -33,7 +36,50 @@ app.config['SQLALCHEMY_DATABASE_URI'] = database_url
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'debug-secret-key')
 
+# 数据库连接池配置（提高稳定性和性能）
+# 注意：Flask-SQLAlchemy 2.x+ 支持 SQLALCHEMY_ENGINE_OPTIONS
+if 'postgresql' in database_url:
+    try:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'pool_pre_ping': True,  # 使用前ping连接，自动重连失效的连接（最重要）
+            'pool_recycle': 3600,  # 连接回收时间（秒），1小时
+            'pool_size': 5,  # 连接池大小
+            'max_overflow': 10,  # 最大溢出连接数
+        }
+        print("✅ 数据库连接池配置已启用")
+    except Exception as e:
+        print(f"⚠️ 数据库连接池配置失败（将使用默认配置）: {str(e)}")
+
 db = SQLAlchemy(app)
+
+# ==================== 数据库连接重试装饰器 ====================
+
+def db_retry(max_retries=3, delay=1):
+    """数据库连接重试装饰器"""
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            for attempt in range(max_retries):
+                try:
+                    return func(*args, **kwargs)
+                except (OperationalError, DisconnectionError) as e:
+                    error_str = str(e).lower()
+                    # 检查是否是网络/连接相关错误
+                    if 'network' in error_str or 'connection' in error_str or 'interface' in error_str or 'timeout' in error_str:
+                        if attempt < max_retries - 1:
+                            print(f"⚠️ 数据库连接失败（尝试 {attempt + 1}/{max_retries}），{delay}秒后重试...")
+                            time.sleep(delay)
+                            # 刷新数据库连接
+                            db.session.rollback()
+                        else:
+                            print(f"❌ 数据库连接失败，已重试 {max_retries} 次")
+                            raise
+                    else:
+                        # 其他数据库错误直接抛出
+                        raise
+            return None
+        return wrapper
+    return decorator
 
 # ==================== 数据库模型 ====================
 
@@ -280,6 +326,7 @@ def class_detail(class_id):
         return jsonify({'error': f'加载班级详情失败: {str(e)}'}), 500
 
 @app.route('/classroom/<class_id>')
+@db_retry(max_retries=3, delay=1)
 def class_management(class_id):
     """班级管理页面 - 显示学生列表、课程列表等"""
     try:
