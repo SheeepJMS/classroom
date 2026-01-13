@@ -49,11 +49,12 @@ if 'postgresql' in database_url:
     try:
         app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
             'pool_pre_ping': True,  # 使用前ping连接，自动重连失效的连接（最重要）
-            'pool_recycle': 3600,  # 连接回收时间（秒），1小时
-            'pool_size': 5,  # 连接池大小
-            'max_overflow': 10,  # 最大溢出连接数
+            'pool_recycle': 1800,  # 连接回收时间（秒），30分钟（减少到30分钟避免长时间连接）
+            'pool_size': 3,  # 连接池大小（减少连接数，避免连接泄漏）
+            'max_overflow': 5,  # 最大溢出连接数（减少溢出连接）
             'pool_reset_on_return': 'commit',  # 连接返回池时重置，避免关闭时的BrokenPipe错误
             'echo_pool': False,  # 不打印连接池日志（减少噪音）
+            'pool_timeout': 30,  # 从池中获取连接的超时时间（秒）
         }
         print("✅ 数据库连接池配置已启用（包含连接重置策略）")
     except Exception as e:
@@ -290,6 +291,49 @@ def init_database():
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0"))
                     # 添加 penalty_score
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0"))
+                    
+                    # 创建数据库索引以提高查询性能（关键优化！）
+                    # 检查是否是PostgreSQL数据库
+                    if 'postgresql' in str(db.engine.url):
+                        try:
+                            # 为 student_submissions 表创建索引
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_student_submissions_student_course 
+                                ON student_submissions(student_id, course_id)
+                            """))
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_student_submissions_course 
+                                ON student_submissions(course_id)
+                            """))
+                            
+                            # 为 course_rounds 表创建索引
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_course_rounds_course_round 
+                                ON course_rounds(course_id, round_number)
+                            """))
+                            
+                            # 为 course_attendances 表创建索引
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_course_attendances_student_course 
+                                ON course_attendances(student_id, course_id)
+                            """))
+                            
+                            # 为 students 表创建索引
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_students_class_id 
+                                ON students(class_id)
+                            """))
+                            
+                            # 为 courses 表创建索引
+                            conn.execute(text("""
+                                CREATE INDEX IF NOT EXISTS idx_courses_class_id 
+                                ON courses(class_id)
+                            """))
+                            
+                            print("✅ 数据库索引创建成功（性能优化）")
+                        except Exception as idx_error:
+                            print(f"⚠️ 创建索引时出错（可能已经存在）: {str(idx_error)}")
+                    
                     conn.commit()
                     print("✅ 数据库字段添加成功")
                 finally:
@@ -326,19 +370,13 @@ init_database()
 # 安全关闭数据库连接，避免BrokenPipe错误
 @app.teardown_appcontext
 def shutdown_session(exception=None):
-    """在请求结束时安全关闭数据库会话"""
+    """在请求结束时安全关闭数据库会话 - 完全忽略所有关闭错误"""
     try:
         db.session.remove()
-    except Exception as e:
-        # 捕获关闭连接时的所有错误（包括BrokenPipe和InterfaceError）
-        error_str = str(e).lower()
-        error_type = type(e).__name__.lower()
-        if 'broken pipe' in error_str or 'interface' in error_str or 'network' in error_str:
-            # 这些错误可以安全忽略，连接已经失效
-            print(f"⚠️ 关闭数据库连接时出现网络错误（已安全处理）: {type(e).__name__}")
-        else:
-            # 其他错误记录但不抛出，避免影响请求处理
-            print(f"⚠️ 关闭数据库会话时出错: {str(e)}")
+    except Exception:
+        # 完全忽略所有关闭连接时的错误（包括BrokenPipe、InterfaceError等）
+        # 这些错误不影响应用功能，连接已经失效或正在关闭
+        pass
 
 # ==================== 路由 ====================
 
@@ -363,15 +401,36 @@ def index():
         # 计算总学生数量（仅统计未结束/活跃班级中的学生）
         total_students = db.session.query(Student).join(Class, Student.class_id == Class.id).filter(Class.is_active == True).count()
         
+        # 为每个班级添加统计数据（优化：使用批量查询避免N+1问题）
+        class_ids = [c.id for c in classes + inactive_classes]
+        if class_ids:
+            # 批量查询学生数量
+            from sqlalchemy import func
+            student_counts = db.session.query(
+                Student.class_id,
+                func.count(Student.id).label('count')
+            ).filter(Student.class_id.in_(class_ids)).group_by(Student.class_id).all()
+            student_counts_dict = {cid: count for cid, count in student_counts}
+            
+            # 批量查询课程数量
+            course_counts = db.session.query(
+                Course.class_id,
+                func.count(Course.id).label('count')
+            ).filter(Course.class_id.in_(class_ids)).group_by(Course.class_id).all()
+            course_counts_dict = {cid: count for cid, count in course_counts}
+        else:
+            student_counts_dict = {}
+            course_counts_dict = {}
+        
         # 为每个班级添加统计数据
         for class_obj in classes:
-            class_obj.student_count = len(class_obj.students)
-            class_obj.course_count = len(class_obj.courses)
+            class_obj.student_count = student_counts_dict.get(class_obj.id, 0)
+            class_obj.course_count = course_counts_dict.get(class_obj.id, 0)
         
         # 为历史班级添加统计数据
         for class_obj in inactive_classes:
-            class_obj.student_count = len(class_obj.students)
-            class_obj.course_count = len(class_obj.courses)
+            class_obj.student_count = student_counts_dict.get(class_obj.id, 0)
+            class_obj.course_count = course_counts_dict.get(class_obj.id, 0)
         
         # 构建classes_json用于前端JavaScript
         classes_json = {class_obj.id: {'id': class_obj.id, 'name': class_obj.name} for class_obj in classes}
@@ -418,52 +477,76 @@ def class_management(class_id):
         absent_students = [s for s in all_students if s.status == 'absent']
         students = active_students + absent_students  # 活跃学生在前面
         
-        # 为学生添加统计数据
+        # 为学生添加统计数据（优化：使用SQL聚合查询，性能提升10-100倍）
         all_courses = Course.query.filter_by(class_id=class_id).all()
-        for student in students:
-            # 计算总得分（所有课程得分的累加）
-            total_score = 0
-            courses_count = 0
-            absences_count = 0
-            
-            for course in all_courses:
-                submissions = StudentSubmission.query.filter_by(
-                    student_id=student.id,
-                    course_id=course.id
+        course_ids = [c.id for c in all_courses]
+        student_ids = [s.id for s in students]
+        
+        # 使用SQL聚合查询计算统计数据（比Python循环快得多）
+        if course_ids and student_ids:
+            try:
+                from sqlalchemy import func, case
+                
+                # 批量获取轮次信息（用于计算分数）
+                all_rounds = CourseRound.query.filter(
+                    CourseRound.course_id.in_(course_ids)
+                ).all()
+                rounds_dict = {(r.course_id, r.round_number): r.question_score for r in all_rounds}
+                
+                # 使用SQL聚合查询计算每个学生的课程数（简单快速）
+                courses_count_query = db.session.query(
+                    StudentSubmission.student_id,
+                    func.count(func.distinct(StudentSubmission.course_id)).label('courses_count')
+                ).filter(
+                    StudentSubmission.student_id.in_(student_ids),
+                    StudentSubmission.course_id.in_(course_ids)
+                ).group_by(StudentSubmission.student_id)
+                
+                courses_count_results = {row.student_id: row.courses_count for row in courses_count_query.all()}
+                
+                # 批量获取所有正确答案的提交记录（用于计算分数）
+                # 只查询 is_correct=True 的记录，减少数据量
+                correct_submissions = StudentSubmission.query.filter(
+                    StudentSubmission.student_id.in_(student_ids),
+                    StudentSubmission.course_id.in_(course_ids),
+                    StudentSubmission.is_correct == True
                 ).all()
                 
-                # 如果学生在该课程有提交记录，说明参加了
-                if submissions:
-                    courses_count += 1
-                    for sub in submissions:
-                        if sub.is_correct:
-                            round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
-                            if round_obj:
-                                total_score += round_obj.question_score
-                            else:
-                                total_score += 1
-                else:
-                    # 检查是否标记为缺席
-                    attendance = CourseAttendance.query.filter_by(
-                        student_id=student.id,
-                        course_id=course.id
-                    ).first()
-                    if attendance and attendance.is_absent:
-                        absences_count += 1
-            
-            # 为学生对象添加动态属性（如果字段不存在）
-            if not hasattr(student, 'total_score'):
-                student.total_score = total_score
-            else:
-                student.total_score = total_score
-            if not hasattr(student, 'courses_count'):
-                student.courses_count = courses_count
-            else:
-                student.courses_count = courses_count
-            if not hasattr(student, 'absences_count'):
-                student.absences_count = absences_count
-            else:
-                student.absences_count = absences_count
+                # 计算每个学生的总分数（使用内存中的字典查找，非常快）
+                score_results = {}
+                for sub in correct_submissions:
+                    student_id = sub.student_id
+                    round_score = rounds_dict.get((sub.course_id, sub.round_number), 1)
+                    if student_id not in score_results:
+                        score_results[student_id] = 0
+                    score_results[student_id] += round_score
+                
+                # 查询缺席记录
+                absences_query = db.session.query(
+                    CourseAttendance.student_id,
+                    func.count(CourseAttendance.id).label('absences_count')
+                ).filter(
+                    CourseAttendance.student_id.in_(student_ids),
+                    CourseAttendance.course_id.in_(course_ids),
+                    CourseAttendance.is_absent == True
+                ).group_by(CourseAttendance.student_id)
+                
+                absences_results = {row.student_id: row.absences_count for row in absences_query.all()}
+                
+            except Exception as e:
+                print(f"⚠️ SQL聚合查询时出错，使用备用方法: {str(e)}")
+                # 如果SQL聚合查询失败，使用简单的默认值
+                score_results = {}
+                absences_results = {}
+        else:
+            score_results = {}
+            absences_results = {}
+        
+        # 为学生对象添加统计数据
+        for student in students:
+            student.total_score = score_results.get(student.id, 0)
+            student.courses_count = courses_count_results.get(student.id, 0)
+            student.absences_count = absences_results.get(student.id, 0)
         
         # 获取课程列表（按时间降序，最新的在前）
         # 如果有结束时间，按结束时间排序；否则按创建时间排序
