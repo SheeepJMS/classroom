@@ -17,6 +17,13 @@ import statistics
 import time
 from functools import wraps
 from sqlalchemy.exc import OperationalError, DisconnectionError
+# 导入pg8000异常类型以处理网络错误
+try:
+    from pg8000.exceptions import InterfaceError as PG8000InterfaceError
+except ImportError:
+    # 如果pg8000未安装，创建一个占位符类
+    class PG8000InterfaceError(Exception):
+        pass
 
 # 创建Flask应用
 app = Flask(__name__)
@@ -45,8 +52,10 @@ if 'postgresql' in database_url:
             'pool_recycle': 3600,  # 连接回收时间（秒），1小时
             'pool_size': 5,  # 连接池大小
             'max_overflow': 10,  # 最大溢出连接数
+            'pool_reset_on_return': 'commit',  # 连接返回池时重置，避免关闭时的BrokenPipe错误
+            'echo_pool': False,  # 不打印连接池日志（减少噪音）
         }
-        print("✅ 数据库连接池配置已启用")
+        print("✅ 数据库连接池配置已启用（包含连接重置策略）")
     except Exception as e:
         print(f"⚠️ 数据库连接池配置失败（将使用默认配置）: {str(e)}")
 
@@ -62,20 +71,56 @@ def db_retry(max_retries=3, delay=1):
             for attempt in range(max_retries):
                 try:
                     return func(*args, **kwargs)
-                except (OperationalError, DisconnectionError) as e:
+                except (OperationalError, DisconnectionError, PG8000InterfaceError) as e:
                     error_str = str(e).lower()
                     # 检查是否是网络/连接相关错误
-                    if 'network' in error_str or 'connection' in error_str or 'interface' in error_str or 'timeout' in error_str:
+                    if 'network' in error_str or 'connection' in error_str or 'interface' in error_str or 'timeout' in error_str or isinstance(e, PG8000InterfaceError):
                         if attempt < max_retries - 1:
                             print(f"⚠️ 数据库连接失败（尝试 {attempt + 1}/{max_retries}），{delay}秒后重试...")
+                            print(f"   错误详情: {str(e)}")
                             time.sleep(delay)
                             # 刷新数据库连接
-                            db.session.rollback()
+                            try:
+                                db.session.rollback()
+                                db.session.close()
+                            except:
+                                pass
+                            # 尝试重新建立连接
+                            try:
+                                db.engine.dispose()
+                            except:
+                                pass
                         else:
                             print(f"❌ 数据库连接失败，已重试 {max_retries} 次")
                             raise
                     else:
                         # 其他数据库错误直接抛出
+                        raise
+                except Exception as e:
+                    # 捕获所有异常，检查是否是数据库连接相关错误
+                    error_str = str(e).lower()
+                    error_type = type(e).__name__.lower()
+                    if 'network' in error_str or 'connection' in error_str or 'interface' in error_str or 'timeout' in error_str or 'interfaceerror' in error_type:
+                        if attempt < max_retries - 1:
+                            print(f"⚠️ 数据库连接失败（尝试 {attempt + 1}/{max_retries}），{delay}秒后重试...")
+                            print(f"   错误类型: {type(e).__name__}, 错误详情: {str(e)}")
+                            time.sleep(delay)
+                            # 刷新数据库连接
+                            try:
+                                db.session.rollback()
+                                db.session.close()
+                            except:
+                                pass
+                            # 尝试重新建立连接
+                            try:
+                                db.engine.dispose()
+                            except:
+                                pass
+                        else:
+                            print(f"❌ 数据库连接失败，已重试 {max_retries} 次")
+                            raise
+                    else:
+                        # 其他错误直接抛出
                         raise
             return None
         return wrapper
@@ -232,7 +277,9 @@ def init_database():
             try:
                 from sqlalchemy import text
                 # 检查字段是否存在并添加
-                with db.engine.connect() as conn:
+                conn = None
+                try:
+                    conn = db.engine.connect()
                     # 添加 guess_count
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS guess_count INTEGER DEFAULT 0"))
                     # 添加 copy_count
@@ -244,7 +291,17 @@ def init_database():
                     # 添加 penalty_score
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0"))
                     conn.commit()
-                print("✅ 数据库字段添加成功")
+                    print("✅ 数据库字段添加成功")
+                finally:
+                    # 安全关闭连接，捕获关闭时的错误
+                    if conn:
+                        try:
+                            conn.close()
+                        except (PG8000InterfaceError, BrokenPipeError, OSError) as close_error:
+                            # 忽略关闭连接时的网络错误
+                            error_str = str(close_error).lower()
+                            if 'broken pipe' not in error_str and 'network' not in error_str:
+                                print(f"⚠️ 关闭连接时出现错误（已安全处理）: {type(close_error).__name__}")
             except Exception as e:
                 print(f"⚠️ 添加字段时出错（可能已经存在）: {str(e)}")
             
@@ -265,10 +322,29 @@ def init_database():
 
 init_database()
 
+# ==================== 请求后处理钩子 ====================
+# 安全关闭数据库连接，避免BrokenPipe错误
+@app.teardown_appcontext
+def shutdown_session(exception=None):
+    """在请求结束时安全关闭数据库会话"""
+    try:
+        db.session.remove()
+    except Exception as e:
+        # 捕获关闭连接时的所有错误（包括BrokenPipe和InterfaceError）
+        error_str = str(e).lower()
+        error_type = type(e).__name__.lower()
+        if 'broken pipe' in error_str or 'interface' in error_str or 'network' in error_str:
+            # 这些错误可以安全忽略，连接已经失效
+            print(f"⚠️ 关闭数据库连接时出现网络错误（已安全处理）: {type(e).__name__}")
+        else:
+            # 其他错误记录但不抛出，避免影响请求处理
+            print(f"⚠️ 关闭数据库会话时出错: {str(e)}")
+
 # ==================== 路由 ====================
 
 # 首页路由
 @app.route('/')
+@db_retry(max_retries=3, delay=1)
 def index():
     """首页"""
     try:
@@ -314,6 +390,7 @@ def index():
 
 # 课堂路由
 @app.route('/class/<class_id>')
+@db_retry(max_retries=3, delay=1)
 def class_detail(class_id):
     """班级详情页 - 重定向到课堂页面"""
     try:
