@@ -1279,11 +1279,17 @@ def student_report_center(student_id):
                     'total_students': len(all_students)
                 })
         
+        # 图表数据保持原顺序（从左到右是旧到新）
+        courses_data_for_chart = courses_data.copy()
+        # 列表数据反转，使最新的课程显示在顶部
+        courses_data_for_list = list(reversed(courses_data))
+        
         return render_template(
             'student_report_center.html',
             student=student,
             class_obj=class_obj,
-            courses_data=courses_data,
+            courses_data=courses_data_for_chart,  # 图表使用原顺序
+            courses_data_list=courses_data_for_list,  # 列表使用反转顺序
             current_date=datetime.now().strftime('%Y年%m月%d日')
         )
     except Exception as e:
