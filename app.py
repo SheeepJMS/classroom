@@ -620,13 +620,14 @@ def class_management(class_id):
             'courses': courses_data  # 已排序的课程列表
         }
         
-        # 排行榜：按总分降序，并计算相对最高分的百分比（用于进度条）
+        # 排行榜：仅活跃学生，按总分降序；请假学生不显示
+        active_for_race = [s for s in students if getattr(s, 'status', 'active') != 'absent']
         race_students = sorted(
-            students,
+            active_for_race,
             key=lambda s: getattr(s, 'total_score', 0) or 0,
             reverse=True
         )
-        max_score = max((getattr(s, 'total_score', 0) or 0) for s in students) if students else 0
+        max_score = max((getattr(s, 'total_score', 0) or 0) for s in active_for_race) if active_for_race else 0
         
         return render_template('class_detail.html', 
                              class_data=class_data_dict, 

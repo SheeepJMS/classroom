@@ -550,6 +550,36 @@
     font-size: 0.95rem;
 }
 
+.race-rest-wrap {
+    border-top: 1px solid #f0f0f0;
+}
+
+.race-expand-row {
+    padding: 12px 0 0;
+    text-align: center;
+    border-top: 1px solid #f0f0f0;
+    margin-top: 4px;
+}
+
+.race-expand-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    color: #495057;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.race-expand-btn:hover {
+    background: #e9ecef;
+    border-color: #adb5bd;
+}
+
 @media (max-width: 768px) {
     .race-row {
         flex-wrap: wrap;
@@ -613,21 +643,21 @@
         </div>
     </div>
 
-    <!-- Class Progress Race Leaderboard -->
+    <!-- Class Progress Race Leaderboard（仅显示活跃学生，默认只显示前三，可展开） -->
     <div class="race-leaderboard" id="raceLeaderboard">
         <div class="race-leaderboard-header">
             <h2 class="race-leaderboard-title">🏁 Class Progress Race</h2>
             <p class="race-leaderboard-subtitle">Students chasing the class leader</p>
         </div>
         {% if race_students and race_students|length > 0 %}
-            {% for student in race_students %}
+            {% for student in race_students[:3] %}
             {% set score = student.total_score|default(0) %}
             {% set pct = (100.0 * score / max_score)|round(1) if max_score > 0 else 0 %}
             {% if pct > 100 %}{% set pct = 100 %}{% endif %}
             {% if pct < 0 %}{% set pct = 0 %}{% endif %}
             <div class="race-row {% if loop.index == 1 %}race-row-leader{% endif %}" data-percent="{{ pct }}">
                 <div class="race-rank {% if loop.index == 1 %}rank-1{% elif loop.index == 2 %}rank-2{% elif loop.index == 3 %}rank-3{% else %}rank-other{% endif %}">#{{ loop.index }}</div>
-                <div class="race-avatar">{% if student.status == 'absent' %}😴{% else %}😊{% endif %}</div>
+                <div class="race-avatar">😊</div>
                 <div class="race-student-info">
                     <div class="race-student-name">
                         {{ student.name }}
@@ -642,6 +672,36 @@
                 </div>
             </div>
             {% endfor %}
+            {% if race_students|length > 3 %}
+            <div class="race-rest-wrap" id="raceLeaderboardRest" style="display: none;">
+                {% for student in race_students[3:] %}
+                {% set score = student.total_score|default(0) %}
+                {% set pct = (100.0 * score / max_score)|round(1) if max_score > 0 else 0 %}
+                {% if pct > 100 %}{% set pct = 100 %}{% endif %}
+                {% if pct < 0 %}{% set pct = 0 %}{% endif %}
+                {% set rank_num = loop.index + 4 %}
+                <div class="race-row" data-percent="{{ pct }}">
+                    <div class="race-rank rank-other">#{{ rank_num }}</div>
+                    <div class="race-avatar">😊</div>
+                    <div class="race-student-info">
+                        <div class="race-student-name">{{ student.name }}</div>
+                        <div class="race-student-score">{{ score }} pts</div>
+                    </div>
+                    <div class="race-track-wrap">
+                        <div class="race-track-fill" style="width: 0%;" data-target="{{ pct }}"></div>
+                        <span class="race-runner" style="left: 0%;">🏃</span>
+                        <span class="race-finish">🏁</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="race-expand-row">
+                <button type="button" class="race-expand-btn" id="raceExpandBtn" data-total="{{ race_students|length }}" onclick="toggleRaceLeaderboardExpand()">
+                    <i class="fas fa-chevron-down" id="raceExpandIcon"></i>
+                    <span id="raceExpandText">展开查看全部 ({{ race_students|length }} 人)</span>
+                </button>
+            </div>
+            {% endif %}
         {% else %}
             <div class="race-empty">No student score data available yet.</div>
         {% endif %}
@@ -1228,20 +1288,43 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
-    // Class Progress Race: animate fill and runner from 0 to target
-    var raceRows = document.querySelectorAll('#raceLeaderboard .race-row[data-percent]');
-    raceRows.forEach(function(row) {
-        var fill = row.querySelector('.race-track-fill');
-        var runner = row.querySelector('.race-runner');
-        var target = parseFloat(row.getAttribute('data-percent')) || 0;
-        if (fill && runner) {
-            requestAnimationFrame(function() {
-                fill.style.width = target + '%';
-                runner.style.left = target + '%';
-            });
-        }
-    });
+    // Class Progress Race: animate fill and runner from 0 to target（仅对当前可见的行）
+    function animateRaceRows(container) {
+        var rows = (container || document).querySelectorAll('.race-row[data-percent]');
+        rows.forEach(function(row) {
+            var fill = row.querySelector('.race-track-fill');
+            var runner = row.querySelector('.race-runner');
+            var target = parseFloat(row.getAttribute('data-percent')) || 0;
+            if (fill && runner) {
+                requestAnimationFrame(function() {
+                    fill.style.width = target + '%';
+                    runner.style.left = target + '%';
+                });
+            }
+        });
+    }
+    animateRaceRows(document.getElementById('raceLeaderboard'));
 });
+
+function toggleRaceLeaderboardExpand() {
+    var rest = document.getElementById('raceLeaderboardRest');
+    var btn = document.getElementById('raceExpandBtn');
+    var text = document.getElementById('raceExpandText');
+    var icon = document.getElementById('raceExpandIcon');
+    if (!rest || !btn) return;
+    var isHidden = rest.style.display === 'none' || !rest.style.display;
+    if (isHidden) {
+        rest.style.display = 'block';
+        if (text) text.textContent = '收起';
+        if (icon) { icon.className = 'fas fa-chevron-up'; }
+        animateRaceRows(rest);
+    } else {
+        rest.style.display = 'none';
+        var total = btn.getAttribute('data-total') || (rest.querySelectorAll('.race-row').length + 3);
+        if (text) text.textContent = '展开查看全部 (' + total + ' 人)';
+        if (icon) { icon.className = 'fas fa-chevron-down'; }
+    }
+}
 </script>
 
 {% endblock %}
