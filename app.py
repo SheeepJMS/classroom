@@ -620,6 +620,14 @@ def class_management(class_id):
             'courses': courses_data  # 已排序的课程列表
         }
         
+        # 排行榜：按总分降序，并计算相对最高分的百分比（用于进度条）
+        race_students = sorted(
+            students,
+            key=lambda s: getattr(s, 'total_score', 0) or 0,
+            reverse=True
+        )
+        max_score = max((getattr(s, 'total_score', 0) or 0) for s in students) if students else 0
+        
         return render_template('class_detail.html', 
                              class_data=class_data_dict, 
                              class_obj=class_obj,
@@ -627,7 +635,9 @@ def class_management(class_id):
                              students=students,
                              courses=courses,
                              goal=goal,
-                             goal_progress=goal_progress)
+                             goal_progress=goal_progress,
+                             race_students=race_students,
+                             max_score=max_score)
     except Exception as e:
         print(f"❌ 加载班级管理页面失败: {str(e)}")
         return jsonify({'error': f'加载班级管理页面失败: {str(e)}'}), 500
@@ -1654,7 +1664,7 @@ def create_course():
         
         print(f"✅ 创建新课程: {name}")
         return jsonify({
-            'success': True, 
+            'success': True,
             'course_id': course_id,
             'redirect_url': f'/course/{course_id}'
         })
