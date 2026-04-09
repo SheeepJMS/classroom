@@ -1743,6 +1743,9 @@ function changeScore(delta) {
 
 // Punishment：每次扣3分，不锁界面、不改变作答状态
 function markPunishment(studentName) {
+    if (!confirm('确定对该学生执行 Punishment？将扣 3 分，不影响继续作答。')) {
+        return;
+    }
     fetch('/api/mark_behavior', {
         method: 'POST',
         headers: {
