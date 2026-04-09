@@ -9,7 +9,7 @@ import sys
 from flask import Flask, jsonify, render_template, request, redirect
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import text
-from datetime import datetime
+from datetime import datetime, date
 import traceback
 import uuid
 import random
@@ -140,6 +140,8 @@ class Class(db.Model):
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
     ended_date = db.Column(db.DateTime)
     competition_goal_id = db.Column(db.String(36), db.ForeignKey('competition_goals.id'))
+    # 当前绑定竞赛实例的结束日（含赛窗最后一天）；过期后自动解除绑定
+    competition_goal_effective_until = db.Column(db.Date, nullable=True)
     
     # 备用字段 - 用于未来扩展
     extra_data = db.Column(db.Text)  # JSON格式存储额外数据
@@ -166,6 +168,11 @@ class CompetitionGoal(db.Model):
     goal_date = db.Column(db.Date)
     is_active = db.Column(db.Boolean, default=True)
     created_date = db.Column(db.DateTime, default=datetime.utcnow)
+    # 标准赛历模板：固定月日，每年自动滚动 goal_date
+    slug = db.Column(db.String(80), unique=True, nullable=True, index=True)
+    recur_month = db.Column(db.Integer, nullable=True)
+    recur_day = db.Column(db.Integer, nullable=True)
+    recur_end_day = db.Column(db.Integer, nullable=True)
     
     # 备用字段 - 用于未来扩展
     extra_data = db.Column(db.Text)  # JSON格式存储额外数据
@@ -217,6 +224,8 @@ class Course(db.Model):
     extra_number_1 = db.Column(db.Integer)  # 例如：总题数
     extra_number_2 = db.Column(db.Integer)
     extra_boolean_1 = db.Column(db.Boolean)  # 例如：是否公开课
+    # 创建时班级仅 1 名活跃学生则为 True：一对一课堂，报告不展示班级对比类内容
+    is_one_on_one = db.Column(db.Boolean, default=False)
     
     # 关系
     rounds = db.relationship('CourseRound', backref='course_ref', lazy=True, cascade='all, delete-orphan')
@@ -265,6 +274,184 @@ class CourseAttendance(db.Model):
     is_absent = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+# ----- 标准竞赛赛历（与文档一致：月日固定，每年自动滚动 goal_date） -----
+STANDARD_COMPETITION_TEMPLATES = [
+    # CEMC / Waterloo
+    {"slug": "cemc-gauss", "title": "Gauss Contest", "description": "CEMC · Gr7–8 · 入门", "month": 5, "day": 14},
+    {"slug": "cemc-pascal", "title": "Pascal Contest", "description": "CEMC · Gr9 · 与 Cayley/Fermat 同日", "month": 2, "day": 26},
+    {"slug": "cemc-cayley", "title": "Cayley Contest", "description": "CEMC · Gr10 · 与 Pascal/Fermat 同日", "month": 2, "day": 26},
+    {"slug": "cemc-fermat", "title": "Fermat Contest", "description": "CEMC · Gr11 · 与 Pascal/Cayley 同日", "month": 2, "day": 26},
+    {"slug": "cemc-fryer", "title": "Fryer Contest", "description": "CEMC · Gr9 · 与 Galois/Hypatia/Euclid 同日", "month": 4, "day": 2},
+    {"slug": "cemc-galois", "title": "Galois Contest", "description": "CEMC · Gr10 · 与 Fryer/Hypatia/Euclid 同日", "month": 4, "day": 2},
+    {"slug": "cemc-hypatia", "title": "Hypatia Contest", "description": "CEMC · Gr11 · 与 Fryer/Galois/Euclid 同日", "month": 4, "day": 2},
+    {"slug": "cemc-euclid", "title": "Euclid Contest", "description": "CEMC · Gr12 · 与 Fryer/Galois/Hypatia 同日", "month": 4, "day": 2},
+    # 加拿大国家队路线
+    {"slug": "comc", "title": "COMC", "description": "加拿大数学公开赛 · Gr10–12", "month": 10, "day": 30},
+    {"slug": "cmo", "title": "CMO", "description": "加拿大数学奥林匹克 · 邀请制", "month": 3, "day": 26},
+    # AMC / AIME（美国体系）
+    {"slug": "amc-8", "title": "AMC 8", "description": "AMC · ≤Gr8 · 典型赛窗 1/22–1/28", "month": 1, "day": 22, "end_day": 28},
+    {"slug": "amc-10a", "title": "AMC 10A", "description": "AMC · Gr10 及以下 · 与 12A 同日", "month": 11, "day": 6},
+    {"slug": "amc-10b", "title": "AMC 10B", "description": "AMC · Gr10 及以下 · 与 12B 同日", "month": 11, "day": 12},
+    {"slug": "amc-12a", "title": "AMC 12A", "description": "AMC · Gr12 及以下 · 与 10A 同日", "month": 11, "day": 6},
+    {"slug": "amc-12b", "title": "AMC 12B", "description": "AMC · Gr12 及以下 · 与 10B 同日", "month": 11, "day": 12},
+    {"slug": "aime-i", "title": "AIME I", "description": "AIME · 晋级 · 与 AIME II 不同日", "month": 2, "day": 6},
+    {"slug": "aime-ii", "title": "AIME II", "description": "AIME · 晋级", "month": 2, "day": 12},
+]
+
+
+def edition_end_on_or_after(assign_date, month, start_day, end_day=None):
+    """不早于 assign_date 的最近一届赛窗结束日（含单日赛）。"""
+    ed = end_day if end_day is not None else start_day
+    best = None
+    ay = assign_date.year
+    for y in range(ay - 1, ay + 7):
+        try:
+            e = date(y, month, ed)
+            if e >= assign_date:
+                if best is None or e < best:
+                    best = e
+        except ValueError:
+            pass
+    return best
+
+
+def compute_next_listing_start(goal, today):
+    """列表展示用：当前或下一届赛窗首日（赛窗未结束时取本届首日）。"""
+    if not goal.recur_month:
+        return goal.goal_date
+    m, sd = goal.recur_month, goal.recur_day
+    edd = goal.recur_end_day or goal.recur_day
+    ty = today.year
+    for y in range(ty - 1, ty + 4):
+        try:
+            s, e = date(y, m, sd), date(y, m, edd)
+            if e >= today:
+                return s
+        except ValueError:
+            pass
+    return None
+
+
+def end_date_for_synced_recurring_goal(goal):
+    """与已同步的 goal_date（赛窗首日）同届的赛窗结束日。"""
+    if not goal.recur_month or not goal.goal_date:
+        return goal.goal_date
+    y = goal.goal_date.year
+    m = goal.recur_month
+    edd = goal.recur_end_day or goal.recur_day
+    try:
+        return date(y, m, edd)
+    except ValueError:
+        return goal.goal_date
+
+
+def compute_assignment_effective_until(goal):
+    """班级新绑定竞赛时：当前日起算最近一届结束日。"""
+    td = date.today()
+    if goal.recur_month:
+        return edition_end_on_or_after(td, goal.recur_month, goal.recur_day, goal.recur_end_day)
+    return goal.goal_date
+
+
+def sync_recurring_goal_dates_in_db():
+    """将带 recur_* 的竞赛的 goal_date 更新为本届或下一届赛窗首日。"""
+    today = date.today()
+    changed = False
+    for g in CompetitionGoal.query.filter(CompetitionGoal.recur_month.isnot(None)).all():
+        ns = compute_next_listing_start(g, today)
+        if ns and g.goal_date != ns:
+            g.goal_date = ns
+            changed = True
+    if changed:
+        db.session.commit()
+
+
+def seed_standard_competition_templates():
+    """幂等：按 slug 插入或更新标准竞赛。"""
+    changed = False
+    for t in STANDARD_COMPETITION_TEMPLATES:
+        slug = t["slug"]
+        existing = CompetitionGoal.query.filter_by(slug=slug).first()
+        month, day = t["month"], t["day"]
+        end_day = t.get("end_day")
+        td = date.today()
+        edd = end_day if end_day is not None else day
+        init_start = None
+        for y in range(td.year - 1, td.year + 4):
+            try:
+                s, e = date(y, month, day), date(y, month, edd)
+                if e >= td:
+                    init_start = s
+                    break
+            except ValueError:
+                pass
+        if not init_start:
+            try:
+                init_start = date(td.year, month, day)
+            except ValueError:
+                init_start = td
+        if existing:
+            existing.title = t["title"]
+            existing.description = t.get("description") or existing.description
+            existing.recur_month = month
+            existing.recur_day = day
+            existing.recur_end_day = end_day
+            existing.is_active = True
+            if not existing.goal_date:
+                existing.goal_date = init_start
+            changed = True
+        else:
+            gid = str(uuid.uuid4())
+            row = CompetitionGoal(
+                id=gid,
+                title=t["title"],
+                description=t.get("description"),
+                slug=slug,
+                recur_month=month,
+                recur_day=day,
+                recur_end_day=end_day,
+                goal_date=init_start,
+                is_active=True,
+            )
+            db.session.add(row)
+            changed = True
+    if changed:
+        db.session.commit()
+        print(f"✅ 标准竞赛模板已同步（共 {len(STANDARD_COMPETITION_TEMPLATES)} 项）")
+
+
+def expire_stale_class_competition_goals():
+    """赛窗结束后自动解除班级绑定；须先同步赛历日期。"""
+    try:
+        sync_recurring_goal_dates_in_db()
+    except Exception as e:
+        print(f"⚠️ sync_recurring_goal_dates_in_db: {e}")
+    today = date.today()
+    changed = False
+    for cls in Class.query.filter(Class.competition_goal_id.isnot(None)).all():
+        g = CompetitionGoal.query.filter_by(id=cls.competition_goal_id).first()
+        if not g:
+            cls.competition_goal_id = None
+            cls.competition_goal_effective_until = None
+            changed = True
+            continue
+        eff = cls.competition_goal_effective_until
+        if eff is None:
+            if g.recur_month:
+                eff = end_date_for_synced_recurring_goal(g)
+            else:
+                eff = g.goal_date
+            if eff:
+                cls.competition_goal_effective_until = eff
+                changed = True
+        if cls.competition_goal_effective_until and today > cls.competition_goal_effective_until:
+            cls.competition_goal_id = None
+            cls.competition_goal_effective_until = None
+            changed = True
+    if changed:
+        db.session.commit()
+
+
 # ==================== 初始化数据库 ====================
 
 def init_database():
@@ -291,6 +478,25 @@ def init_database():
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0"))
                     # 添加 penalty_score
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0"))
+                    try:
+                        conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_one_on_one BOOLEAN DEFAULT FALSE"))
+                    except Exception:
+                        try:
+                            conn.execute(text("ALTER TABLE courses ADD COLUMN is_one_on_one BOOLEAN DEFAULT 0"))
+                        except Exception:
+                            pass
+                    
+                    for _cg_alter in (
+                        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS slug VARCHAR(80)",
+                        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_month INTEGER",
+                        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_day INTEGER",
+                        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_end_day INTEGER",
+                        "ALTER TABLE classes ADD COLUMN IF NOT EXISTS competition_goal_effective_until DATE",
+                    ):
+                        try:
+                            conn.execute(text(_cg_alter))
+                        except Exception:
+                            pass
                     
                     # 创建数据库索引以提高查询性能（关键优化！）
                     # 检查是否是PostgreSQL数据库
@@ -360,6 +566,13 @@ def init_database():
                 db.session.add(default_class)
                 db.session.commit()
                 print("✅ 创建默认班级")
+            
+            try:
+                seed_standard_competition_templates()
+                sync_recurring_goal_dates_in_db()
+            except Exception as se:
+                print(f"⚠️ 标准竞赛种子/同步: {se}")
+                traceback.print_exc()
     except Exception as e:
         print(f"❌ 初始化数据库失败: {str(e)}")
         traceback.print_exc()
@@ -386,6 +599,7 @@ def shutdown_session(exception=None):
 def index():
     """首页"""
     try:
+        expire_stale_class_competition_goals()
         # 获取所有活跃班级
         classes = Class.query.filter_by(is_active=True).order_by(Class.created_date.desc()).all()
         
@@ -466,6 +680,7 @@ def class_detail(class_id):
 def class_management(class_id):
     """班级管理页面 - 显示学生列表、课程列表等"""
     try:
+        expire_stale_class_competition_goals()
         class_obj = Class.query.filter_by(id=class_id).first()
         if not class_obj:
             return jsonify({'error': '班级不存在'}), 404
@@ -603,7 +818,6 @@ def class_management(class_id):
                     'goal_date': g.goal_date.strftime('%Y-%m-%d') if g.goal_date else None
                 }
                 # 进度（剩余天/周/估算课次）
-                from datetime import date
                 if g.goal_date:
                     dleft = max((g.goal_date - date.today()).days, 0)
                     wleft = dleft // 7
@@ -795,6 +1009,7 @@ def student_report(student_id):
 def generate_student_report(student_id):
     """生成（查看）学生在某课程中的报告，兼容旧URL。"""
     try:
+        expire_stale_class_competition_goals()
         course_id = request.args.get('course_id')
         student = Student.query.filter_by(id=student_id).first()
         if not student:
@@ -827,6 +1042,7 @@ def generate_student_report(student_id):
 
         # 课程信息与班级数据
         course = Course.query.filter_by(id=course_id).first() if course_id else None
+        is_one_on_one = bool(getattr(course, 'is_one_on_one', False)) if course else False
         
         # 统计（使用总轮次数，未参与算作错误）
         correct_rounds = len(set((sub.course_id, sub.round_number) for sub in submissions if sub.is_correct))
@@ -949,7 +1165,7 @@ def generate_student_report(student_id):
                     round_class_times = [s.answer_time for s in class_submissions if s.round_number == r.round_number and s.answer_time is not None and (s.answer is not None and str(s.answer).strip() != '')]
                     t_class_avg = statistics.mean(round_class_times) if round_class_times else 0
                     t_student = rs.answer_time or 0
-                    speed_level = get_speed_level_per_question(t_student, t_class_avg)
+                    speed_level = '' if is_one_on_one else get_speed_level_per_question(t_student, t_class_avg)
                     student_submissions_view.append({
                         'round': r.round_number,
                         'answer': rs.answer,
@@ -1046,6 +1262,10 @@ def generate_student_report(student_id):
                 class_round_stats.append({'round': rn,'accuracy': round(acc,1),'participation_rate': round(part,1),'avg_time': avg_t})
                 valid_rounds_count += 1
 
+            # 一对一课堂：不用于班级对比曲线/每题班级得分率
+            if is_one_on_one:
+                class_round_stats = []
+
         # 参与率：参与轮次 / 有效轮次（排除作废轮次）（供评语使用）
         # 使用有效轮次数而不是总轮次数，排除作废的轮次
         if course:
@@ -1058,6 +1278,8 @@ def generate_student_report(student_id):
 
         # 生成个性化反馈（优先排名，其次参与率，再看正确率；60%优秀、40%不错、20%以下偏低）
         def build_feedback():
+            if is_one_on_one:
+                return ''
             # 无数据或未参与
             if class_total_rounds == 0 or participation_rate == 0:
                 return '本次未参与作答，建议下次按时参与练习；先建立连续参与习惯！'
@@ -1139,6 +1361,7 @@ def generate_student_report(student_id):
             return ' '.join(parts)
 
         feedback_text = build_feedback()
+        personalized_feedback_payload = {'focus_feedback': feedback_text} if feedback_text else None
 
         # 移动端/微信优先渲染竖屏模板
         ua = (request.headers.get('User-Agent') or '').lower()
@@ -1159,7 +1382,6 @@ def generate_student_report(student_id):
                     competition_goal_name = g.title
                     competition_goal_date = g.goal_date.strftime('%Y-%m-%d') if g.goal_date else None
                     if g.goal_date:
-                        from datetime import date
                         days_to_competition = max((g.goal_date - date.today()).days, 0)
                         # 每7天一节课估算
                         classes_before_competition = days_to_competition // 7
@@ -1175,7 +1397,7 @@ def generate_student_report(student_id):
                              total_rounds=total_rounds,
                              correct_rounds=correct_rounds,
                              accuracy=accuracy,
-                             personalized_feedback={'focus_feedback': feedback_text},
+                             personalized_feedback=personalized_feedback_payload,
                              class_avg_accuracy=class_avg_accuracy,
                              participation_rate=participation_rate,
                              class_avg_participation=class_avg_participation,
@@ -1190,7 +1412,8 @@ def generate_student_report(student_id):
                                  competition_goal_name=competition_goal_name,
                                  competition_goal_date=competition_goal_date,
                                  days_to_competition=days_to_competition,
-                                 classes_before_competition=classes_before_competition)
+                                 classes_before_competition=classes_before_competition,
+                                 is_one_on_one=is_one_on_one)
     except Exception as e:
         print(f"❌ 生成学生报告失败: {str(e)}")
         traceback.print_exc()
@@ -1287,11 +1510,14 @@ def student_report_center(student_id):
                     'accuracy': round(accuracy, 1),
                     'score': total_score,
                     'rank': rank,
-                    'total_students': len(all_students)
+                    'total_students': len(all_students),
+                    'is_one_on_one': bool(getattr(course, 'is_one_on_one', False))
                 })
         
-        # 图表数据保持原顺序（从左到右是旧到新）
+        # 图表数据保持原顺序（从左到右是旧到新）；一对一课程不参与班级趋势曲线
         courses_data_for_chart = courses_data.copy()
+        chart_courses = [c for c in courses_data_for_chart if not c.get('is_one_on_one')]
+        show_course_trend_chart = len(chart_courses) > 0
         # 列表数据反转，使最新的课程显示在顶部
         courses_data_for_list = list(reversed(courses_data))
         
@@ -1299,7 +1525,9 @@ def student_report_center(student_id):
             'student_report_center.html',
             student=student,
             class_obj=class_obj,
-            courses_data=courses_data_for_chart,  # 图表使用原顺序
+            courses_data=courses_data_for_chart,  # 图表使用原顺序（非一对一子集见 chart_courses）
+            chart_courses=chart_courses,
+            show_course_trend_chart=show_course_trend_chart,
             courses_data_list=courses_data_for_list,  # 列表使用反转顺序
             current_date=datetime.now().strftime('%Y年%m月%d日')
         )
@@ -1406,10 +1634,48 @@ def create_competition_goal():
         db.session.rollback()
         return jsonify({'success': False, 'message': f'创建竞赛目标失败: {str(e)}'}), 500
 
+# 更新竞赛目标（与首页编辑表单一致：body 使用 name / description / goal_date）
+@app.route('/api/update_competition_goal/<goal_id>', methods=['PUT'])
+def update_competition_goal(goal_id):
+    try:
+        data = request.get_json() or {}
+        name = (data.get('name') or '').strip()
+        description = (data.get('description') or '').strip()
+        goal_date_str = (data.get('goal_date') or '').strip()
+
+        if not name:
+            return jsonify({'success': False, 'error': '竞赛名称不能为空'}), 400
+
+        goal = CompetitionGoal.query.filter_by(id=goal_id).first()
+        if not goal:
+            return jsonify({'success': False, 'error': '竞赛目标不存在'}), 404
+
+        goal.title = name
+        goal.description = description if description else None
+
+        if goal_date_str:
+            try:
+                goal.goal_date = datetime.strptime(goal_date_str[:10], '%Y-%m-%d').date()
+            except ValueError:
+                return jsonify({'success': False, 'error': '日期格式错误，请使用 YYYY-MM-DD'}), 400
+        else:
+            goal.goal_date = None
+
+        db.session.commit()
+        print(f"✅ 竞赛目标已更新: {goal_id} -> {name}")
+        return jsonify({'success': True, 'message': '竞赛目标更新成功'})
+    except Exception as e:
+        print(f"❌ 更新竞赛目标失败: {str(e)}")
+        traceback.print_exc()
+        if db.session:
+            db.session.rollback()
+        return jsonify({'success': False, 'error': f'更新失败: {str(e)}'}), 500
+
 # 获取所有可用竞赛目标（活跃）
 @app.route('/api/get_competition_goals', methods=['GET'])
 def get_competition_goals():
     try:
+        sync_recurring_goal_dates_in_db()
         goals = CompetitionGoal.query.filter_by(is_active=True).order_by(CompetitionGoal.created_date.desc()).all()
         goal_views = [{
             'id': g.id,
@@ -1439,7 +1705,9 @@ def assign_goal_to_class():
         if not goal:
             return jsonify({'success': False, 'message': '竞赛目标不存在'}), 404
 
+        sync_recurring_goal_dates_in_db()
         class_obj.competition_goal_id = goal.id
+        class_obj.competition_goal_effective_until = compute_assignment_effective_until(goal)
         db.session.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -1503,7 +1771,13 @@ def bind_goal():
         if not class_obj:
             return jsonify({'success': False, 'message': '班级不存在'}), 404
         
-        class_obj.competition_goal_id = goal_id
+        goal = CompetitionGoal.query.filter_by(id=goal_id).first()
+        if not goal:
+            return jsonify({'success': False, 'message': '竞赛目标不存在'}), 404
+        
+        sync_recurring_goal_dates_in_db()
+        class_obj.competition_goal_id = goal.id
+        class_obj.competition_goal_effective_until = compute_assignment_effective_until(goal)
         db.session.commit()
         
         print(f"✅ 绑定竞赛目标到班级: {class_obj.name}")
@@ -1532,6 +1806,7 @@ def remove_goal_from_class():
         
         # 将竞赛目标ID设置为None，取消绑定
         class_obj.competition_goal_id = None
+        class_obj.competition_goal_effective_until = None
         db.session.commit()
         
         print(f"✅ 已取消班级 {class_obj.name} 的竞赛目标")
@@ -1645,9 +1920,13 @@ def create_course():
         # 结束所有活跃课程
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False, 'ended_at': datetime.utcnow()})
         
+        # 一对一：当前班级仅 1 名活跃学生时自动标记
+        active_n = Student.query.filter_by(class_id=class_id, status='active').count()
+        is_one_on_one = active_n == 1
+        
         # 创建新课程
         course_id = str(uuid.uuid4())
-        course = Course(id=course_id, class_id=class_id, name=name, current_round=1, is_active=True)
+        course = Course(id=course_id, class_id=class_id, name=name, current_round=1, is_active=True, is_one_on_one=is_one_on_one)
         db.session.add(course)
         db.session.commit()
         
@@ -1663,7 +1942,7 @@ def create_course():
             db.session.add(attendance)
         db.session.commit()
         
-        print(f"✅ 创建新课程: {name}")
+        print(f"✅ 创建新课程: {name}" + (" [一对一]" if is_one_on_one else ""))
         return jsonify({
             'success': True,
             'course_id': course_id,
@@ -1707,9 +1986,12 @@ def start_course():
         # 结束所有活跃课程
         Course.query.filter_by(class_id=class_id, is_active=True).update({'is_active': False, 'ended_at': datetime.utcnow()})
         
+        active_n = Student.query.filter_by(class_id=class_id, status='active').count()
+        is_one_on_one = active_n == 1
+        
         # 创建新课程
         course_id = str(uuid.uuid4())
-        course = Course(id=course_id, class_id=class_id, name=name, current_round=1, is_active=True)
+        course = Course(id=course_id, class_id=class_id, name=name, current_round=1, is_active=True, is_one_on_one=is_one_on_one)
         db.session.add(course)
         db.session.commit()
         
@@ -1725,7 +2007,7 @@ def start_course():
             db.session.add(attendance)
         db.session.commit()
         
-        print(f"✅ 创建新课程: {name}")
+        print(f"✅ 创建新课程: {name}" + (" [一对一]" if is_one_on_one else ""))
         return jsonify({
             'success': True, 
             'course_id': course_id,
@@ -1799,14 +2081,15 @@ def get_classroom_data():
             if course:
                 submissions = StudentSubmission.query.filter_by(student_id=student.id, course_id=course.id).all()
                 for sub in submissions:
+                    base = 0
                     if sub.is_correct:
-                        # 获取该轮次的分数
                         round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
                         if round_obj:
-                            total_score += round_obj.question_score
+                            base = round_obj.question_score
                         else:
-                            total_score += 1
+                            base = 1
                         correct_rounds += 1
+                    total_score += base - (sub.penalty_score or 0)
                 total_rounds = len(set(sub.round_number for sub in submissions))
             
             students_data[student.name] = {
@@ -1898,8 +2181,16 @@ def submit_student_answer():
         ).first()
         
         if existing:
-            print(f"⚠️ 学生 {student_name} 在轮次 {course.current_round} 已经提交过答案: {existing.answer}")
-            return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
+            existing_ans = (existing.answer or '').strip()
+            if existing_ans:
+                print(f"⚠️ 学生 {student_name} 在轮次 {course.current_round} 已经提交过答案: {existing.answer}")
+                return jsonify({'success': False, 'message': '您已经提交过答案了'}), 400
+            # 仅有占位记录（如先点了 Punishment）：允许填入首次答案，保留已累加的 penalty_score
+            existing.answer = answer
+            existing.answer_time = float(answer_time)
+            db.session.commit()
+            print(f"✅ 学生 {student_name} 在轮次 {course.current_round} 提交答案（补全占位记录）: {answer}")
+            return jsonify({'success': True})
         
         # 创建提交记录
         submission = StudentSubmission(
@@ -2008,12 +2299,14 @@ def judge_answers():
             for sub in all_submissions:
                 if sub.round_number < course.current_round:  # 只计算历史轮次
                     historical_rounds.add(sub.round_number)
+                    base = 0
                     if sub.is_correct:
                         round_obj = CourseRound.query.filter_by(course_id=course.id, round_number=sub.round_number).first()
                         if round_obj:
-                            historical_score += round_obj.question_score
+                            base = round_obj.question_score
                         else:
-                            historical_score += 1
+                            base = 1
+                    historical_score += base - (sub.penalty_score or 0)
             
             # 历史正确轮次数（同一轮次只算一次）
             historical_correct_rounds = len([r for r in historical_rounds if 
@@ -2025,33 +2318,27 @@ def judge_answers():
             last_answer_time = 0
             current_round_score = 0
             is_current_correct = False
-            is_punished = False
             
             if submission:
-                # 检查学生是否被punished（有penalty_score）
-                is_punished = submission.penalty_score and submission.penalty_score > 0
-                
-                if is_punished:
-                    # 被punished的学生直接扣3分，无论答案是否正确
-                    current_round_score = -3
-                    expression = 'angry'
-                    is_current_correct = False
-                    print(f"⚠️ 学生 {student.name} 被punished，扣3分")
-                    # 确保is_correct为False
-                    submission.is_correct = False
-                else:
-                    # 判断当前轮次答案是否正确
+                penalty = submission.penalty_score or 0
+                ans_raw = submission.answer or ''
+                has_answer = bool(str(ans_raw).strip())
+                if has_answer:
                     print(f"📝 学生 {student.name} 轮次 {course.current_round} 答案: '{submission.answer}' vs 正确答案: '{correct_answer}'")
                     is_current_correct = submission.answer.strip().lower() == correct_answer.strip().lower()
-                    # 更新数据库中的is_correct状态
                     submission.is_correct = is_current_correct
                     print(f"{'✅ 正确' if is_current_correct else '❌ 错误'}: {is_current_correct}")
-                    
-                    if is_current_correct:
-                        current_round_score = question_score
-                        expression = 'smile'
-                    else:
-                        expression = 'angry'
+                else:
+                    is_current_correct = False
+                    submission.is_correct = False
+                base_score = question_score if is_current_correct else 0
+                current_round_score = base_score - penalty
+                if is_current_correct:
+                    expression = 'smile'
+                elif has_answer:
+                    expression = 'angry'
+                else:
+                    expression = 'embarrassed'
                 
                 last_answer = submission.answer
                 last_answer_time = submission.answer_time
@@ -2065,12 +2352,7 @@ def judge_answers():
             # 准确率 = 正确轮次数 / 课程总轮次数
             total_rounds = course.current_round  # 使用当前课程的总轮次
             if submission:
-                # 被punished的学生不算正确轮次
-                if is_punished:
-                    correct_rounds = historical_correct_rounds
-                else:
-                    # 有提交记录，正确轮次增加
-                    correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
+                correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
             else:
                 # 没有提交记录，正确轮次不变（未作答算作错误）
                 correct_rounds = historical_correct_rounds
@@ -2265,7 +2547,7 @@ def delete_student():
 # 标记学生行为
 @app.route('/api/mark_behavior', methods=['POST'])
 def mark_behavior():
-    """标记学生行为（guess, copy, noisy, distracted）"""
+    """标记学生行为：punishment 为累加扣3分；另兼容旧版 guess/copy/noisy/distracted。"""
     try:
         data = request.get_json()
         student_name = data.get('student_name', '').strip()
@@ -2310,7 +2592,17 @@ def mark_behavior():
             )
             db.session.add(submission)
         
-        # 更新行为计数
+        if behavior == 'punishment':
+            submission.penalty_score = (submission.penalty_score or 0) + 3
+            db.session.commit()
+            print(f"✅ 学生 {student_name} Punishment: 累计扣分 {submission.penalty_score}")
+            return jsonify({
+                'success': True,
+                'message': '已扣3分（可继续作答）',
+                'penalty_score': submission.penalty_score
+            })
+        
+        # 以下为旧版四类行为（API 仍兼容）
         if behavior == 'guess':
             submission.guess_count = (submission.guess_count or 0) + 1
         elif behavior == 'copy':
@@ -2319,10 +2611,10 @@ def mark_behavior():
             submission.noisy_count = (submission.noisy_count or 0) + 1
         elif behavior == 'distracted':
             submission.distracted_count = (submission.distracted_count or 0) + 1
+        else:
+            return jsonify({'success': False, 'message': '无效的行为类型'}), 400
         
-        # 标记该题得分为0（无论答案是否正确），并设置扣分标记
         submission.is_correct = False
-        # 设置penalty_score为3，表示被惩罚扣3分
         submission.penalty_score = 3
         
         db.session.commit()
@@ -2355,12 +2647,14 @@ def ceremony(course_id):
             submissions = StudentSubmission.query.filter_by(student_id=student.id, course_id=course_id).all()
             total_score = 0
             for sub in submissions:
+                base = 0
                 if sub.is_correct:
                     round_obj = CourseRound.query.filter_by(course_id=course_id, round_number=sub.round_number).first()
                     if round_obj:
-                        total_score += round_obj.question_score
+                        base = round_obj.question_score
                     else:
-                        total_score += 1
+                        base = 1
+                total_score += base - (sub.penalty_score or 0)
             
             student_scores.append({
                 'name': student.name,

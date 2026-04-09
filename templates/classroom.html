@@ -768,22 +768,10 @@ function createStudentCard(student) {
         <div class="student-result" id="result-${student.name}" style="display: none;">
             <span class="result-text"></span>
         </div>
-        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 3px; margin-top: 10px; flex-wrap: nowrap; justify-content: space-between;">
-            <button class="btn btn-sm behavior-btn" data-behavior="guess" style="flex: 1; background-color: #ff9800; color: black; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap;" onclick="markBehavior('${student.name}', 'guess')" title="猜题">
-                Guess
+        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 3px; margin-top: 10px; flex-wrap: nowrap; justify-content: center;">
+            <button type="button" class="btn btn-sm punishment-btn" style="flex: 1; background-color: #546e7a; color: white; border: none; padding: 6px 10px; font-size: 11px; white-space: nowrap;" onclick="markPunishment('${student.name}')" title="本轮扣3分，不影响继续作答">
+                Punishment
             </button>
-            <button class="btn btn-sm behavior-btn" data-behavior="copy" style="flex: 1; background-color: #f44336; color: black; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap;" onclick="markBehavior('${student.name}', 'copy')" title="抄袭">
-                Copy
-            </button>
-            <button class="btn btn-sm behavior-btn" data-behavior="noisy" style="flex: 1; background-color: #9c27b0; color: black; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap;" onclick="markBehavior('${student.name}', 'noisy')" title="吵闹">
-                Noisy
-            </button>
-            <button class="btn btn-sm behavior-btn" data-behavior="distracted" style="flex: 1; background-color: #ffeb3b; color: black; border: none; padding: 5px 8px; font-size: 11px; white-space: nowrap;" onclick="markBehavior('${student.name}', 'distracted')" title="分心">
-                Distracted
-            </button>
-        </div>
-        <div class="student-punished" id="punished-${student.name}" style="display: none; padding: 10px; background-color: #ff4444; color: white; border-radius: 4px; text-align: center; font-weight: bold; margin-top: 10px;">
-            <span class="punished-text">PUNISHED</span>
         </div>
         <!-- BINGO后：显示统计数据 -->
         <div class="student-stats" id="stats-${student.name}" style="display: none !important;">
@@ -1292,23 +1280,6 @@ function showAnswerResults(correctAnswer) {
     console.log('showAnswerResults函数被调用，正确答案:', correctAnswer);
     console.log('当前学生数据:', classroomData.students);
     
-    // 先收集所有被punished的学生状态（在DOM更新之前）
-    const punishedStudents = new Set();
-    Object.values(classroomData.students).forEach(student => {
-        if (!student || !student.name || student.name === 'undefined' || student.name === '') {
-            return;
-        }
-        const punishedDiv = document.getElementById(`punished-${student.name}`);
-        if (punishedDiv && (
-            punishedDiv.style.display === 'block' || 
-            window.getComputedStyle(punishedDiv).display === 'block' ||
-            punishedDiv.offsetHeight > 0
-        )) {
-            punishedStudents.add(student.name);
-            console.log(`学生 ${student.name} 被标记为punished`);
-        }
-    });
-    
     getVisibleStudents().forEach(student => {
         console.log(`处理学生 ${student.name}:`, student);
         console.log(`学生 ${student.name} 的expression:`, student.expression);
@@ -1400,30 +1371,9 @@ function showAnswerResults(correctAnswer) {
                     studentCard.classList.add('correct-bounce-animation');
                 }
             } else if (student.expression === 'angry') {
-                // 检查学生是否被punished - 使用之前保存的punished状态
-                const isPunished = punishedStudents.has(student.name);
-                const punishedDiv = document.getElementById(`punished-${student.name}`);
-                
-                if (isPunished) {
-                    // 被punished时，隐藏WRONG结果，只显示PUNISHED状态
-                    resultDiv.style.display = 'none';
-                    // 确保punished状态显示
-                    if (punishedDiv) {
-                        punishedDiv.style.display = 'block';
-                        punishedDiv.style.visibility = 'visible';
-                    }
-                    console.log(`学生 ${student.name} 被punished，隐藏WRONG结果，显示PUNISHED状态`);
-                } else {
-                    // 没有被punished，显示WRONG结果，隐藏PUNISHED状态
-                    resultText.innerHTML = '<span class="result-icon">✗</span><span class="result-label">Wrong</span>';
-                    resultText.className = 'result-text wrong-result';
-                    resultDiv.style.display = 'block';
-                    // 确保punished状态隐藏
-                    if (punishedDiv) {
-                        punishedDiv.style.display = 'none';
-                    }
-                    console.log(`学生 ${student.name} 没有被punished，显示WRONG结果`);
-                }
+                resultText.innerHTML = '<span class="result-icon">✗</span><span class="result-label">Wrong</span>';
+                resultText.className = 'result-text wrong-result';
+                resultDiv.style.display = 'block';
             } else if (student.expression === 'embarrassed') {
                 resultText.innerHTML = '<span class="result-icon">○</span><span class="result-label">No Answer</span>';
                 resultText.className = 'result-text no-answer-result';
@@ -1673,12 +1623,6 @@ function nextRound() {
                     // behaviorButtons.style.flexDirection = 'row';
                 }
                 
-                // 隐藏punished状态
-                const punishedDiv = document.getElementById(`punished-${student.name}`);
-                if (punishedDiv) {
-                    punishedDiv.style.display = 'none';
-                }
-                
                 // 显示删除按钮（下一轮开始时，round_active为false，可以删除）
                 const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
                 if (deleteBtn && !classroomData.round_active) {
@@ -1797,65 +1741,38 @@ function changeScore(delta) {
     scoreElement.textContent = newScore;
 }
 
-// 记录学生行为
-function markBehavior(studentName, behavior) {
-    const messages = {
-        'guess': '确定要标记学生为"猜题"吗？该题得分为0！',
-        'copy': '确定要标记学生为"抄袭"吗？该题得分为0！',
-        'noisy': '确定要标记学生为"吵闹"吗？该题得分为0！',
-        'distracted': '确定要标记学生为"分心"吗？该题得分为0！'
-    };
-    
-    if (confirm(messages[behavior])) {
-        fetch('/api/mark_behavior', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-Class-ID': '{{ class_obj.id }}'
-            },
-            body: JSON.stringify({
-                student_name: studentName,
-                behavior: behavior,
-                course_id: '{{ course_id }}'
-            })
+// Punishment：每次扣3分，不锁界面、不改变作答状态
+function markPunishment(studentName) {
+    fetch('/api/mark_behavior', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Class-ID': '{{ class_obj.id }}'
+        },
+        body: JSON.stringify({
+            student_name: studentName,
+            behavior: 'punishment',
+            course_id: '{{ course_id }}'
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // 隐藏行为按钮和输入框
-                const behaviorButtons = document.getElementById(`behavior-buttons-${studentName}`);
-                const inputGroup = document.getElementById(`input-group-${studentName}`);
-                const submittedDiv = document.getElementById(`submitted-${studentName}`);
-                
-                if (behaviorButtons) {
-                    behaviorButtons.style.display = 'none';
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (classroomData.students && classroomData.students[studentName]) {
+                const cur = classroomData.students[studentName].score;
+                if (typeof cur === 'number' && !isNaN(cur)) {
+                    classroomData.students[studentName].score = cur - 3;
                 }
-                if (inputGroup) {
-                    inputGroup.style.display = 'none';
-                }
-                if (submittedDiv) {
-                    submittedDiv.style.display = 'none';
-                }
-                
-                // 显示PUNISHED状态
-                const punishedDiv = document.getElementById(`punished-${studentName}`);
-                if (punishedDiv) {
-                    punishedDiv.style.display = 'block';
-                }
-                
-                // 更新学生表情
-                updateStudentExpression(studentName, 'angry');
-                
-                alert('已记录！该轮次得分为0');
-            } else {
-                alert('操作失败：' + (data.message || '未知错误'));
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('操作失败，请重试');
-        });
-    }
+            console.log('Punishment:', data.message, '累计扣分', data.penalty_score);
+        } else {
+            alert('操作失败：' + (data.message || '未知错误'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('操作失败，请重试');
+    });
 }
 
 // 显示请假学生

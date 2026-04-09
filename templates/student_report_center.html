@@ -249,12 +249,18 @@
             <div class="course-title">{{ student.name }} - 报告中心</div>
         </div>
         
-        <!-- 合并的学习趋势图表 -->
+        {% if show_course_trend_chart %}
+        <!-- 合并的学习趋势图表（仅含非一对一课程） -->
         <div class="chart-section">
             <div class="chart-container chart-scroll" id="chartWrapper">
                 <canvas id="combinedChart" class="chart-canvas"></canvas>
             </div>
         </div>
+        {% else %}
+        <div class="chart-section" style="text-align:center;color:#6c757d;padding:20px;font-size:0.9rem;">
+            当前课程均为一对一课堂，不显示班级对比趋势曲线
+        </div>
+        {% endif %}
         
         <!-- 课程列表 -->
         <div class="courses-section">
@@ -264,7 +270,7 @@
                 <div class="course-item">
                     <div class="course-header-row">
                         <div class="course-info">
-                            <div class="course-name">{{ course_data.course_name }}</div>
+                            <div class="course-name">{{ course_data.course_name }}{% if course_data.is_one_on_one %}<span style="font-size:0.75rem;color:#6c757d;margin-left:8px;">一对一</span>{% endif %}</div>
                             <div class="course-date">{{ course_data.date }}</div>
                         </div>
                         <button class="detail-button" onclick="window.location.href='/generate_student_report/{{ student.id }}?course_id={{ course_data.course.id }}'">
@@ -286,6 +292,7 @@
                                 <div class="metric-label">正确率</div>
                             </div>
                         </div>
+                        {% if not course_data.is_one_on_one %}
                         <div class="metric-item">
                             <i class="fas fa-trophy metric-icon"></i>
                             <div class="metric-content">
@@ -293,6 +300,7 @@
                                 <div class="metric-label">排名</div>
                             </div>
                         </div>
+                        {% endif %}
                         <div class="metric-item">
                             <i class="fas fa-star metric-icon"></i>
                             <div class="metric-content">
@@ -315,13 +323,14 @@
     
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     
+    {% if show_course_trend_chart %}
     <script>
-        // 合并的趋势图 - 参与率和正确率用不同颜色
+        // 合并的趋势图 - 参与率和正确率用不同颜色（仅非一对一课程）
         const canvasEl = document.getElementById('combinedChart');
         const wrapperEl = document.getElementById('chartWrapper');
         // 根据课程数量动态设置画布宽度，过多时可左右滑动
         const labelsData = [
-            {% for course_data in courses_data %}
+            {% for course_data in chart_courses %}
             '{{ course_data.course_name.split(" ")[1] if course_data.course_name.split(" ")|length > 1 else course_data.course_name }}'{% if not loop.last %},{% endif %}
             {% endfor %}
         ];
@@ -336,7 +345,7 @@
                 datasets: [{
                     label: '参与率 (%)',
                     data: [
-                        {% for course_data in courses_data %}
+                        {% for course_data in chart_courses %}
                         {{ course_data.participation_rate }}{% if not loop.last %},{% endif %}
                         {% endfor %}
                     ],
@@ -352,7 +361,7 @@
                 }, {
                     label: '正确率 (%)',
                     data: [
-                        {% for course_data in courses_data %}
+                        {% for course_data in chart_courses %}
                         {{ course_data.accuracy }}{% if not loop.last %},{% endif %}
                         {% endfor %}
                     ],
@@ -403,5 +412,6 @@
             }
         });
     </script>
+    {% endif %}
 </body>
 </html>

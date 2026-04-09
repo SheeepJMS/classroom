@@ -24,6 +24,16 @@
     max-width: 100%;
     min-width: 0;
   }
+  .round-record-row1-mobile-121 {
+    display: grid;
+    grid-template-columns: 48px 42px 28px 38px 38px 88px;
+    gap: 4px;
+    align-items: center;
+    font-size: 0.85rem;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
   
   .round-record-row1-mobile > div {
     display: flex;
@@ -175,8 +185,8 @@
     </div>
   </div>
 
-  <!-- 个性化反馈 -->
-  {% if personalized_feedback %}
+  <!-- 个性化反馈（一对一不显示） -->
+  {% if personalized_feedback and personalized_feedback.focus_feedback %}
   <div class="card border-info mb-2 shadow-sm">
     <div class="card-body p-2">
       <i class="fas fa-comment-dots text-info me-1"></i>
@@ -185,13 +195,14 @@
   </div>
   {% endif %}
 
-  <!-- 班级趋势（精简版）提前显示 -->
+  {% if not is_one_on_one %}
   <div class="card shadow-sm mb-3">
     <div class="card-header py-2 bg-light"><strong><i class="fas fa-chart-line me-1"></i>班级整体趋势</strong></div>
     <div class="card-body p-2">
       <canvas id="trendChartMobile" height="160"></canvas>
     </div>
   </div>
+  {% endif %}
 
   <!-- 每轮参与记录（竖向） -->
   <div class="card shadow-sm mb-3">
@@ -215,7 +226,36 @@
       {% else %}{% set diff = '基础' %}{% endif %}
       <div class="list-group-item py-2" style="overflow-x: visible; width: 100%; max-width: 100%;">
         <div class="round-record-item-mobile">
-          {# 第一行：基本信息 #}
+          {% if is_one_on_one %}
+          <div class="round-record-row1-mobile-121">
+            <div class="round-number"><span class="fw-bold">第{{ round_num }}轮</span></div>
+            <div class="round-status">
+              {% if round_submission and round_submission.violation_type %}
+                <span class="badge bg-danger">{{ round_submission.violation_type }}</span>
+              {% elif round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+                <span class="badge bg-primary">参与</span>
+              {% else %}
+                <span class="badge bg-secondary">未参与</span>
+              {% endif %}
+            </div>
+            <div class="round-correct">
+              {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim and not round_submission.violation_type %}
+                <span class="badge bg-{{ 'success' if round_submission.is_correct else 'danger' }}">{{ '✓' if round_submission.is_correct else '✗' }}</span>
+              {% else %}
+                <span class="badge bg-transparent text-transparent">-</span>
+              {% endif %}
+            </div>
+            <div class="round-score"><span class="badge bg-warning text-dark">{{ q_score }}分</span></div>
+            <div class="round-difficulty"><span class="badge bg-secondary">{{ diff }}</span></div>
+            <div class="round-time">
+              {% if round_submission and round_submission.answer is not none and round_submission.answer|string|trim %}
+                <span class="badge bg-primary text-white" style="flex-shrink: 0; font-size: 0.65rem; padding: 3px 6px; white-space: nowrap;">{{ round_submission.answer_time|int }}秒</span>
+              {% else %}
+                <span class="badge bg-transparent text-transparent" style="flex-shrink: 0;">-</span>
+              {% endif %}
+            </div>
+          </div>
+          {% else %}
           <div class="round-record-row1-mobile">
             {# 列1: 轮次号 #}
             <div class="round-number">
@@ -268,6 +308,7 @@
               {% endif %}
             </div>
           </div>
+          {% endif %}
         </div>
       </div>
       {% endfor %}
@@ -276,6 +317,7 @@
 
 </div>
 
+{% if not is_one_on_one %}
 <!-- Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
@@ -307,6 +349,7 @@ new Chart(trendCtx, {
   }
 });
 </script>
+{% endif %}
 {% endblock %}
 
 
