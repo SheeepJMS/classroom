@@ -409,6 +409,34 @@
 
 .race-leaderboard-header {
     margin-bottom: 20px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.race-leaderboard-header-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.race-reset-btn {
+    flex-shrink: 0;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.race-reset-btn:hover {
+    background: #fff1f2;
+    border-color: #fecdd3;
+    color: #be123c;
 }
 
 .race-leaderboard-title {
@@ -646,8 +674,13 @@
     <!-- Class Progress Race Leaderboard（仅显示活跃学生，默认只显示前三，可展开） -->
     <div class="race-leaderboard" id="raceLeaderboard">
         <div class="race-leaderboard-header">
-            <h2 class="race-leaderboard-title">🏁 Class Progress Race</h2>
-            <p class="race-leaderboard-subtitle">Students chasing the class leader</p>
+            <div class="race-leaderboard-header-text">
+                <h2 class="race-leaderboard-title">🏁 Class Progress Race</h2>
+                <p class="race-leaderboard-subtitle">Students chasing the class leader</p>
+            </div>
+            <button type="button" class="race-reset-btn" id="raceResetBtn" onclick="resetClassRaceScores()" title="清零总计榜并从现在起重新累计">
+                <i class="fas fa-redo-alt"></i> Reset
+            </button>
         </div>
         {% if race_students and race_students|length > 0 %}
             {% for student in race_students[:3] %}
@@ -1324,6 +1357,41 @@ function toggleRaceLeaderboardExpand() {
         if (text) text.textContent = '展开查看全部 (' + total + ' 人)';
         if (icon) { icon.className = 'fas fa-chevron-down'; }
     }
+}
+
+function resetClassRaceScores() {
+    if (!confirm('确定要重置总计榜吗？\n\n确认后全部分数将清零，并从现在起重新累计。\n（不会删除历史课堂记录）')) {
+        return;
+    }
+    var btn = document.getElementById('raceResetBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Resetting...';
+    }
+    fetch('/api/reset_class_race/{{ class_id }}', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(function(r) { return r.json(); })
+    .then(function(data) {
+        if (!data.success) {
+            alert(data.message || '重置失败');
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-redo-alt"></i> Reset';
+            }
+            return;
+        }
+        window.location.reload();
+    })
+    .catch(function(err) {
+        console.error(err);
+        alert('重置失败，请重试');
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-redo-alt"></i> Reset';
+        }
+    });
 }
 </script>
 

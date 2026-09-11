@@ -142,6 +142,8 @@ class Class(db.Model):
     competition_goal_id = db.Column(db.String(36), db.ForeignKey('competition_goals.id'))
     # 当前绑定竞赛实例的结束日（含赛窗最后一天）；过期后自动解除绑定
     competition_goal_effective_until = db.Column(db.Date, nullable=True)
+    # Class Progress Race 重置时间：总计榜只累计此时间之后的提交
+    race_reset_at = db.Column(db.DateTime, nullable=True)
     
     # 备用字段 - 用于未来扩展
     extra_data = db.Column(db.Text)  # JSON格式存储额外数据
@@ -492,11 +494,16 @@ def init_database():
                         "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_day INTEGER",
                         "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_end_day INTEGER",
                         "ALTER TABLE classes ADD COLUMN IF NOT EXISTS competition_goal_effective_until DATE",
+                        "ALTER TABLE classes ADD COLUMN IF NOT EXISTS race_reset_at TIMESTAMP",
                     ):
                         try:
                             conn.execute(text(_cg_alter))
                         except Exception:
                             pass
+                    try:
+                        conn.execute(text("ALTER TABLE classes ADD COLUMN race_reset_at DATETIME"))
+                    except Exception:
+                        pass
                     
                     # 创建数据库索引以提高查询性能（关键优化！）
                     # 检查是否是PostgreSQL数据库
@@ -719,22 +726,24 @@ def class_management(class_id):
                 
                 courses_count_results = {row.student_id: row.courses_count for row in courses_count_query.all()}
                 
-                # 批量获取所有正确答案的提交记录（用于计算分数）
-                # 只查询 is_correct=True 的记录，减少数据量
-                correct_submissions = StudentSubmission.query.filter(
+                # 总计榜分数：答对得分 - penalty；若已 Reset 则只累计重置之后的提交
+                score_query = StudentSubmission.query.filter(
                     StudentSubmission.student_id.in_(student_ids),
                     StudentSubmission.course_id.in_(course_ids),
-                    StudentSubmission.is_correct == True
-                ).all()
+                )
+                if class_obj.race_reset_at:
+                    score_query = score_query.filter(
+                        StudentSubmission.created_at >= class_obj.race_reset_at
+                    )
+                score_submissions = score_query.all()
                 
-                # 计算每个学生的总分数（使用内存中的字典查找，非常快）
                 score_results = {}
-                for sub in correct_submissions:
-                    student_id = sub.student_id
-                    round_score = rounds_dict.get((sub.course_id, sub.round_number), 1)
-                    if student_id not in score_results:
-                        score_results[student_id] = 0
-                    score_results[student_id] += round_score
+                for sub in score_submissions:
+                    base = 0
+                    if sub.is_correct:
+                        base = rounds_dict.get((sub.course_id, sub.round_number), 1)
+                    delta = base - (sub.penalty_score or 0)
+                    score_results[sub.student_id] = score_results.get(sub.student_id, 0) + delta
                 
                 # 查询缺席记录
                 absences_query = db.session.query(
@@ -1587,6 +1596,32 @@ def end_class(class_id):
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'结束班级失败: {str(e)}'}), 500
+
+
+# 重置 Class Progress Race 总计榜（不清历史课堂记录，仅从此时起重新累计）
+@app.route('/api/reset_class_race/<class_id>', methods=['POST'])
+def reset_class_race(class_id):
+    """重置班级总计榜分数起点并重新计算"""
+    try:
+        class_obj = Class.query.filter_by(id=class_id).first()
+        if not class_obj:
+            return jsonify({'success': False, 'message': '班级不存在'}), 404
+
+        class_obj.race_reset_at = datetime.utcnow()
+        db.session.commit()
+
+        print(f"✅ 班级总计榜已重置: {class_obj.name} @ {class_obj.race_reset_at}")
+        return jsonify({
+            'success': True,
+            'message': '总计榜已清零，将从现在起重新累计',
+            'race_reset_at': class_obj.race_reset_at.isoformat()
+        })
+    except Exception as e:
+        print(f"❌ 重置总计榜失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'重置失败: {str(e)}'}), 500
+
 
 # 删除班级
 @app.route('/api/delete_class/<class_id>', methods=['POST'])
