@@ -922,6 +922,7 @@ def course_reports(course_id):
             correct_rounds = 0
             
             for sub in submissions:
+                base = 0
                 if sub.is_correct:
                     # 获取该轮次的分数
                     round_obj = CourseRound.query.filter_by(
@@ -929,10 +930,11 @@ def course_reports(course_id):
                         round_number=sub.round_number
                     ).first()
                     if round_obj:
-                        total_score += round_obj.question_score
+                        base = round_obj.question_score
                     else:
-                        total_score += 1
+                        base = 1
                     correct_rounds += 1
+                total_score += base - (sub.penalty_score or 0)
                 total_rounds = max(total_rounds, sub.round_number)
             
             # 计算实际参与的轮次数
@@ -2440,18 +2442,20 @@ def next_round():
             
             print(f"👤 学生 {student.name} 有 {len(submissions)} 条提交记录")
             
-            # 计算所有轮次的分数和准确率
+            # 计算所有轮次的分数和准确率（必须计入已保存的 penalty_score，否则下一轮会把扣分冲掉）
             total_score = 0
             correct_rounds = 0
             
             for sub in submissions:
-                print(f"  轮次 {sub.round_number}: 答案='{sub.answer}' is_correct={sub.is_correct}")
+                print(f"  轮次 {sub.round_number}: 答案='{sub.answer}' is_correct={sub.is_correct} penalty={sub.penalty_score or 0}")
+                base = 0
                 if sub.is_correct:
                     round_obj = CourseRound.query.filter_by(course_id=course_id, round_number=sub.round_number).first()
                     if round_obj:
-                        total_score += round_obj.question_score
+                        base = round_obj.question_score
                     else:
-                        total_score += 1
+                        base = 1
+                total_score += base - (sub.penalty_score or 0)
             
             # total_rounds: 课程的总轮次数（包括未参与的轮次）
             # correct_rounds: 正确答题的轮次数（同一轮次只算一次）
