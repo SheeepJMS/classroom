@@ -748,7 +748,21 @@ function createStudentCard(student) {
     
     card.className = cardClass + animationClass;
     card.setAttribute('data-student', student.name);
+    if (student.id) {
+        card.setAttribute('data-student-id', student.id);
+    }
+    const studentIdAttr = student.id || '';
+    const safeName = String(student.name || '').replace(/'/g, "\\'");
     card.innerHTML = `
+        <div class="student-card-menu">
+            <button type="button" class="student-menu-btn" title="更多" aria-label="更多操作" onclick="toggleStudentMenu(event, this)">
+                <i class="fas fa-ellipsis-v"></i>
+            </button>
+            <div class="student-menu-dropdown">
+                <button type="button" class="student-menu-item" onclick="addBonusPoints('${studentIdAttr}', '${safeName}')">补分</button>
+                <button type="button" class="student-menu-item danger" onclick="markClassroomAbsent('${studentIdAttr}', '${safeName}')">请假</button>
+            </div>
+        </div>
         <div class="student-avatar" style="background-color: ${student.avatar_color}">
             <span class="student-emoji">${emoji}</span>
         </div>
@@ -1810,7 +1824,21 @@ function updateAbsentStudentsDisplay() {
             const card = document.createElement('div');
             card.className = 'student-card';
             card.style.opacity = '0.6'; // 请假学生半透明
+            if (student.id) {
+                card.setAttribute('data-student-id', student.id);
+            }
+            card.setAttribute('data-student', student.name);
+            const studentIdAttr = student.id || '';
+            const safeName = String(student.name || '').replace(/'/g, "\\'");
             card.innerHTML = `
+                <div class="student-card-menu">
+                    <button type="button" class="student-menu-btn" title="更多" aria-label="更多操作" onclick="toggleStudentMenu(event, this)">
+                        <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div class="student-menu-dropdown">
+                        <button type="button" class="student-menu-item success" onclick="restoreClassroomActive('${studentIdAttr}', '${safeName}')">恢复上课</button>
+                    </div>
+                </div>
                 <div class="student-avatar" style="background-color: #ffc107;">
                     😴
                 </div>
@@ -1825,6 +1853,167 @@ function updateAbsentStudentsDisplay() {
         absentStudentsGrid.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">暂无请假学生</p>';
     }
 }
+
+function closeAllStudentMenus() {
+    document.querySelectorAll('.student-card-menu.open').forEach(menu => {
+        menu.classList.remove('open');
+    });
+}
+
+function toggleStudentMenu(event, btn) {
+    event.stopPropagation();
+    const menu = btn.closest('.student-card-menu');
+    if (!menu) return;
+    const wasOpen = menu.classList.contains('open');
+    closeAllStudentMenus();
+    if (!wasOpen) {
+        menu.classList.add('open');
+    }
+}
+
+function refreshClassroomStudentCounts() {
+    const countEl = document.getElementById('studentCount');
+    if (countEl) {
+        countEl.textContent = getVisibleStudents().length;
+    }
+    updateAbsentStudentsDisplay();
+}
+
+function markClassroomAbsent(studentId, studentName) {
+    closeAllStudentMenus();
+    if (!studentId) {
+        alert('无法识别学生，请刷新页面后重试');
+        return;
+    }
+    if (!confirm(`确定将 ${studentName} 设为请假吗？`)) return;
+
+    fetch('/api/student_absent/' + studentId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '请假失败');
+            return;
+        }
+        if (!classroomData.students) classroomData.students = {};
+        if (!classroomData.absent_students) classroomData.absent_students = {};
+
+        const existing = classroomData.students[studentName];
+        delete classroomData.students[studentName];
+        classroomData.absent_students[studentName] = {
+            id: studentId,
+            name: studentName,
+            status: 'absent',
+            ...(existing || {})
+        };
+
+        updateStudentsDisplay(false);
+        refreshClassroomStudentCounts();
+    })
+    .catch(err => {
+        console.error(err);
+        alert('请假失败，请重试');
+    });
+}
+
+function restoreClassroomActive(studentId, studentName) {
+    closeAllStudentMenus();
+    if (!studentId) {
+        alert('无法识别学生，请刷新页面后重试');
+        return;
+    }
+    if (!confirm(`确定恢复 ${studentName} 上课吗？`)) return;
+
+    fetch('/api/student_active/' + studentId, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '恢复失败');
+            return;
+        }
+        if (!classroomData.students) classroomData.students = {};
+        if (!classroomData.absent_students) classroomData.absent_students = {};
+
+        delete classroomData.absent_students[studentName];
+        const restored = data.student || {
+            id: studentId,
+            name: studentName,
+            score: 0,
+            total_rounds: 0,
+            correct_rounds: 0,
+            expression: 'neutral',
+            animation: 'none',
+            avatar_color: '#4ecdc4',
+            last_answer: '',
+            last_answer_time: 0
+        };
+        classroomData.students[studentName] = restored;
+
+        updateStudentsDisplay(false);
+        refreshClassroomStudentCounts();
+    })
+    .catch(err => {
+        console.error(err);
+        alert('恢复失败，请重试');
+    });
+}
+
+function addBonusPoints(studentId, studentName) {
+    closeAllStudentMenus();
+    const raw = prompt(`给 ${studentName} 补分，请输入正整数：`);
+    if (raw === null) return;
+    const points = parseInt(String(raw).trim(), 10);
+    if (!points || points <= 0 || isNaN(points)) {
+        alert('请输入有效的正整数');
+        return;
+    }
+
+    fetch('/api/add_bonus_points', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-Class-ID': '{{ class_obj.id }}'
+        },
+        body: JSON.stringify({
+            student_id: studentId,
+            student_name: studentName,
+            points: points,
+            course_id: '{{ course_id }}'
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (!data.success) {
+            alert(data.message || '补分失败');
+            return;
+        }
+        if (classroomData.students && classroomData.students[studentName]) {
+            classroomData.students[studentName].score = data.score;
+            const scoreEl = document.querySelector(`#stats-${studentName} .stat-value`);
+            // stats 区可能有多个 .stat-value，Score 是第一个
+            const stats = document.getElementById(`stats-${studentName}`);
+            if (stats) {
+                const values = stats.querySelectorAll('.stat-value');
+                if (values.length > 0) values[0].textContent = data.score;
+            }
+        }
+        // 轻提示即可
+        console.log(data.message);
+    })
+    .catch(err => {
+        console.error(err);
+        alert('补分失败，请重试');
+    });
+}
+
+document.addEventListener('click', function() {
+    closeAllStudentMenus();
+});
 
 // 课堂结束
 function endClass() {

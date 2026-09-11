@@ -1865,6 +1865,48 @@ def add_student():
         db.session.rollback()
         return jsonify({'error': f'添加学生失败: {str(e)}'}), 500
 
+def _sync_course_attendance(student, is_absent):
+    """同步当前活跃课程的出勤标记（课堂中途请假/恢复）"""
+    course = Course.query.filter_by(class_id=student.class_id, is_active=True).first()
+    if not course:
+        return None
+    attendance = CourseAttendance.query.filter_by(
+        course_id=course.id, student_id=student.id
+    ).first()
+    if attendance:
+        attendance.is_absent = is_absent
+    elif not is_absent:
+        # 课程开始时未在册（当时已请假），恢复上课时补出勤记录
+        db.session.add(CourseAttendance(
+            id=str(uuid.uuid4()),
+            course_id=course.id,
+            student_id=student.id,
+            is_absent=False
+        ))
+    return course
+
+
+def _student_course_score(student_id, course_id):
+    """按与课堂一致的规则计算某学生本课总分"""
+    total_score = 0
+    total_rounds = 0
+    correct_rounds = 0
+    submissions = StudentSubmission.query.filter_by(
+        student_id=student_id, course_id=course_id
+    ).all()
+    for sub in submissions:
+        base = 0
+        if sub.is_correct:
+            round_obj = CourseRound.query.filter_by(
+                course_id=course_id, round_number=sub.round_number
+            ).first()
+            base = round_obj.question_score if round_obj else 1
+            correct_rounds += 1
+        total_score += base - (sub.penalty_score or 0)
+    total_rounds = len(set(sub.round_number for sub in submissions))
+    return total_score, total_rounds, correct_rounds
+
+
 # 学生请假
 @app.route('/api/student_absent/<student_id>', methods=['POST'])
 def student_absent(student_id):
@@ -1875,10 +1917,15 @@ def student_absent(student_id):
             return jsonify({'success': False, 'message': '学生不存在'}), 404
         
         student.status = 'absent'
+        _sync_course_attendance(student, is_absent=True)
         db.session.commit()
         
         print(f"✅ 学生请假: {student.name}")
-        return jsonify({'success': True, 'message': f'{student.name}已请假'})
+        return jsonify({
+            'success': True,
+            'message': f'{student.name}已请假',
+            'student': {'id': student.id, 'name': student.name, 'status': 'absent'}
+        })
         
     except Exception as e:
         print(f"❌ 学生请假失败: {str(e)}")
@@ -1896,16 +1943,112 @@ def student_active(student_id):
             return jsonify({'success': False, 'message': '学生不存在'}), 404
         
         student.status = 'active'
+        course = _sync_course_attendance(student, is_absent=False)
         db.session.commit()
+
+        student_payload = {
+            'id': student.id,
+            'name': student.name,
+            'status': 'active',
+            'score': 0,
+            'total_rounds': 0,
+            'correct_rounds': 0,
+            'expression': 'neutral',
+            'animation': 'none',
+            'avatar_color': '#4ecdc4',
+            'last_answer': '',
+            'last_answer_time': 0
+        }
+        if course:
+            score, rounds, correct = _student_course_score(student.id, course.id)
+            student_payload['score'] = score
+            student_payload['total_rounds'] = rounds
+            student_payload['correct_rounds'] = correct
         
         print(f"✅ 学生恢复: {student.name}")
-        return jsonify({'success': True, 'message': f'{student.name}已恢复'})
+        return jsonify({
+            'success': True,
+            'message': f'{student.name}已恢复',
+            'student': student_payload
+        })
         
     except Exception as e:
         print(f"❌ 学生恢复失败: {str(e)}")
         traceback.print_exc()
         db.session.rollback()
         return jsonify({'success': False, 'message': f'学生恢复失败: {str(e)}'}), 500
+
+
+# 课堂补分（写入当前轮次记录：降低 penalty_score，等价于加分）
+@app.route('/api/add_bonus_points', methods=['POST'])
+def add_bonus_points():
+    """给学生补分，计入本课总分"""
+    try:
+        data = request.get_json() or {}
+        student_id = (data.get('student_id') or '').strip()
+        student_name = (data.get('student_name') or '').strip()
+        course_id = data.get('course_id')
+        try:
+            points = int(data.get('points', 0))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'message': '补分必须是整数'}), 400
+
+        if points <= 0:
+            return jsonify({'success': False, 'message': '补分须为正整数'}), 400
+        if not course_id:
+            return jsonify({'success': False, 'message': '缺少课程ID'}), 400
+
+        course = Course.query.filter_by(id=course_id).first()
+        if not course:
+            return jsonify({'success': False, 'message': '课程不存在'}), 404
+
+        student = None
+        if student_id:
+            student = Student.query.filter_by(id=student_id, class_id=course.class_id).first()
+        if not student and student_name:
+            student = Student.query.filter_by(name=student_name, class_id=course.class_id).first()
+        if not student:
+            return jsonify({'success': False, 'message': '学生不存在'}), 404
+        if student.status == 'absent':
+            return jsonify({'success': False, 'message': '请假学生请先恢复上课再补分'}), 400
+
+        submission = StudentSubmission.query.filter_by(
+            student_id=student.id,
+            course_id=course_id,
+            round_number=course.current_round
+        ).first()
+        if not submission:
+            submission = StudentSubmission(
+                id=str(uuid.uuid4()),
+                student_id=student.id,
+                course_id=course_id,
+                round_number=course.current_round,
+                answer='',
+                answer_time=0.0,
+                is_correct=False,
+                penalty_score=0
+            )
+            db.session.add(submission)
+
+        # 负的 penalty 在计分公式 base - penalty 中表现为加分
+        submission.penalty_score = (submission.penalty_score or 0) - points
+        db.session.commit()
+
+        total_score, _, _ = _student_course_score(student.id, course_id)
+        print(f"✅ 学生 {student.name} 补分 +{points}，本课总分 {total_score}")
+        return jsonify({
+            'success': True,
+            'message': f'{student.name} 已补 +{points} 分',
+            'points_added': points,
+            'score': total_score,
+            'student_id': student.id,
+            'student_name': student.name
+        })
+    except Exception as e:
+        print(f"❌ 补分失败: {str(e)}")
+        traceback.print_exc()
+        db.session.rollback()
+        return jsonify({'success': False, 'message': f'补分失败: {str(e)}'}), 500
 
 # 创建课程
 @app.route('/api/create_course', methods=['POST'])
