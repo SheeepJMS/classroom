@@ -456,6 +456,36 @@ def expire_stale_class_competition_goals():
 
 # ==================== 初始化数据库 ====================
 
+def ensure_schema_columns():
+    """逐条独立事务补齐缺失列，避免一条失败导致整批回滚（线上 race_reset_at 曾因此未加上）。"""
+    from sqlalchemy import text
+    alters = [
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS guess_count INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS copy_count INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS noisy_count INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0",
+        "ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_one_on_one BOOLEAN DEFAULT FALSE",
+        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS slug VARCHAR(80)",
+        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_month INTEGER",
+        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_day INTEGER",
+        "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_end_day INTEGER",
+        "ALTER TABLE classes ADD COLUMN IF NOT EXISTS competition_goal_effective_until DATE",
+        "ALTER TABLE classes ADD COLUMN IF NOT EXISTS race_reset_at TIMESTAMP",
+    ]
+    for sql in alters:
+        try:
+            with db.engine.begin() as conn:
+                conn.execute(text(sql))
+        except Exception as e:
+            try:
+                bare = sql.replace(" IF NOT EXISTS", "")
+                with db.engine.begin() as conn:
+                    conn.execute(text(bare))
+            except Exception as e2:
+                print(f"⚠️ schema alter skip: {e2}")
+
+
 def init_database():
     """初始化数据库表"""
     try:
@@ -463,10 +493,12 @@ def init_database():
             db.create_all()
             print("✅ 数据库表创建成功")
             
-            # 尝试添加新字段到已存在的 student_submissions 表
+            # 尝试添加新字段到已存在的表（独立事务，避免整批回滚）
             try:
+                ensure_schema_columns()
+                print("✅ 数据库字段检查/添加完成")
                 from sqlalchemy import text
-                # 检查字段是否存在并添加
+                # 索引仍用独立 begin；旧 connect 批量逻辑保留为兼容
                 conn = None
                 try:
                     conn = db.engine.connect()
@@ -606,6 +638,11 @@ def shutdown_session(exception=None):
 def index():
     """首页"""
     try:
+        # 部署后若缺列，先补齐再查表，避免 race_reset_at 缺失导致首页挂掉
+        try:
+            ensure_schema_columns()
+        except Exception as schema_err:
+            print(f"⚠️ 首页 schema 检查: {schema_err}")
         expire_stale_class_competition_goals()
         # 获取所有活跃班级
         classes = Class.query.filter_by(is_active=True).order_by(Class.created_date.desc()).all()
@@ -1599,6 +1636,17 @@ def end_class(class_id):
 
 
 # 重置 Class Progress Race 总计榜（不清历史课堂记录，仅从此时起重新累计）
+@app.route('/api/ensure_schema', methods=['POST', 'GET'])
+def api_ensure_schema():
+    """手动触发补齐缺失数据库列（紧急修复用）"""
+    try:
+        ensure_schema_columns()
+        return jsonify({'success': True, 'message': 'schema 检查完成（含 race_reset_at）'})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 @app.route('/api/reset_class_race/<class_id>', methods=['POST'])
 def reset_class_race(class_id):
     """重置班级总计榜分数起点并重新计算"""
