@@ -596,12 +596,25 @@ function updateStudentsDisplay(keepStates = false) {
         }
     } else {
         console.log('Updating existing student cards');
-        // 如果有现有卡片，只更新统计数据，不重新创建卡片
-        // 先隐藏所有被标记为隐藏的学生卡片
-        
+        const visibleStudents = getVisibleStudents();
+        const visibleNames = new Set(visibleStudents.map(s => s.name));
+
+        // 移除已请假或不在可见列表中的主区卡片（否则请假后仍留在课堂区）
+        studentsGrid.querySelectorAll('.student-card').forEach(card => {
+            const name = card.getAttribute('data-student');
+            if (!visibleNames.has(name)) {
+                card.remove();
+            }
+        });
+
         // 只处理可见学生
-        getVisibleStudents().forEach(student => {
-            const studentCard = document.querySelector(`[data-student="${student.name}"]`);
+        visibleStudents.forEach(student => {
+            let studentCard = null;
+            studentsGrid.querySelectorAll('.student-card').forEach(card => {
+                if (card.getAttribute('data-student') === student.name) {
+                    studentCard = card;
+                }
+            });
             if (studentCard) {
                 // 确保可见学生的卡片是显示的
                 studentCard.style.display = '';
@@ -707,6 +720,12 @@ function updateStudentsDisplay(keepStates = false) {
                 studentsGrid.appendChild(studentCard);
             }
         });
+
+        // 更新学生计数
+        const studentCountElement = document.getElementById('studentCount');
+        if (studentCountElement) {
+            studentCountElement.textContent = visibleStudents.length;
+        }
     }
 }
 
@@ -1807,10 +1826,17 @@ function updateAbsentStudentsDisplay() {
         absentStudentCount.textContent = absentStudents.length;
     }
     
-    // 如果有请假学生，显示区域
+    // 如果有请假学生，显示区域并展开内容，方便课堂中即时看到
     if (absentStudentsArea) {
         if (absentStudents.length > 0) {
             absentStudentsArea.style.display = 'block';
+            const content = document.getElementById('absentStudentsContent');
+            const icon = document.getElementById('absentStudentsToggleIcon');
+            if (content) content.style.display = 'block';
+            if (icon) {
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
         } else {
             absentStudentsArea.style.display = 'none';
         }
