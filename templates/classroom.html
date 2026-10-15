@@ -391,7 +391,19 @@ document.addEventListener('DOMContentLoaded', function() {
     } else {
         console.error('找不到BINGO按钮！');
     }
-    
+
+    // 在顶部 Correct Answer 输入框按 Enter，等同于点击 BINGO 按钮
+    const correctAnswerField = document.getElementById('correctAnswerTextInput');
+    if (correctAnswerField) {
+        correctAnswerField.addEventListener('keydown', function(e) {
+            // 输入法选字时的回车（isComposing）不触发；按住不放（repeat）也不重复触发
+            if (e.key === 'Enter' && !e.isComposing && !e.repeat) {
+                e.preventDefault();
+                judgeAnswers();
+            }
+        });
+    }
+
     document.getElementById('nextRoundBtn').addEventListener('click', nextRound);
     document.getElementById('resetBtn').addEventListener('click', resetClassroom);
     document.getElementById('endClassBtn').addEventListener('click', endClass);
