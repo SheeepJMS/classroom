@@ -2076,8 +2076,8 @@ def add_bonus_points():
         except (TypeError, ValueError):
             return jsonify({'success': False, 'message': '补分必须是整数'}), 400
 
-        if points <= 0:
-            return jsonify({'success': False, 'message': '补分须为正整数'}), 400
+        if points == 0:
+            return jsonify({'success': False, 'message': '调整分数不能为 0，正数补分，负数扣分'}), 400
         if not course_id:
             return jsonify({'success': False, 'message': '缺少课程ID'}), 400
 
@@ -2118,10 +2118,11 @@ def add_bonus_points():
         db.session.commit()
 
         total_score, _, _ = _student_course_score(student.id, course_id)
-        print(f"✅ 学生 {student.name} 补分 +{points}，本课总分 {total_score}")
+        sign = '+' if points > 0 else ''
+        print(f"✅ 学生 {student.name} 调分 {sign}{points}，本课总分 {total_score}")
         return jsonify({
             'success': True,
-            'message': f'{student.name} 已补 +{points} 分',
+            'message': f'{student.name} 已调整 {sign}{points} 分',
             'points_added': points,
             'score': total_score,
             'student_id': student.id,
@@ -2255,12 +2256,21 @@ def start_class():
     try:
         data = request.get_json()
         class_id = data.get('class_id') or request.headers.get('X-Class-ID')
+        course_id = data.get('course_id')
         
-        if not class_id:
+        if not class_id and not course_id:
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
         
-        # 获取活跃课程
-        course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        course = None
+        if course_id:
+            course = Course.query.filter_by(id=course_id).first()
+            if course and not course.is_active:
+                Course.query.filter_by(class_id=course.class_id, is_active=True).update({'is_active': False, 'ended_at': datetime.utcnow()})
+                course.is_active = True
+                course.ended_at = None
+                db.session.commit()
+        if not course and class_id:
+            course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         if not course:
             return jsonify({'success': False, 'message': '没有活跃的课程'}), 400
         
@@ -2277,24 +2287,22 @@ def start_class():
 def get_classroom_data():
     """获取课堂数据"""
     try:
+        referer = request.headers.get('Referer', '')
+        course = None
         class_id = request.headers.get('X-Class-ID')
-        if not class_id:
-            referer = request.headers.get('Referer', '')
-            # 支持从 /classroom/ 或 /course/ URL 中提取 class_id
-            if '/classroom/' in referer:
-                class_id = referer.split('/classroom/')[-1].split('?')[0].split('#')[0]
-            elif '/course/' in referer:
-                # 从 course_id 获取对应的 class_id
-                course_id_from_url = referer.split('/course/')[-1].split('?')[0].split('#')[0]
-                course = Course.query.filter_by(id=course_id_from_url).first()
-                if course:
-                    class_id = course.class_id
+        if '/course/' in referer:
+            course_id_from_url = referer.split('/course/')[-1].split('?')[0].split('#')[0]
+            course = Course.query.filter_by(id=course_id_from_url).first()
+            if course:
+                class_id = course.class_id
+        if not class_id and '/classroom/' in referer:
+            class_id = referer.split('/classroom/')[-1].split('?')[0].split('#')[0]
         
         if not class_id:
             return jsonify({'success': False, 'message': '班级ID不能为空'}), 400
         
-        # 获取课程
-        course = Course.query.filter_by(class_id=class_id, is_active=True).first()
+        if not course:
+            course = Course.query.filter_by(class_id=class_id, is_active=True).first()
         
         # 获取活跃学生（用于答题）
         active_students = Student.query.filter_by(class_id=class_id, status='active').all()

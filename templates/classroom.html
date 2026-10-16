@@ -159,6 +159,225 @@ console.log('JavaScript file loaded');
 let classroomData = {};
 let timerInterval = null;
 let startTime = null;
+let judgingLock = false;
+const CLASSROOM_SESSION_KEY = 'classroom_live_{{ course_id }}';
+
+function formatAnswerTime(seconds, hasSubmission) {
+    const raw = Number(seconds) || 0;
+    if (!hasSubmission || raw < 0) return '0';
+    const total = Math.max(0, Math.round(raw));
+    const minutes = Math.floor(total / 60);
+    const secs = total % 60;
+    if (minutes > 0) return minutes + 'm ' + secs + 's';
+    return secs + 's';
+}
+
+function studentHasSubmission(student) {
+    return !!String((student && student.last_answer) || '').trim();
+}
+
+function updateStudentStatValues(student) {
+    if (!student) return;
+    const statsDiv = document.getElementById('stats-' + student.name);
+    if (!statsDiv) return;
+    statsDiv.style.display = 'flex';
+    statsDiv.style.visibility = 'visible';
+    const scoreElement = statsDiv.querySelector('.stat-score') || statsDiv.querySelector('.stat-item:nth-child(1) .stat-value');
+    const timeElement = statsDiv.querySelector('.stat-time') || statsDiv.querySelector('.stat-item:nth-child(2) .stat-value');
+    const accElement = statsDiv.querySelector('.stat-acc') || statsDiv.querySelector('.stat-item:nth-child(3) .stat-value');
+    const answerElement = statsDiv.querySelector('.stat-answer') || statsDiv.querySelector('.stat-item:nth-child(4) .stat-value');
+    const timeLabel = statsDiv.querySelector('.stat-item:nth-child(2) .stat-label');
+    if (timeLabel) timeLabel.textContent = 'Time';
+    if (scoreElement) scoreElement.textContent = student.score;
+    if (timeElement) timeElement.textContent = formatAnswerTime(student.last_answer_time, studentHasSubmission(student));
+    if (accElement) {
+        const accValue = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
+        accElement.textContent = accValue + '%';
+    }
+    if (answerElement) answerElement.textContent = student.last_answer || '-';
+}
+
+function saveClassroomSession() {
+    try {
+        const drafts = {};
+        document.querySelectorAll('.student-answer-input').forEach(function(input) {
+            const name = input.getAttribute('data-student');
+            if (name) drafts[name] = input.value || '';
+        });
+        const scoreEl = document.getElementById('questionScore');
+        const correctDraft = document.getElementById('correctAnswerTextInput');
+        const payload = {
+            course_id: '{{ course_id }}',
+            phase: classroomData.phase || 'idle',
+            round_active: !!classroomData.round_active,
+            current_round: classroomData.current_round,
+            question_score: scoreEl ? (parseInt(scoreEl.textContent, 10) || 1) : 1,
+            start_time: startTime,
+            stopped_elapsed: classroomData.stopped_elapsed || 0,
+            correct_answer: classroomData.revealed_answer || '',
+            correct_answer_draft: correctDraft ? (correctDraft.value || '') : '',
+            students: classroomData.students || {},
+            answer_drafts: drafts
+        };
+        sessionStorage.setItem(CLASSROOM_SESSION_KEY, JSON.stringify(payload));
+    } catch (err) {
+        console.warn('课堂缓存保存失败', err);
+    }
+}
+
+function loadClassroomSession() {
+    try {
+        const raw = sessionStorage.getItem(CLASSROOM_SESSION_KEY);
+        if (!raw) return null;
+        const data = JSON.parse(raw);
+        if (!data || String(data.course_id) !== '{{ course_id }}') return null;
+        return data;
+    } catch (err) {
+        return null;
+    }
+}
+
+function clearClassroomSession() {
+    try {
+        sessionStorage.removeItem(CLASSROOM_SESSION_KEY);
+    } catch (err) {}
+}
+
+function mergeClassroomSession(session) {
+    if (!session) return null;
+    classroomData.phase = session.phase || 'idle';
+    classroomData.round_active = !!session.round_active;
+    if (session.current_round) classroomData.current_round = session.current_round;
+    classroomData.revealed_answer = session.correct_answer || '';
+    classroomData.stopped_elapsed = session.stopped_elapsed || 0;
+    if (session.students && classroomData.students) {
+        Object.keys(classroomData.students).forEach(function(name) {
+            const cached = session.students[name];
+            if (!cached) return;
+            if (cached.expression) classroomData.students[name].expression = cached.expression;
+            if (cached.animation) classroomData.students[name].animation = cached.animation;
+            classroomData.students[name].last_answer = cached.last_answer || '';
+            classroomData.students[name].last_answer_time = cached.last_answer_time || 0;
+        });
+    }
+    return session;
+}
+
+function applyClassroomSession(session) {
+    if (!session) return;
+    const scoreEl = document.getElementById('questionScore');
+    if (scoreEl && session.question_score) scoreEl.textContent = String(session.question_score);
+
+    const phase = session.phase || 'idle';
+    const startBtn = document.getElementById('startBtn');
+    const bingoBtn = document.getElementById('bingoBtn');
+    const correctAnswerInput = document.getElementById('correctAnswerInput');
+    const correctAnswerTextInput = document.getElementById('correctAnswerTextInput');
+    const nextRoundBtn = document.getElementById('nextRoundBtn');
+    const correctAnswerDisplay = document.getElementById('correctAnswerDisplay');
+    const progressStatsDisplay = document.getElementById('progressStatsDisplay');
+    const scoreMinusBtn = document.getElementById('scoreMinusBtn');
+    const scorePlusBtn = document.getElementById('scorePlusBtn');
+    const timerDisplay = document.getElementById('timerDisplay');
+
+    if (phase === 'answering') {
+        if (startBtn) startBtn.style.display = 'none';
+        if (bingoBtn) {
+            bingoBtn.style.display = 'inline-block';
+            bingoBtn.style.visibility = 'visible';
+        }
+        if (correctAnswerInput) {
+            correctAnswerInput.style.display = 'flex';
+            correctAnswerInput.style.visibility = 'visible';
+        }
+        if (correctAnswerTextInput) correctAnswerTextInput.value = session.correct_answer_draft || '';
+        if (nextRoundBtn) nextRoundBtn.style.display = 'none';
+        if (correctAnswerDisplay) correctAnswerDisplay.style.display = 'none';
+        if (progressStatsDisplay) progressStatsDisplay.style.display = 'none';
+        if (scoreMinusBtn) scoreMinusBtn.disabled = true;
+        if (scorePlusBtn) scorePlusBtn.disabled = true;
+        startTime = session.start_time || Date.now();
+        startTimer();
+        const drafts = session.answer_drafts || {};
+        getVisibleStudents().forEach(function(student) {
+            if (student.expression !== 'submitted') {
+                student.expression = 'focused';
+            }
+            const inputGroup = document.getElementById('input-group-' + student.name);
+            const submittedDiv = document.getElementById('submitted-' + student.name);
+            const submittedTimeDiv = document.getElementById('submitted-time-' + student.name);
+            const resultDiv = document.getElementById('result-' + student.name);
+            const answerInput = document.querySelector('[data-student="' + student.name + '"].student-answer-input');
+            if (student.expression === 'submitted') {
+                if (inputGroup) inputGroup.style.display = 'none';
+                if (submittedDiv) submittedDiv.style.display = 'block';
+                if (submittedTimeDiv) submittedTimeDiv.textContent = ' (' + formatAnswerTime(student.last_answer_time, true) + ')';
+                if (resultDiv) resultDiv.style.display = 'none';
+            } else {
+                if (inputGroup) inputGroup.style.display = 'flex';
+                if (submittedDiv) submittedDiv.style.display = 'none';
+                if (resultDiv) resultDiv.style.display = 'none';
+                if (answerInput && drafts[student.name]) answerInput.value = drafts[student.name];
+            }
+            updateStudentExpression(student.name, student.expression);
+            updateStudentStatValues(student);
+        });
+    } else if (phase === 'judged') {
+        if (startBtn) startBtn.style.display = 'none';
+        if (bingoBtn) {
+            bingoBtn.style.display = 'none';
+            bingoBtn.style.visibility = 'hidden';
+        }
+        if (correctAnswerInput) {
+            correctAnswerInput.style.display = 'none';
+            correctAnswerInput.style.visibility = 'hidden';
+        }
+        if (nextRoundBtn) {
+            nextRoundBtn.style.display = 'inline-block';
+            nextRoundBtn.style.visibility = 'visible';
+        }
+        if (scoreMinusBtn) scoreMinusBtn.disabled = true;
+        if (scorePlusBtn) scorePlusBtn.disabled = true;
+        const elapsed = session.stopped_elapsed || 0;
+        if (timerDisplay) {
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+            timerDisplay.textContent = String(minutes).padStart(2, '0') + ':' + String(seconds).padStart(2, '0');
+        }
+        if (session.correct_answer) showCorrectAnswer(session.correct_answer);
+        if (progressStatsDisplay) {
+            progressStatsDisplay.style.display = 'flex';
+            progressStatsDisplay.style.visibility = 'visible';
+        }
+        showAnswerResults(session.correct_answer || '');
+        updateProgressBars();
+    } else {
+        getVisibleStudents().forEach(function(student) {
+            updateStudentStatValues(student);
+        });
+    }
+    updateRoundStatus();
+}
+
+let sessionSaveTimer = null;
+function scheduleClassroomSessionSave() {
+    clearTimeout(sessionSaveTimer);
+    sessionSaveTimer = setTimeout(saveClassroomSession, 200);
+}
+
+document.addEventListener('input', function(e) {
+    const target = e.target;
+    if (!target) return;
+    if (target.id === 'correctAnswerTextInput' || (target.classList && target.classList.contains('student-answer-input'))) {
+        scheduleClassroomSessionSave();
+    }
+});
+
+window.addEventListener('beforeunload', function() {
+    if (classroomData && classroomData.phase && classroomData.phase !== 'idle') {
+        saveClassroomSession();
+    }
+});
 
 // 初始化
 document.addEventListener('DOMContentLoaded', function() {
@@ -263,9 +482,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.log('更新学生计数为:', visibleStudents.length);
             }
             
-            updateStudentsDisplay();
+            const liveSession = mergeClassroomSession(loadClassroomSession());
+            updateStudentsDisplay(!!liveSession);
             updateAbsentStudentsDisplay();
             updateRoundStatus();
+            if (liveSession) applyClassroomSession(liveSession);
         })
         .catch(error => {
             console.error('Error loading classroom data:', error);
@@ -345,9 +566,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 classroomData.absent_students = {};
             }
             
-            updateStudentsDisplay();
+            const liveSession = mergeClassroomSession(loadClassroomSession());
+            updateStudentsDisplay(!!liveSession);
             updateAbsentStudentsDisplay();
             updateRoundStatus();
+            if (liveSession) applyClassroomSession(liveSession);
         });
     
     // 绑定事件
@@ -390,6 +613,16 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log('BINGO按钮事件绑定成功');
     } else {
         console.error('找不到BINGO按钮！');
+    }
+
+    const correctAnswerTextInput = document.getElementById('correctAnswerTextInput');
+    if (correctAnswerTextInput) {
+        correctAnswerTextInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.repeat) {
+                e.preventDefault();
+                judgeAnswers();
+            }
+        });
     }
     
     document.getElementById('nextRoundBtn').addEventListener('click', nextRound);
@@ -636,70 +869,29 @@ function updateStudentsDisplay(keepStates = false) {
                     statsDiv = document.createElement('div');
                     statsDiv.className = 'student-stats';
                     statsDiv.id = `stats-${student.name}`;
-                    statsDiv.style.display = 'none';
                     statsDiv.innerHTML = `
                         <div class="stat-item">
                             <span class="stat-label">Score</span>
-                            <span class="stat-value">${student.score}</span>
+                            <span class="stat-value stat-score">${student.score}</span>
                         </div>
                         <div class="stat-item">
-                            <span class="stat-label">Rounds</span>
-                            <span class="stat-value">${student.total_rounds || 0}</span>
+                            <span class="stat-label">Time</span>
+                            <span class="stat-value stat-time">${formatAnswerTime(student.last_answer_time, studentHasSubmission(student))}</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Acc</span>
-                            <span class="stat-value">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
+                            <span class="stat-value stat-acc">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Answer</span>
-                            <span class="stat-value">${student.last_answer || '-'}</span>
+                            <span class="stat-value stat-answer">${student.last_answer || '-'}</span>
                         </div>
                     `;
                     studentCard.appendChild(statsDiv);
                     console.log(`学生 ${student.name} 的stats元素已创建`);
                 }
                 
-                // 更新统计数据
-                const scoreElement = statsDiv.querySelector('.stat-item:nth-child(1) .stat-value');
-                const roundsElement = statsDiv.querySelector('.stat-item:nth-child(2) .stat-value');
-                const accElement = statsDiv.querySelector('.stat-item:nth-child(3) .stat-value');
-                const lastElement = statsDiv.querySelector('.stat-item:nth-child(4) .stat-value');
-                
-                console.log(`更新学生 ${student.name} 的统计数据:`, {
-                    score: student.score,
-                    total_rounds: student.total_rounds,
-                    correct_rounds: student.correct_rounds,
-                    last_answer: student.last_answer,
-                    expression: student.expression
-                });
-                
-                if (scoreElement) {
-                    scoreElement.textContent = student.score;
-                    console.log(`学生 ${student.name} Score更新为:`, student.score);
-                }
-                if (roundsElement) {
-                    roundsElement.textContent = student.total_rounds || 0;
-                    console.log(`学生 ${student.name} Rounds更新为:`, student.total_rounds || 0);
-                }
-                if (accElement) {
-                    const accValue = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
-                    accElement.textContent = accValue + '%';
-                    console.log(`学生 ${student.name} Acc更新为:`, accValue + '%');
-                }
-                if (lastElement) {
-                    lastElement.textContent = student.last_answer || '-';
-                    console.log(`学生 ${student.name} Answer更新为:`, student.last_answer || '-');
-                }
-                
-                // 只有在答题环节（round_active为true）时，才隐藏统计数据
-                // BINGO后（round_active为false）应该显示统计数据，所以不隐藏
-                if (classroomData.round_active) {
-                    // 答题环节：隐藏统计数据
-                    statsDiv.style.display = 'none';
-                    statsDiv.style.visibility = 'hidden';
-                }
-                // round_active为false时（BINGO后），不修改统计数据的显示状态
-                // 让showAnswerResults函数来控制显示
+                updateStudentStatValues(student);
                 
                 // 更新表情
                 updateStudentExpression(student.name, student.expression);
@@ -779,6 +971,7 @@ function createStudentCard(student) {
             </button>
             <div class="student-menu-dropdown">
                 <button type="button" class="student-menu-item" onclick="addBonusPoints('${studentIdAttr}', '${safeName}')">补分</button>
+                <button type="button" class="student-menu-item" onclick="markPunishment('${safeName}')">Punishment</button>
                 <button type="button" class="student-menu-item danger" onclick="markClassroomAbsent('${studentIdAttr}', '${safeName}')">请假</button>
             </div>
         </div>
@@ -801,28 +994,22 @@ function createStudentCard(student) {
         <div class="student-result" id="result-${student.name}" style="display: none;">
             <span class="result-text"></span>
         </div>
-        <div class="student-behavior-buttons" id="behavior-buttons-${student.name}" style="display: none; flex-direction: row; gap: 3px; margin-top: 10px; flex-wrap: nowrap; justify-content: center;">
-            <button type="button" class="btn btn-sm punishment-btn" style="flex: 1; background-color: #546e7a; color: white; border: none; padding: 6px 10px; font-size: 11px; white-space: nowrap;" onclick="markPunishment('${student.name}')" title="本轮扣3分，不影响继续作答">
-                Punishment
-            </button>
-        </div>
-        <!-- BINGO后：显示统计数据 -->
-        <div class="student-stats" id="stats-${student.name}" style="display: none !important;">
+        <div class="student-stats" id="stats-${student.name}">
             <div class="stat-item">
                 <span class="stat-label">Score</span>
-                <span class="stat-value">${student.score}</span>
+                <span class="stat-value stat-score">${student.score}</span>
             </div>
             <div class="stat-item">
-                <span class="stat-label">Rounds</span>
-                <span class="stat-value">${student.total_rounds || 0}</span>
+                <span class="stat-label">Time</span>
+                <span class="stat-value stat-time">${formatAnswerTime(student.last_answer_time, studentHasSubmission(student))}</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Acc</span>
-                <span class="stat-value">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
+                <span class="stat-value stat-acc">${student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0}%</span>
             </div>
             <div class="stat-item">
                 <span class="stat-label">Answer</span>
-                <span class="stat-value">${student.last_answer || '-'}</span>
+                <span class="stat-value stat-answer">${student.last_answer || '-'}</span>
             </div>
         </div>
         <div class="student-status" id="status-${student.name}"></div>
@@ -880,9 +1067,12 @@ function submitStudentAnswer(studentName, answer) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
-            // 更新学生表情为submitted
+            // 更新学生表情、答案和耗时
             if (classroomData.students[studentName]) {
                 classroomData.students[studentName].expression = 'submitted';
+                classroomData.students[studentName].last_answer = answer;
+                classroomData.students[studentName].last_answer_time = answerTime;
+                updateStudentStatValues(classroomData.students[studentName]);
             }
             
             // 隐藏输入栏和按钮，显示Submitted和时间
@@ -897,18 +1087,12 @@ function submitStudentAnswer(studentName, answer) {
                 submittedDiv.style.display = 'block';
             }
             
-            // 显示答题时间 - 直接使用前端计算的时间
             if (submittedTimeDiv) {
-                submittedTimeDiv.textContent = ` (${Math.round(answerTime)}s)`;
+                submittedTimeDiv.textContent = ' (' + formatAnswerTime(answerTime, true) + ')';
             }
             
-            // 更新本地学生数据中的答题时间
-            if (classroomData.students[studentName]) {
-                classroomData.students[studentName].last_answer_time = answerTime;
-            }
-            
-            // 只更新表情，不重新创建整个卡片
             updateStudentExpression(studentName, 'submitted');
+            saveClassroomSession();
         } else {
             alert(data.message || 'Failed to submit answer');
         }
@@ -955,23 +1139,13 @@ function startClass() {
         console.log('正确答案输入框已显示');
     }
     
-    // 显示行为按钮，隐藏统计数据 - 立即执行，确保在答题环节开始前就隐藏
-    // 隐藏删除按钮（答题进行中不能删除）
+    // 答题中保留底部四项数据，Punishment 收进右上角菜单
     getVisibleStudents().forEach(student => {
-        const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
-        const statsDiv = document.getElementById(`stats-${student.name}`);
         const deleteBtn = document.querySelector(`[data-student="${student.name}"].delete-student-btn`);
-        if (behaviorButtons) {
-            behaviorButtons.style.display = 'flex';
-        }
-        if (statsDiv) {
-            statsDiv.style.display = 'none';
-            statsDiv.style.visibility = 'hidden';
-        }
-        // 隐藏删除按钮（答题进行中不能删除）
         if (deleteBtn) {
             deleteBtn.style.display = 'none';
         }
+        updateStudentStatValues(student);
     });
     
     // 禁用分数调整按钮
@@ -980,8 +1154,8 @@ function startClass() {
     if (scoreMinusBtn) scoreMinusBtn.disabled = true;
     if (scorePlusBtn) scorePlusBtn.disabled = true;
     
-    // 发送请求 - 先创建课程，然后开始答题
-    fetch('/api/start_course', {
+    // 当前页面已经在一门课里，开始答题时沿用这门课，避免刷新后读到另一门空课
+    fetch('/api/start_class', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -989,32 +1163,8 @@ function startClass() {
         },
         body: JSON.stringify({
             class_id: '{{ class_obj.id }}',
-            course_name: '课堂 ' + new Date().toLocaleString('zh-CN')
+            course_id: '{{ course_id }}'
         })
-    })
-    .then(response => {
-        console.log('创建课程响应:', response.status);
-        return response.json();
-    })
-    .then(data => {
-        console.log('创建课程数据:', data);
-        if (data.success) {
-            console.log('课程创建成功，现在开始答题');
-            
-            // 开始答题
-            return fetch('/api/start_class', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-Class-ID': '{{ class_obj.id }}'
-                },
-                body: JSON.stringify({
-                    class_id: '{{ class_obj.id }}'
-                })
-            });
-        } else {
-            throw new Error(data.message || '创建课程失败');
-        }
     })
     .then(response => {
         console.log('开始答题响应:', response.status);
@@ -1024,34 +1174,31 @@ function startClass() {
         console.log('开始答题数据:', data);
         if (data.success) {
             console.log('答题开始成功');
-            // 简单的状态更新
             classroomData.round_active = true;
+            classroomData.phase = 'answering';
+            classroomData.revealed_answer = '';
+            classroomData.stopped_elapsed = 0;
             classroomData.start_time = Date.now();
             startTime = Date.now();
+            judgingLock = false;
+            getVisibleStudents().forEach(student => {
+                student.last_answer = '';
+                student.last_answer_time = 0;
+                student.expression = 'focused';
+                updateStudentStatValues(student);
+            });
             
-            // 开始计时
             startTimer();
+            syncAnsweringChrome();
+            saveClassroomSession();
             console.log('计时器已启动');
             
-            // 改变所有学生表情为专注状态
             setTimeout(() => {
-                console.log('准备调用changeAllStudentsToFocused，当前classroomData:', classroomData);
-                console.log('学生数据:', classroomData.students);
                 changeAllStudentsToFocused();
-                console.log('学生表情已更新为专注状态');
-                
-                // 再次确保统计数据隐藏（防止在异步操作后统计数据被重新显示）
                 getVisibleStudents().forEach(student => {
-                    const statsDiv = document.getElementById(`stats-${student.name}`);
-                    const behaviorButtons = document.getElementById(`behavior-buttons-${student.name}`);
-                    if (statsDiv) {
-                        statsDiv.style.display = 'none';
-                        statsDiv.style.visibility = 'hidden';
-                    }
-                    if (behaviorButtons) {
-                        behaviorButtons.style.display = 'flex';
-                    }
+                    updateStudentStatValues(student);
                 });
+                saveClassroomSession();
             }, 100);
         } else {
             throw new Error(data.message || '开始答题失败');
@@ -1086,9 +1233,28 @@ function stopTimer() {
     }
 }
 
+function reopenBingoInput() {
+    judgingLock = false;
+    if (classroomData.phase === 'judged') return;
+    classroomData.round_active = true;
+    const bingoBtn = document.getElementById('bingoBtn');
+    const correctAnswerInput = document.getElementById('correctAnswerInput');
+    if (bingoBtn) {
+        bingoBtn.style.display = 'inline-block';
+        bingoBtn.style.visibility = 'visible';
+    }
+    if (correctAnswerInput) {
+        correctAnswerInput.style.display = 'flex';
+        correctAnswerInput.style.visibility = 'visible';
+    }
+    if (startTime) startTimer();
+    syncAnsweringChrome();
+}
+
 // 评判答案
     function judgeAnswers() {
         console.log('=== judgeAnswers函数开始执行 ===');
+        if (judgingLock || !classroomData.round_active) return;
         
         try {
             const correctAnswer = document.getElementById('correctAnswerTextInput').value.trim();
@@ -1100,6 +1266,10 @@ function stopTimer() {
             if (!correctAnswer) {
                 alert('Please enter correct answer');
                 return;
+            }
+            judgingLock = true;
+            if (startTime) {
+                classroomData.stopped_elapsed = Math.floor((Date.now() - startTime) / 1000);
             }
             
             // 立即隐藏BINGO按钮和输入框
@@ -1158,6 +1328,9 @@ function stopTimer() {
                         classroomData.absent_students = data.absent_students;
                     }
                     classroomData.round_active = false;
+                    classroomData.phase = 'judged';
+                    classroomData.revealed_answer = correctAnswer;
+                    judgingLock = false;
                     
                     // 不要更新当前轮次，评判完成后应该保持当前轮次不变
                     // 轮次只有在点击"Next Challenge"时才会改变
@@ -1171,12 +1344,13 @@ function stopTimer() {
                     // 先显示答题结果和统计数据（BINGO后必须显示）
                     showAnswerResults(correctAnswer);
                     
-                    // 然后更新学生显示（但不覆盖统计数据，因为round_active已经是false）
-                    updateStudentsDisplay(false);  // 不使用keepStates，强制更新
-                    updateAbsentStudentsDisplay(); // 更新请假学生显示
+                    // 然后更新学生显示（保留本轮表情和耗时）
+                    updateStudentsDisplay(true);
+                    updateAbsentStudentsDisplay();
                     
                     // 显示正确答案
                     showCorrectAnswer(correctAnswer);
+                    saveClassroomSession();
                     
                     // 确保BINGO按钮和输入框隐藏
                     console.log('后端响应后再次确保隐藏...');
@@ -1287,10 +1461,12 @@ function stopTimer() {
                 console.log('judgeAnswers执行完成');
             } else {
                 console.error('评判失败:', data.message);
+                reopenBingoInput();
                 alert(data.message || 'Failed to judge answers');
             }
         })
         .catch(error => {
+            reopenBingoInput();
             console.error('评判请求失败:', error);
             console.error('错误详情:', error.message);
             console.error('错误堆栈:', error.stack);
@@ -1299,6 +1475,7 @@ function stopTimer() {
             console.error('已捕获网络错误，不会显示弹窗');
         });
     } catch (error) {
+        reopenBingoInput();
         console.error('judgeAnswers函数内部错误:', error);
         console.error('错误详情:', error.message);
         console.error('错误堆栈:', error.stack);
@@ -1353,39 +1530,7 @@ function showAnswerResults(correctAnswer) {
             console.log(`学生 ${student.name} 的DOM结构:`, document.querySelector(`[data-student="${student.name}"]`));
             
             if (statsDiv) {
-                console.log(`学生 ${student.name} 的stats元素存在，当前display:`, statsDiv.style.display);
-                // 强制显示统计数据（BINGO后必须显示）
-                statsDiv.style.display = 'block';
-                statsDiv.style.visibility = 'visible';
-                console.log(`学生 ${student.name} 的统计数据已显示，新display:`, statsDiv.style.display);
-                
-                // 更新统计数据内容
-                const scoreElement = statsDiv.querySelector('.stat-item:nth-child(1) .stat-value');
-                const roundsElement = statsDiv.querySelector('.stat-item:nth-child(2) .stat-value');
-                const accElement = statsDiv.querySelector('.stat-item:nth-child(3) .stat-value');
-                const timeElement = statsDiv.querySelector('.stat-item:nth-child(4) .stat-value');
-                
-                console.log(`学生 ${student.name} 的统计元素:`, {
-                    scoreElement, roundsElement, accElement, timeElement
-                });
-                
-                if (scoreElement) {
-                    scoreElement.textContent = student.score;
-                    console.log(`学生 ${student.name} Score更新为:`, student.score);
-                }
-                if (roundsElement) {
-                    roundsElement.textContent = student.total_rounds || 0;
-                    console.log(`学生 ${student.name} Rounds更新为:`, student.total_rounds || 0);
-                }
-                if (accElement) {
-                    const accValue = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
-                    accElement.textContent = accValue + '%';
-                    console.log(`学生 ${student.name} Acc更新为:`, accValue + '%');
-                }
-                if (timeElement) {
-                    timeElement.textContent = student.last_answer || '-';
-                    console.log(`学生 ${student.name} Answer更新为:`, student.last_answer || '-');
-                }
+                updateStudentStatValues(student);
             } else {
                 console.error(`找不到学生 ${student.name} 的统计数据元素`);
                 console.log(`尝试查找学生 ${student.name} 的卡片:`, document.querySelector(`[data-student="${student.name}"]`));
@@ -1575,6 +1720,11 @@ function nextRound() {
             classroomData.students = data.students;
             classroomData.current_round = data.round;
             classroomData.round_active = false;
+            classroomData.phase = 'idle';
+            classroomData.revealed_answer = '';
+            classroomData.stopped_elapsed = 0;
+            startTime = null;
+            judgingLock = false;
             
             console.log('🔄 开始重置UI...');
             // 更新轮次显示
@@ -1646,9 +1796,8 @@ function nextRound() {
                 if (resultDiv) {
                     resultDiv.style.display = 'none';
                 }
-                // 隐藏统计数据，显示行为按钮
                 if (statsDiv) {
-                    statsDiv.style.display = 'none';
+                    updateStudentStatValues(student);
                 }
                 if (behaviorButtons) {
                     // 只在round_active为true时才显示按钮
@@ -1679,6 +1828,7 @@ function nextRound() {
                 });
             }, 100);
             updateRoundStatus();
+            saveClassroomSession();
             console.log('✅ next_round 流程完成！');
         }
     })
@@ -1716,12 +1866,19 @@ function updateRoundStatus() {
         
         // 更新删除按钮的显示状态
         updateDeleteButtonsVisibility();
+        syncAnsweringChrome();
         
         // 不要重新显示BINGO按钮，保持当前状态
         console.log('updateRoundStatus执行完成，不改变BINGO按钮状态');
     } catch (error) {
         console.error('updateRoundStatus错误:', error);
     }
+}
+
+function syncAnsweringChrome() {
+    const grid = document.getElementById('studentsGrid');
+    if (!grid) return;
+    grid.classList.toggle('is-answering', !!(classroomData && classroomData.round_active));
 }
 
 // 更新删除按钮的显示状态
@@ -1739,6 +1896,7 @@ function updateDeleteButtonsVisibility() {
 // 重置课堂
 function resetClassroom() {
     if (confirm('Are you sure you want to reset the classroom? This will clear all data.')) {
+        clearClassroomSession();
         fetch('/reset_classroom', {
             method: 'POST',
             headers: {
@@ -1772,10 +1930,12 @@ function changeScore(delta) {
     if (newScore > 10) newScore = 10;
     
     scoreElement.textContent = newScore;
+    saveClassroomSession();
 }
 
 // Punishment：每次扣3分，不锁界面、不改变作答状态
 function markPunishment(studentName) {
+    closeAllStudentMenus();
     if (!confirm('确定对该学生执行 Punishment？将扣 3 分，不影响继续作答。')) {
         return;
     }
@@ -1799,7 +1959,9 @@ function markPunishment(studentName) {
                 if (typeof cur === 'number' && !isNaN(cur)) {
                     classroomData.students[studentName].score = cur - 3;
                 }
+                updateStudentStatValues(classroomData.students[studentName]);
             }
+            saveClassroomSession();
             console.log('Punishment:', data.message, '累计扣分', data.penalty_score);
         } else {
             alert('操作失败：' + (data.message || '未知错误'));
@@ -1991,11 +2153,11 @@ function restoreClassroomActive(studentId, studentName) {
 
 function addBonusPoints(studentId, studentName) {
     closeAllStudentMenus();
-    const raw = prompt(`给 ${studentName} 补分，请输入正整数：`);
+    const raw = prompt(`给 ${studentName} 调整分数。正数为补分，负数为扣分：`);
     if (raw === null) return;
     const points = parseInt(String(raw).trim(), 10);
-    if (!points || points <= 0 || isNaN(points)) {
-        alert('请输入有效的正整数');
+    if (isNaN(points) || points === 0) {
+        alert('请输入非 0 的整数，正数补分，负数扣分');
         return;
     }
 
@@ -2020,15 +2182,9 @@ function addBonusPoints(studentId, studentName) {
         }
         if (classroomData.students && classroomData.students[studentName]) {
             classroomData.students[studentName].score = data.score;
-            const scoreEl = document.querySelector(`#stats-${studentName} .stat-value`);
-            // stats 区可能有多个 .stat-value，Score 是第一个
-            const stats = document.getElementById(`stats-${studentName}`);
-            if (stats) {
-                const values = stats.querySelectorAll('.stat-value');
-                if (values.length > 0) values[0].textContent = data.score;
-            }
+            updateStudentStatValues(classroomData.students[studentName]);
         }
-        // 轻提示即可
+        saveClassroomSession();
         console.log(data.message);
     })
     .catch(err => {
@@ -2044,7 +2200,7 @@ document.addEventListener('click', function() {
 // 课堂结束
 function endClass() {
     if (confirm('确定要结束课堂吗？将进入颁奖典礼！')) {
-        // 发送结束课程请求
+        clearClassroomSession();
         fetch('/api/end_course/{{ course_id }}', {
             method: 'POST',
             headers: {
