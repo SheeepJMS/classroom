@@ -712,7 +712,7 @@
                 {% set pct = (100.0 * score / max_score)|round(1) if max_score > 0 else 0 %}
                 {% if pct > 100 %}{% set pct = 100 %}{% endif %}
                 {% if pct < 0 %}{% set pct = 0 %}{% endif %}
-                {% set rank_num = loop.index + 4 %}
+                {% set rank_num = loop.index + 3 %}
                 <div class="race-row" data-percent="{{ pct }}">
                     <div class="race-rank rank-other">#{{ rank_num }}</div>
                     <div class="race-avatar">😊</div>
