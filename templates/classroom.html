@@ -1988,20 +1988,9 @@ function updateAbsentStudentsDisplay() {
         absentStudentCount.textContent = absentStudents.length;
     }
     
-    // 如果有请假学生，显示区域并展开内容，方便课堂中即时看到
+    // 有请假学生时只显示底部条，名单默认收起；刷新数据时不要重新展开
     if (absentStudentsArea) {
-        if (absentStudents.length > 0) {
-            absentStudentsArea.style.display = 'block';
-            const content = document.getElementById('absentStudentsContent');
-            const icon = document.getElementById('absentStudentsToggleIcon');
-            if (content) content.style.display = 'block';
-            if (icon) {
-                icon.classList.remove('fa-chevron-down');
-                icon.classList.add('fa-chevron-up');
-            }
-        } else {
-            absentStudentsArea.style.display = 'none';
-        }
+        absentStudentsArea.style.display = absentStudents.length > 0 ? 'block' : 'none';
     }
     
     // 清空并重新生成请假学生卡片
