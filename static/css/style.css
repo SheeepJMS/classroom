@@ -1116,6 +1116,11 @@ body.report-page .alert-success div {
     flex-shrink: 0;
 }
 
+/* 答题环节隐藏 Score / Time / Acc / Answer 四项数据，BINGO 公布后再显示，避免互相看到 */
+.students-grid.is-answering .student-stats {
+    display: none !important;
+}
+
 .stat-item {
     text-align: center;
     flex: 1;
