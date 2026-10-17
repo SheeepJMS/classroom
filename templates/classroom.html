@@ -172,6 +172,14 @@ function formatAnswerTime(seconds, hasSubmission) {
     return secs + 's';
 }
 
+// 答案只在老师点击 BINGO（phase === 'judged'）之后才对所有人显示，避免互相抄答案
+function displayedAnswer(student) {
+    if (classroomData && classroomData.phase === 'judged') {
+        return (student && student.last_answer) || '-';
+    }
+    return '-';
+}
+
 function studentHasSubmission(student) {
     return !!String((student && student.last_answer) || '').trim();
 }
@@ -194,7 +202,7 @@ function updateStudentStatValues(student) {
         const accValue = student.total_rounds ? Math.round((student.correct_rounds || 0) / student.total_rounds * 100) : 0;
         accElement.textContent = accValue + '%';
     }
-    if (answerElement) answerElement.textContent = student.last_answer || '-';
+    if (answerElement) answerElement.textContent = displayedAnswer(student);
 }
 
 function saveClassroomSession() {
@@ -884,7 +892,7 @@ function updateStudentsDisplay(keepStates = false) {
                         </div>
                         <div class="stat-item">
                             <span class="stat-label">Answer</span>
-                            <span class="stat-value stat-answer">${student.last_answer || '-'}</span>
+                            <span class="stat-value stat-answer">${displayedAnswer(student)}</span>
                         </div>
                     `;
                     studentCard.appendChild(statsDiv);
@@ -1009,7 +1017,7 @@ function createStudentCard(student) {
             </div>
             <div class="stat-item">
                 <span class="stat-label">Answer</span>
-                <span class="stat-value stat-answer">${student.last_answer || '-'}</span>
+                <span class="stat-value stat-answer">${displayedAnswer(student)}</span>
             </div>
         </div>
         <div class="student-status" id="status-${student.name}"></div>
