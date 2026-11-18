@@ -939,6 +939,84 @@ body.report-page .alert-success div {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     border: 3px solid rgba(255, 255, 255, 0.8);
     transition: all 0.3s ease;
+    position: relative;
+    overflow: visible;
+}
+
+/* 皇冠贴在头像上沿，占用卡片已有内边距，不增加卡片高度 */
+.avatar-crown {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translate(-50%, -58%);
+    font-size: 16px;
+    line-height: 1;
+    z-index: 3;
+    pointer-events: none;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.28));
+}
+
+/* 荣誉文字从表情下方开始，贴着头像下沿；第二行掉进头像和名字之间的原有空隙 */
+.avatar-honors {
+    position: absolute;
+    left: 50%;
+    top: 58px;
+    transform: translateX(-50%);
+    z-index: 4;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1px;
+    pointer-events: none;
+    line-height: 1;
+}
+
+.avatar-honor {
+    font-size: 9px;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    padding: 1px 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.16);
+}
+
+.avatar-honor-top {
+    color: #9a6700;
+}
+
+.avatar-honor-blood {
+    color: #111827;
+    font-style: italic;
+}
+
+/* 奖励分贴在头像右侧，不进入文档流，不改变卡片高度 */
+.avatar-bonuses {
+    position: absolute;
+    left: calc(100% - 2px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 5;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    pointer-events: none;
+}
+
+.avatar-bonus {
+    font-size: 10px;
+    font-weight: 800;
+    line-height: 1.1;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    color: #c2410c;
+    background: rgba(255, 247, 237, 0.95);
+    border-radius: 999px;
+    padding: 1px 5px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.14);
 }
 
 .student-avatar:hover {

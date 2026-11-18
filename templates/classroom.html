@@ -266,6 +266,8 @@ function mergeClassroomSession(session) {
             if (cached.animation) classroomData.students[name].animation = cached.animation;
             classroomData.students[name].last_answer = cached.last_answer || '';
             classroomData.students[name].last_answer_time = cached.last_answer_time || 0;
+            if (cached.speed_bonus) classroomData.students[name].speed_bonus = cached.speed_bonus;
+            if (cached.double_bonus) classroomData.students[name].double_bonus = cached.double_bonus;
         });
     }
     return session;
@@ -738,6 +740,129 @@ function resetStudentAnswerStates() {
     });
 }
 
+function emojiForExpression(expression) {
+    if (expression === 'smile') return '😊';
+    if (expression === 'angry') return '😢';
+    if (expression === 'embarrassed') return '😅';
+    if (expression === 'submitted') return '😜';
+    if (expression === 'focused') return '🤔';
+    return '😐';
+}
+
+function roundAnswerTime(value) {
+    const time = Number(value);
+    if (!Number.isFinite(time) || time < 0) return null;
+    return Math.round(time * 1000) / 1000;
+}
+
+// BINGO 后的临时荣誉：第一名皇冠和 Top 1，最快答对墨镜和 first blood。
+// 最快答对在头像右侧标 bonus +1，最后一名答对标 bonus x2。标记不改变卡片高度。
+function syncBingoHonors() {
+    const grid = document.getElementById('studentsGrid');
+    if (!grid) return;
+
+    const judged = !!(classroomData && classroomData.phase === 'judged');
+    const students = getVisibleStudents();
+    const topNames = new Set();
+    const bloodNames = new Set();
+    const speedNames = new Set();
+    const doubleNames = new Set();
+
+    if (judged && students.length) {
+        let maxScore = -Infinity;
+        students.forEach(function(student) {
+            const score = Number(student.score) || 0;
+            if (score > maxScore) maxScore = score;
+        });
+        if (maxScore > 0) {
+            students.forEach(function(student) {
+                if ((Number(student.score) || 0) === maxScore) topNames.add(student.name);
+            });
+        }
+
+        let bestTime = null;
+        const correctStudents = students.filter(function(student) {
+            return student.expression === 'smile' && studentHasSubmission(student) && roundAnswerTime(student.last_answer_time) !== null;
+        });
+        correctStudents.forEach(function(student) {
+            const time = roundAnswerTime(student.last_answer_time);
+            if (bestTime === null || time < bestTime) bestTime = time;
+        });
+        if (bestTime !== null) {
+            correctStudents.forEach(function(student) {
+                if (roundAnswerTime(student.last_answer_time) === bestTime) bloodNames.add(student.name);
+            });
+        }
+        students.forEach(function(student) {
+            if (Number(student.speed_bonus)) speedNames.add(student.name);
+            if (Number(student.double_bonus)) doubleNames.add(student.name);
+        });
+    }
+
+    grid.querySelectorAll('.student-card').forEach(function(card) {
+        const name = card.getAttribute('data-student');
+        const avatar = card.querySelector('.student-avatar');
+        const emojiElement = card.querySelector('.student-emoji');
+        if (!avatar) return;
+
+        const isTop = topNames.has(name);
+        const isBlood = bloodNames.has(name);
+        let crown = avatar.querySelector('.avatar-crown');
+        if (isTop) {
+            if (!crown) {
+                crown = document.createElement('span');
+                crown.className = 'avatar-crown';
+                crown.setAttribute('aria-hidden', 'true');
+                crown.textContent = '👑';
+                avatar.insertBefore(crown, avatar.firstChild);
+            }
+        } else if (crown) {
+            crown.remove();
+        }
+
+        let honors = avatar.querySelector('.avatar-honors');
+        if (isTop || isBlood) {
+            if (!honors) {
+                honors = document.createElement('span');
+                honors.className = 'avatar-honors';
+                avatar.appendChild(honors);
+            }
+            const labels = [];
+            if (isTop) labels.push('<span class="avatar-honor avatar-honor-top">Top 1</span>');
+            if (isBlood) labels.push('<span class="avatar-honor avatar-honor-blood">first blood</span>');
+            const html = labels.join('');
+            if (honors.innerHTML !== html) honors.innerHTML = html;
+        } else if (honors) {
+            honors.remove();
+        }
+
+        if (emojiElement && isBlood) {
+            emojiElement.textContent = '😎';
+        } else if (emojiElement && emojiElement.textContent === '😎') {
+            const student = students.find(function(item) { return item.name === name; });
+            emojiElement.textContent = emojiForExpression(student ? student.expression : '');
+        }
+
+        const isSpeed = speedNames.has(name);
+        const isDouble = doubleNames.has(name);
+        let bonuses = avatar.querySelector('.avatar-bonuses');
+        if (isSpeed || isDouble) {
+            if (!bonuses) {
+                bonuses = document.createElement('span');
+                bonuses.className = 'avatar-bonuses';
+                avatar.appendChild(bonuses);
+            }
+            const bonusLabels = [];
+            if (isSpeed) bonusLabels.push('<span class="avatar-bonus">bonus +1</span>');
+            if (isDouble) bonusLabels.push('<span class="avatar-bonus">bonus x2</span>');
+            const bonusHtml = bonusLabels.join('');
+            if (bonuses.innerHTML !== bonusHtml) bonuses.innerHTML = bonusHtml;
+        } else if (bonuses) {
+            bonuses.remove();
+        }
+    });
+}
+
 // 更新单个学生的表情和状态（不重新创建卡片）
 function updateStudentExpression(studentName, expression) {
     console.log(`Updating ${studentName} expression to ${expression}`);
@@ -747,20 +872,7 @@ function updateStudentExpression(studentName, expression) {
         const emojiElement = studentCard.querySelector('.student-emoji');
         console.log(`Emoji element for ${studentName}:`, emojiElement);
         if (emojiElement) {
-            let emoji = '😐';  // 默认面无表情
-            if (expression === 'smile') {
-                emoji = '😊';
-            } else if (expression === 'angry') {
-                emoji = '😢';
-            } else if (expression === 'embarrassed') {
-                emoji = '😅';
-            } else if (expression === 'neutral') {
-                emoji = '😐';
-            } else if (expression === 'submitted') {
-                emoji = '😜';  // 古灵精怪吐舌头扮鬼脸
-            } else if (expression === 'focused') {
-                emoji = '🤔';  // 专注思考的表情
-            }
+            const emoji = emojiForExpression(expression);
             console.log(`Setting emoji to ${emoji} for ${studentName}`);
             emojiElement.textContent = emoji;
         } else {
@@ -781,6 +893,7 @@ function updateStudentExpression(studentName, expression) {
             studentCard.classList.add('no-answer');
         }
     }
+    syncBingoHonors();
 }
 
 // 更新学生显示（不重置状态）
@@ -927,6 +1040,7 @@ function updateStudentsDisplay(keepStates = false) {
             studentCountElement.textContent = visibleStudents.length;
         }
     }
+    syncBingoHonors();
 }
 
 // 创建学生卡片
@@ -1566,6 +1680,7 @@ function showAnswerResults(correctAnswer) {
             }
         }
     });
+    syncBingoHonors();
 }
 
 // 显示正确答案
@@ -1968,6 +2083,7 @@ function markPunishment(studentName) {
                     classroomData.students[studentName].score = cur - 3;
                 }
                 updateStudentStatValues(classroomData.students[studentName]);
+                syncBingoHonors();
             }
             saveClassroomSession();
             console.log('Punishment:', data.message, '累计扣分', data.penalty_score);
@@ -2180,6 +2296,7 @@ function addBonusPoints(studentId, studentName) {
         if (classroomData.students && classroomData.students[studentName]) {
             classroomData.students[studentName].score = data.score;
             updateStudentStatValues(classroomData.students[studentName]);
+            syncBingoHonors();
         }
         saveClassroomSession();
         console.log(data.message);

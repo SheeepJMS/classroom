@@ -265,6 +265,8 @@ class StudentSubmission(db.Model):
     noisy_count = db.Column(db.Integer, default=0, nullable=True)  # 吵闹次数
     distracted_count = db.Column(db.Integer, default=0, nullable=True)  # 分心次数
     penalty_score = db.Column(db.Integer, default=0, nullable=True)  # 扣分总数
+    speed_bonus = db.Column(db.Integer, default=0, nullable=True)  # 本轮最快答对 +1
+    double_bonus = db.Column(db.Integer, default=0, nullable=True)  # 本轮最后一名答对，题分 x2
 
 class CourseAttendance(db.Model):
     """课程出勤模型"""
@@ -465,6 +467,8 @@ def ensure_schema_columns():
         "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS noisy_count INTEGER DEFAULT 0",
         "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0",
         "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS speed_bonus INTEGER DEFAULT 0",
+        "ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS double_bonus INTEGER DEFAULT 0",
         "ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_one_on_one BOOLEAN DEFAULT FALSE",
         "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS slug VARCHAR(80)",
         "ALTER TABLE competition_goals ADD COLUMN IF NOT EXISTS recur_month INTEGER",
@@ -512,6 +516,8 @@ def init_database():
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS distracted_count INTEGER DEFAULT 0"))
                     # 添加 penalty_score
                     conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS penalty_score INTEGER DEFAULT 0"))
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS speed_bonus INTEGER DEFAULT 0"))
+                    conn.execute(text("ALTER TABLE student_submissions ADD COLUMN IF NOT EXISTS double_bonus INTEGER DEFAULT 0"))
                     try:
                         conn.execute(text("ALTER TABLE courses ADD COLUMN IF NOT EXISTS is_one_on_one BOOLEAN DEFAULT FALSE"))
                     except Exception:
@@ -779,7 +785,7 @@ def class_management(class_id):
                     base = 0
                     if sub.is_correct:
                         base = rounds_dict.get((sub.course_id, sub.round_number), 1)
-                    delta = base - (sub.penalty_score or 0)
+                    delta = _submission_points(sub, base)
                     score_results[sub.student_id] = score_results.get(sub.student_id, 0) + delta
                 
                 # 查询缺席记录
@@ -980,7 +986,7 @@ def course_reports(course_id):
                     else:
                         base = 1
                     correct_rounds += 1
-                total_score += base - (sub.penalty_score or 0)
+                total_score += _submission_points(sub, base)
                 total_rounds = max(total_rounds, sub.round_number)
             
             # 计算实际参与的轮次数
@@ -1240,7 +1246,8 @@ def generate_student_report(student_id):
             for sub in submissions:
                 if sub.is_correct and sub.round_number not in invalid_rounds:
                     r = next((rr for rr in rounds if rr.round_number == sub.round_number), None)
-                    student_total_score += (r.question_score if r and r.question_score else 1)
+                    base = (r.question_score if r and r.question_score else 1)
+                    student_total_score += base + _bonus_extra(sub, base)
 
             # 班级平均准确率/参与率/分数
             # 按学生聚合
@@ -1259,7 +1266,8 @@ def generate_student_report(student_id):
                 if s.is_correct:
                     student_correct_rounds[s.student_id].add(s.round_number)
                     r = next((rr for rr in rounds if rr.round_number == s.round_number), None)
-                    student_scores[s.student_id] += (r.question_score if r and r.question_score else 1)
+                    base = (r.question_score if r and r.question_score else 1)
+                    student_scores[s.student_id] += base + _bonus_extra(s, base)
 
             # 平均准确率 - 按轮次计算
             if student_total_rounds:
@@ -1514,10 +1522,8 @@ def student_report_center(student_id):
                             course_id=course.id,
                             round_number=s.round_number
                         ).first()
-                        if round_obj:
-                            total_score += round_obj.question_score
-                        else:
-                            total_score += 1
+                        base = round_obj.question_score if round_obj else 1
+                        total_score += base + _bonus_extra(s, base)
                 
                 # 计算参与率（基于轮次数）
                 participation_rate = (total_rounds / all_rounds * 100) if all_rounds > 0 else 100
@@ -1538,10 +1544,8 @@ def student_report_center(student_id):
                                 course_id=course.id,
                                 round_number=s.round_number
                             ).first()
-                            if round_obj:
-                                class_score += round_obj.question_score
-                            else:
-                                class_score += 1
+                            base = round_obj.question_score if round_obj else 1
+                            class_score += base + _bonus_extra(s, base)
                     student_scores[class_student.id] = class_score
                 
                 # 计算排名 - 正确的方法是统计比当前学生分数高的学生数
@@ -1969,6 +1973,31 @@ def _sync_course_attendance(student, is_absent):
     return course
 
 
+def _submission_points(sub, base_score):
+    """本轮计入总分的分数。答对得题分；最后一名答对则题分 x2；最快答对再 +1；最后减去扣分。"""
+    points = int(base_score or 0)
+    if points and sub is not None and getattr(sub, 'is_correct', False):
+        if int(getattr(sub, 'double_bonus', 0) or 0):
+            points *= 2
+        if int(getattr(sub, 'speed_bonus', 0) or 0):
+            points += 1
+    penalty = int(getattr(sub, 'penalty_score', 0) or 0) if sub is not None else 0
+    return points - penalty
+
+
+def _bonus_extra(sub, base_score):
+    """相对原题分多出来的奖励分，不含扣分。"""
+    points = int(base_score or 0)
+    if not points or sub is None or not getattr(sub, 'is_correct', False):
+        return 0
+    extra = 0
+    if int(getattr(sub, 'double_bonus', 0) or 0):
+        extra += points
+    if int(getattr(sub, 'speed_bonus', 0) or 0):
+        extra += 1
+    return extra
+
+
 def _student_course_score(student_id, course_id):
     """按与课堂一致的规则计算某学生本课总分"""
     total_score = 0
@@ -1985,7 +2014,7 @@ def _student_course_score(student_id, course_id):
             ).first()
             base = round_obj.question_score if round_obj else 1
             correct_rounds += 1
-        total_score += base - (sub.penalty_score or 0)
+        total_score += _submission_points(sub, base)
     total_rounds = len(set(sub.round_number for sub in submissions))
     return total_score, total_rounds, correct_rounds
 
@@ -2313,6 +2342,8 @@ def get_classroom_data():
             total_score = 0
             total_rounds = 0
             correct_rounds = 0
+            current_speed_bonus = 0
+            current_double_bonus = 0
             
             if course:
                 submissions = StudentSubmission.query.filter_by(student_id=student.id, course_id=course.id).all()
@@ -2325,7 +2356,10 @@ def get_classroom_data():
                         else:
                             base = 1
                         correct_rounds += 1
-                    total_score += base - (sub.penalty_score or 0)
+                    total_score += _submission_points(sub, base)
+                    if sub.round_number == course.current_round:
+                        current_speed_bonus = int(getattr(sub, 'speed_bonus', 0) or 0)
+                        current_double_bonus = int(getattr(sub, 'double_bonus', 0) or 0)
                 total_rounds = len(set(sub.round_number for sub in submissions))
             
             students_data[student.name] = {
@@ -2338,7 +2372,9 @@ def get_classroom_data():
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
                 'last_answer': '',
-                'last_answer_time': 0
+                'last_answer_time': 0,
+                'speed_bonus': current_speed_bonus,
+                'double_bonus': current_double_bonus,
             }
         
         # 获取请假学生数据
@@ -2512,7 +2548,7 @@ def judge_answers():
         
         # 评判所有学生的答案
         students_list = Student.query.filter_by(class_id=class_id, status='active').all()
-        students_data = {}
+        evaluations = []
         
         for student in students_list:
             submission = StudentSubmission.query.filter_by(
@@ -2542,7 +2578,7 @@ def judge_answers():
                             base = round_obj.question_score
                         else:
                             base = 1
-                    historical_score += base - (sub.penalty_score or 0)
+                    historical_score += _submission_points(sub, base)
             
             # 历史正确轮次数（同一轮次只算一次）
             historical_correct_rounds = len([r for r in historical_rounds if 
@@ -2552,9 +2588,9 @@ def judge_answers():
             expression = 'neutral'
             last_answer = ''
             last_answer_time = 0
-            current_round_score = 0
             is_current_correct = False
             
+            penalty = 0
             if submission:
                 penalty = submission.penalty_score or 0
                 ans_raw = submission.answer or ''
@@ -2567,8 +2603,6 @@ def judge_answers():
                 else:
                     is_current_correct = False
                     submission.is_correct = False
-                base_score = question_score if is_current_correct else 0
-                current_round_score = base_score - penalty
                 if is_current_correct:
                     expression = 'smile'
                 elif has_answer:
@@ -2582,28 +2616,74 @@ def judge_answers():
                 print(f"⚠️ 学生 {student.name} 在轮次 {course.current_round} 没有提交答案")
                 expression = 'embarrassed'
             
-            # 计算总分数和轮次（扣分可能导致分数为负）
-            total_score = historical_score + current_round_score
-            # total_rounds: 课程的总轮次数（包括未参与的轮次），用于计算准确率
-            # 准确率 = 正确轮次数 / 课程总轮次数
-            total_rounds = course.current_round  # 使用当前课程的总轮次
+            evaluations.append({
+                'student': student,
+                'submission': submission,
+                'historical_score': historical_score,
+                'historical_correct_rounds': historical_correct_rounds,
+                'expression': expression,
+                'last_answer': last_answer,
+                'last_answer_time': last_answer_time,
+                'is_current_correct': is_current_correct,
+                'penalty': penalty,
+            })
+
+        historical_scores = [item['historical_score'] for item in evaluations]
+        min_score = min(historical_scores) if historical_scores else 0
+        max_score = max(historical_scores) if historical_scores else 0
+        # 全班分数都一样时没有单独的最后一名，不发 x2
+        has_distinct_last = len(historical_scores) > 1 and min_score < max_score
+        best_time = None
+        for item in evaluations:
+            if not item['is_current_correct']:
+                continue
+            try:
+                answer_time = round(float(item['last_answer_time']), 3)
+            except (TypeError, ValueError):
+                continue
+            if answer_time < 0:
+                continue
+            item['answer_time_key'] = answer_time
+            if best_time is None or answer_time < best_time:
+                best_time = answer_time
+
+        students_data = {}
+        for item in evaluations:
+            student = item['student']
+            submission = item['submission']
+            speed_bonus = 0
+            double_bonus = 0
+            if item['is_current_correct']:
+                if best_time is not None and item.get('answer_time_key') == best_time:
+                    speed_bonus = 1
+                if has_distinct_last and item['historical_score'] == min_score:
+                    double_bonus = 1
+            if submission is not None:
+                submission.speed_bonus = speed_bonus
+                submission.double_bonus = double_bonus
+            base_score = question_score if item['is_current_correct'] else 0
+            current_round_score = _submission_points(submission, base_score) if submission is not None else 0
+            total_score = item['historical_score'] + current_round_score
+            total_rounds = course.current_round
             if submission:
-                correct_rounds = historical_correct_rounds + (1 if is_current_correct else 0)
+                correct_rounds = item['historical_correct_rounds'] + (1 if item['is_current_correct'] else 0)
             else:
-                # 没有提交记录，正确轮次不变（未作答算作错误）
-                correct_rounds = historical_correct_rounds
-            
+                correct_rounds = item['historical_correct_rounds']
+            if speed_bonus or double_bonus:
+                print(f"🎁 {student.name} 奖励 speed={speed_bonus} double={double_bonus} 本轮得分={current_round_score}")
             students_data[student.name] = {
                 'name': student.name,
                 'id': student.id,
                 'score': total_score,
                 'total_rounds': total_rounds,
                 'correct_rounds': correct_rounds,
-                'expression': expression,
+                'expression': item['expression'],
                 'animation': 'none',
                 'avatar_color': '#4ecdc4',
-                'last_answer': last_answer,
-                'last_answer_time': last_answer_time
+                'last_answer': item['last_answer'],
+                'last_answer_time': item['last_answer_time'],
+                'speed_bonus': speed_bonus,
+                'double_bonus': double_bonus,
             }
         
         db.session.commit()
@@ -2689,7 +2769,7 @@ def next_round():
                         base = round_obj.question_score
                     else:
                         base = 1
-                total_score += base - (sub.penalty_score or 0)
+                total_score += _submission_points(sub, base)
             
             # total_rounds: 课程的总轮次数（包括未参与的轮次）
             # correct_rounds: 正确答题的轮次数（同一轮次只算一次）
@@ -2892,7 +2972,7 @@ def ceremony(course_id):
                         base = round_obj.question_score
                     else:
                         base = 1
-                total_score += base - (sub.penalty_score or 0)
+                total_score += _submission_points(sub, base)
             
             student_scores.append({
                 'name': student.name,
