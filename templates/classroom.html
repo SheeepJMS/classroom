@@ -756,7 +756,7 @@ function roundAnswerTime(value) {
 }
 
 // BINGO 后的临时荣誉：第一名皇冠和 Top 1，最快答对墨镜和 first blood。
-// 最快答对在头像右侧标 bonus +1，最后一名答对标 bonus x2。标记不改变卡片高度。
+// 最快答对在头像右侧标 bonus +1，唯一倒数第一答对标 bonus x2。标记不改变卡片高度。
 function syncBingoHonors() {
     const grid = document.getElementById('studentsGrid');
     if (!grid) return;

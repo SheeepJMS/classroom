@@ -266,7 +266,7 @@ class StudentSubmission(db.Model):
     distracted_count = db.Column(db.Integer, default=0, nullable=True)  # 分心次数
     penalty_score = db.Column(db.Integer, default=0, nullable=True)  # 扣分总数
     speed_bonus = db.Column(db.Integer, default=0, nullable=True)  # 本轮最快答对 +1
-    double_bonus = db.Column(db.Integer, default=0, nullable=True)  # 本轮最后一名答对，题分 x2
+    double_bonus = db.Column(db.Integer, default=0, nullable=True)  # 唯一倒数第一且本轮答对，题分 x2
 
 class CourseAttendance(db.Model):
     """课程出勤模型"""
@@ -1974,7 +1974,7 @@ def _sync_course_attendance(student, is_absent):
 
 
 def _submission_points(sub, base_score):
-    """本轮计入总分的分数。答对得题分；最后一名答对则题分 x2；最快答对再 +1；最后减去扣分。"""
+    """本轮计入总分的分数。答对得题分；唯一倒数第一答对则题分 x2；最快答对再 +1；最后减去扣分。"""
     points = int(base_score or 0)
     if points and sub is not None and getattr(sub, 'is_correct', False):
         if int(getattr(sub, 'double_bonus', 0) or 0):
@@ -2631,8 +2631,15 @@ def judge_answers():
         historical_scores = [item['historical_score'] for item in evaluations]
         min_score = min(historical_scores) if historical_scores else 0
         max_score = max(historical_scores) if historical_scores else 0
-        # 全班分数都一样时没有单独的最后一名，不发 x2
+        # 全班分数都一样时没有单独的倒数第一，不发 x2
         has_distinct_last = len(historical_scores) > 1 and min_score < max_score
+        # 倒数第一且本轮答对的只能有 1 人。并列倒数且 2 人及以上答对时，全部不发
+        last_correct_count = 0
+        if has_distinct_last:
+            for item in evaluations:
+                if item['is_current_correct'] and item['historical_score'] == min_score:
+                    last_correct_count += 1
+        award_double_bonus = has_distinct_last and last_correct_count == 1
         best_time = None
         for item in evaluations:
             if not item['is_current_correct']:
@@ -2656,7 +2663,7 @@ def judge_answers():
             if item['is_current_correct']:
                 if best_time is not None and item.get('answer_time_key') == best_time:
                     speed_bonus = 1
-                if has_distinct_last and item['historical_score'] == min_score:
+                if award_double_bonus and item['historical_score'] == min_score:
                     double_bonus = 1
             if submission is not None:
                 submission.speed_bonus = speed_bonus
